@@ -1,3 +1,24 @@
+## Buffer-associated live-preview APK PUBLISHED (2026-11-03)
+
+[Download latest preview APK](https://github.com/islamyousuf032-glitch/New-cc/releases/download/fresh-install-41651466328/owncut-fresh-install-debug.apk).
+Source182bbc1db57438148ca197969b11b7b02458328b; Android41651466328 and Portable41651466348
+PASS. Assembly, lint, instrumentation-source compilation, APK alignment and publication
+passed. Device/emulator/instrumentation execution/install-over NOT run. GitHub release
+API:8,108,483bytes, SHA256
+`9704f8bb6ed3a80cf0d197d62ec5fe956e2571ec32031d3651cc6c0af90ce562`;
+no independent local APK rehash claimed.
+
+ADR0037 binds immutable decoded metadata to Media3's buffer-associated format event rather
+than polling newer asynchronous codec state. Native checks still run before every frame;
+invalid/missing/change/malformed and closed states stay terminal. Details now identifies
+version/code/revision (`182bbc1db574`), geometry-sequence-v2 and SDK, with explicit bilingual
+Copy report. Crop/HDR/export safeguards retained. Local Make6, actual pinned Kotlin/JNI
+including100-frame sequence, clear/change/malformed/close tests,27 Python policies and
+344 bilingual/3themes/17labels PASS. User screenshot still shows REFERENCE ONLY and provided
+exception lacks prior-stage diagnostics: installed build identity and phone failure cause
+remain unconfirmed. No phone live playback/grading/10bit/output parity claimed. Fresh temp
+signer: back up before required uninstall; update continuity not guaranteed.25%/75%.
+
 ## Crop-aware preview APK PUBLISHED (2026-11-03)
 
 [Download geometry-fix APK](https://github.com/islamyousuf032-glitch/New-cc/releases/download/fresh-install-41650076264/owncut-fresh-install-debug.apk).
