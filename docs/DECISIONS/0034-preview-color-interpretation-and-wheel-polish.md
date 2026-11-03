@@ -76,3 +76,12 @@ color integers are normalized to NO_VALUE there. Our independent mapping recogni
 exact unset sentinels0/-1/null as UNKNOWN (not SDR); other unsupported codes remain OTHER.
 Added Android source regression confirms unset tags still fail strict native admission.
 No claim that the user's actual integer tags are0/-1: bytes/probe report still unavailable.
+
+
+Opt-in interpretation is explicitly forwarded through the public MediaCodecVideoRenderer
+changeVideoSinkInputStream hook to the video graph (official1.8.1 implementation inspected),
+not just used to satisfy admission. Existing bit-depth fields are preserved, not promoted to
+proof. Known graph-input conflicts still invalidate the gate. Default mode forwards the
+original Format unchanged. Old video surface is hidden during recreate/failure until a new
+first-frame event; video readiness is no longer confused with an available reference bitmap.
+Assumption warning stays visible during adjustment as well as Before and ready states.

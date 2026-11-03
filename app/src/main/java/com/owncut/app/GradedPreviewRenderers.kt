@@ -3,6 +3,8 @@ package com.owncut.app
 import android.content.Context
 import android.media.MediaFormat
 import android.os.Handler
+import androidx.media3.common.C
+import androidx.media3.common.ColorInfo
 import androidx.media3.common.Format
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.util.UnstableApi
@@ -14,6 +16,7 @@ import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.video.MediaCodecVideoRenderer
 import androidx.media3.exoplayer.video.PlaybackVideoGraphWrapper
 import androidx.media3.exoplayer.video.VideoFrameReleaseControl
+import androidx.media3.exoplayer.video.VideoSink
 import androidx.media3.exoplayer.video.VideoRendererEventListener
 import java.nio.ByteBuffer
 
@@ -39,6 +42,28 @@ internal class GradedPreviewRenderers(context: Context, private val prepared: Gr
                 PlaybackVideoGraphWrapper.Builder(context,videoFrameReleaseControl)
                     .setVideoGraphFactory(SingleInputVideoGraph.Factory(prepared.factory))
                     .setEnablePlaylistMode(true).setClock(getClock()).build()
+
+            override fun changeVideoSinkInputStream(videoSink: VideoSink, inputType: Int,
+                format: Format, firstFrameReleaseInstruction: Int) {
+                if(!interpretMissing) {
+                    super.changeVideoSinkInputStream(videoSink,inputType,format,firstFrameReleaseInstruction)
+                    return
+                }
+                try {
+                    val color=PreviewColorPolicy.decoded(VideoSourceProbe.color(format.colorInfo),source.color,true)
+                    require(color==source.color) { "Video graph input conflicts with preview interpretation: $color" }
+                    // Explicitly carry the user's interpretation into the graph, not just the
+                    // admission gate. Preserve bit-depth fields; this is NOT measured source info.
+                    val builder=format.colorInfo?.buildUpon() ?: ColorInfo.Builder()
+                    val interpreted=builder.setColorSpace(C.COLOR_SPACE_BT709).setColorTransfer(C.COLOR_TRANSFER_SDR)
+                        .setColorRange(if(color.range==ColorEngine.VideoRange.FULL) C.COLOR_RANGE_FULL else C.COLOR_RANGE_LIMITED).build()
+                    super.changeVideoSinkInputStream(videoSink,inputType,
+                        format.buildUpon().setColorInfo(interpreted).build(),firstFrameReleaseInstruction)
+                } catch(error: Exception) {
+                    gate.invalidate()
+                    throw createRendererException(error,format,PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED)
+                }
+            }
 
             override fun onOutputFormatChanged(format: Format, mediaFormat: MediaFormat?) {
                 try {

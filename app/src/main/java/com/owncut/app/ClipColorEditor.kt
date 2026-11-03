@@ -224,15 +224,17 @@ internal object ClipColorEditor {
             if(closed.get()) return
             revision++;original=null
             inlineSource=metadata;probedSource=metadata;inlineFrameReady=false
+            videoTexture.alpha=0f;preview.visibility=android.view.View.VISIBLE
+            caption.text=AppLanguage.text(if(interpretMissing) R.string.color_assumed_frame else R.string.color_frame_loading)
             inputColor.isEnabled=PreviewColorPolicy.canInterpret(metadata.color)
             statusRow.visibility=android.view.View.VISIBLE
             compare.isEnabled=false
             inline?.close()
             val controller=InlineGradePreview(activity,videoTexture,clip,metadata,positionMs,{
                 if(!closed.get()) {
-                    inlineFrameReady=true
+                    inlineFrameReady=true;videoTexture.alpha=1f
                     preview.visibility=android.view.View.INVISIBLE;empty.visibility=android.view.View.GONE
-                    compare.isEnabled=true;hasReference=true;lastFailure=null;details.visibility=android.view.View.GONE
+                    compare.isEnabled=true;lastFailure=null;details.visibility=android.view.View.GONE
                     caption.text=videoCaption()
                     status.text=AppLanguage.text(R.string.color_inline_ready)
                     statusRow.visibility=android.view.View.GONE
@@ -241,6 +243,8 @@ internal object ClipColorEditor {
                 }
             },{ error ->
                 inline?.close();inline=null;inlineFrameReady=false
+                videoTexture.alpha=0f
+                caption.text=AppLanguage.text(if(hasReference) R.string.color_frame_reference else R.string.color_frame_empty)
                 preview.visibility=android.view.View.VISIBLE;compare.isEnabled=false
                 if(!closed.get()) { showFailure(error);updateButtons() }
             },interpretMissing)
@@ -312,7 +316,7 @@ internal object ClipColorEditor {
         fun changed() {
             revision++;if(inline==null) compare.isEnabled=false
             if(inline!=null || original!=null || lastFailure==null) status.text=AppLanguage.text(R.string.color_draft_changed)
-            if(original!=null || inline!=null) caption.text=AppLanguage.text(R.string.color_frame_updating)
+            if(original!=null || inline!=null) caption.text=AppLanguage.text(if(interpretMissing) R.string.color_assumed_frame else R.string.color_frame_updating)
             requestRender()
         }
         inputs.forEachIndexed { index,input -> input.onValue={ value -> values[index]=value;labels();changed() } }
