@@ -2,7 +2,7 @@
 
 User says734b947 improved but wheel live preview still fails; no new phone trace. ADR0035
 fixes provable trailing-debounce and CPU-frame discard starvation, adds latest-only GPU
-work acknowledged by actual shader draw and bounded muted paused-frame decoding. Play uses
+work acknowledged by actual shader draw and public cached paused-frame redraw. Play uses
 inline draft so controls remain accessible. Focused one-wheel UI replaces four competing
 cards; shared compact controls and accessible icon actions. Source/HDR/Input safeguards
 unchanged. Actual pinned Kotlin/JVM/JNI queue/old-policy tests and343 resources PASS;

@@ -145,6 +145,16 @@ class ColorEditorInteractionTest {
         }
     }
 
+    @Test fun liveRecipeChangesKeepTheEffectAndProcessorIdentity() {
+        val initial=ColorEngine.shaderSources(ColorGrade(),ColorEngine.TextureEncoding.MEDIA3_SDR_709)
+        val live=GradedFramePipeline.LivePrepared(initial) { }
+        val effect=live.prepared.effect
+        val factory=live.prepared.factory
+        live.update(ColorEngine.shaderSources(ColorGrade(exposureStops=1.0),ColorEngine.TextureEncoding.MEDIA3_SDR_709)) { }
+        assertSame(effect,live.prepared.effect)
+        assertSame(factory,live.prepared.factory)
+    }
+
     @Test fun failedCommitDoesNotPretendToSaveOrDismiss() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->

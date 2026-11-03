@@ -25,6 +25,7 @@ internal class InlineGradePreview(
     private val main=android.os.Handler(android.os.Looper.getMainLooper())
     private val work=PreviewWorkQueue()
     private var player: ExoPlayer?=null
+    private var livePipeline: GradedFramePipeline.LivePrepared?=null
     private var closed=false
     private var stopped=false
     private var grade=clip.grade
@@ -38,7 +39,6 @@ internal class InlineGradePreview(
     private var surfaceTimeout: Runnable?=null
     private val pump=Runnable { applyLatest() }
     private var anchor=PreviewProgress.clipRelative(positionMs,clip.sourceInMs,clip.sourceOutMs)
-    private var seekForward=false
     val isPlaying get()=userPlaying
     init { activity.application.registerActivityLifecycleCallbacks(this) }
     fun update(settings: ColorGrade, original: Boolean) {
@@ -49,6 +49,8 @@ internal class InlineGradePreview(
     }
     private fun applyLatest() {
         if(closed || stopped) return
+        // Do not flush/replay before the first ordinary frame populated the public cache.
+        if(player!=null && !surfaceReady) return
         val token=work.begin() ?: return
         val epoch=generation
         val initial=player==null
@@ -63,12 +65,11 @@ internal class InlineGradePreview(
             // First successful shader draw acknowledges exactly this immutable recipe.
             // One active request + one latest snapshot prevents endless seek/recompile churn.
             val acknowledged=java.util.concurrent.atomic.AtomicBoolean(false)
-            val prepared=GradedFramePipeline.prepare(ColorRenderPlan.PreparedClip(clip.copy(grade=selected),admitted,shaders)) {
+            val onDraw: () -> Unit = {
                 if(acknowledged.compareAndSet(false,true)) main.post {
                     if(!closed && !stopped && epoch==generation && work.finish(token)) {
                         timeout?.let { main.removeCallbacks(it) };timeout=null
                         drawn=true;drawnBefore=selectedBefore
-                        if(!userPlaying && surfaceReady) player?.pause()
                         if(surfaceReady) onFrame(drawnBefore,work.pending)
                         if(work.pending) main.postDelayed(pump,66)
                     }
@@ -81,17 +82,17 @@ internal class InlineGradePreview(
             timeout=deadline;main.postDelayed(deadline,if(initial) 10000 else 5000)
             val current=player
             if(current!=null) {
-                current.setVideoEffects(listOf(prepared.effect))
+                requireNotNull(livePipeline).update(shaders,onDraw)
                 if(!userPlaying) {
-                    seekForward=!seekForward
-                    current.volume=0f
-                    current.seekTo(PreviewProgress.freshFramePosition(anchor,clip.sourceOutMs-clip.sourceInMs,seekForward))
-                    // A tiny paused seek may be optimized away by the player/codec. Decode
-                    // muted until this recipe actually draws, then pause. Never edit timing.
-                    current.play()
+                    // Public sentinel keeps the stable effect list. The owned cache replays
+                    // the last admitted input through the updated native shader recipe.
+                    current.setVideoEffects(androidx.media3.common.VideoFrameProcessor.REDRAW)
                 }
                 return
             }
+            val pipeline=GradedFramePipeline.LivePrepared(shaders,onDraw)
+            livePipeline=pipeline
+            val prepared=pipeline.prepared
             val p=ExoPlayer.Builder(activity.applicationContext,GradedPreviewRenderers(activity.applicationContext,prepared,admitted,interpretMissing)).build()
             player=p;surfaceReady=false;drawn=false
             p.setAudioAttributes(AudioAttributes.DEFAULT,true)
@@ -102,9 +103,9 @@ internal class InlineGradePreview(
                         surfaceReady=true
                         surfaceTimeout?.let { main.removeCallbacks(it) };surfaceTimeout=null
                         if(drawn) {
-                            if(!userPlaying && work.active==null) p.pause()
                             onFrame(drawnBefore,work.pending)
                         }
+                        if(work.pending) main.postDelayed(pump,66)
                     }
                 }
                 override fun onVideoSizeChanged(size: VideoSize) {
@@ -119,13 +120,16 @@ internal class InlineGradePreview(
                     failed(IllegalStateException("Timed out waiting for the preview surface first frame; Refresh to retry"))
             }
             surfaceTimeout=revealDeadline;main.postDelayed(revealDeadline,10000)
-            p.seekTo(anchor);p.volume=if(userPlaying) 1f else 0f;p.playWhenReady=true;p.prepare()
+            p.seekTo(anchor);p.playWhenReady=userPlaying;p.prepare()
         } catch(error: Exception) { failed(error) }
     }
     fun togglePlaying() {
         try { player?.let { p ->
-            userPlaying=!userPlaying;p.volume=if(userPlaying) 1f else 0f
-            if(userPlaying || work.active!=null) p.play() else p.pause()
+            userPlaying=!userPlaying
+            if(userPlaying) p.play() else {
+                p.pause()
+                if(work.active!=null && surfaceReady) p.setVideoEffects(androidx.media3.common.VideoFrameProcessor.REDRAW)
+            }
             if(!userPlaying) anchor=p.currentPosition.coerceIn(0,clip.sourceOutMs-clip.sourceInMs-1)
         } } catch(error: Exception) { failed(error) }
     }
@@ -133,7 +137,7 @@ internal class InlineGradePreview(
         generation++;work.cancel();main.removeCallbacks(pump)
         timeout?.let { main.removeCallbacks(it) };timeout=null
         surfaceTimeout?.let { main.removeCallbacks(it) };surfaceTimeout=null
-        val old=player;player=null;userPlaying=false;surfaceReady=false;drawn=false
+        val old=player;player=null;livePipeline=null;userPlaying=false;surfaceReady=false;drawn=false
         try { old?.release() } catch(error: Exception) { android.util.Log.e("OwncutInlineGrade","Preview release failed",error) }
     }
     private fun failed(error: Exception) { release();if(!closed) onFailure(error) }

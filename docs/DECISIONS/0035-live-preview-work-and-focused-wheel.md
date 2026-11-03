@@ -38,15 +38,23 @@ GPU PreviewWorkQueue admits one active immutable shader recipe and one latest sn
 Each recipe acknowledges through its own once-only successful GL draw callback, posted to
 main, checked by request token + player generation. Subsequent changes do not cancel active
 frame work. Stale callbacks after close/background/cancel cannot complete new requests.
-User Play/Pause is separate from transport pump state. Paused edits set volume0, seek around
-stable bounded anchor and temporarily decode until the requested shader draws, then pause.
-This avoids relying solely on a1ms seek while paused. Initial10s/subsequent5s draw deadlines
-fail visibly and release resources; no infinite hidden playback on shader failure. Stop/
-close remove pump/deadline callbacks, invalidate ownership and release codec/audio. Resume
-recreates paused. This is preview transport only, no project timing/history edits. Frame
-advancement around anchor is possible; not frame-exact frozen-cache replay. First reveal
-still requires the player's first rendered frame AND a shader draw. GL draw acknowledgement
+
+Final approach uses official Media3 1.8.1 public APIs: Factory.Builder.setEnableReplayableCache
+and ExoPlayer.setVideoEffects(VideoFrameProcessor.REDRAW). One stable LivePrepared effect
+owns an atomic immutable native shader recipe; the GL owner compiles/swaps programs on draw,
+cleaning replaced programs. Effect list stays unchanged during adjustment, so the cache is
+not drained by a new input stream. Paused changes redraw cached admitted input without seek,
+clock advance, auto-play or audio pump. Playing updates use natural frames. Cache applies
+ONLY to inline preview; export/other static pipelines retain default cache-off factories.
+First redraw waits for the ordinary first-frame event to populate the cache. Source/decoder
+format checks still apply on every newly rendered decoder buffer; cached input is previously
+admitted input, not a synthesized source descriptor. Deadlines10s(initial)/5s(update) fail
+visibly if no shader draw; separate10s first-surface deadline. Close/stop invalidate tokens,
+remove callbacks, release player and its owned cache. Resume recreates paused. GL callback
 is not independent phone/display verification, performance measurement or output parity.
+Official ReplayableFrameCacheGlShaderProgram uses capacity2; this increases GPU memory/power
+(especially4K) and is not a demonstrated10-bit path. Frame-exact visual acceptance remains
+unmeasured on the user's phone even though the public cache supports precise redraw.
 Known source/HDR gates and explicit preview-only Input interpretation remain ADR0034.
 
 Play from a probed still editor starts inline playback using current draft (instead of
@@ -71,3 +79,16 @@ pausing immediately on upstream GL draw alone could race the first visible outpu
 10s surface deadline is canceled only by that surface event/release, not shader completion.
 Subsequent paused requests already have a surface and pause on their own acknowledged draw.
 This is implemented lifecycle ordering, not phone proof of visible output or audio behavior.
+
+
+### Research correction / final public replay path
+The earlier candidate in this batch used a bounded muted decoder pump. Deeper official
+1.8.1 source inspection found the public redraw sentinel/cache API; it is superseded before
+delivery. Also inspected why replacing effect lists signals EOS and clears cached frames:
+keep one effect and update its atomically published native recipe instead. No reflection,
+private-class construction or proprietary code is used. Relevant official source paths:
+`libraries/{common/.../VideoFrameProcessor,exoplayer/.../MediaCodecVideoRenderer,
+effect/.../DefaultVideoFrameProcessor,effect/.../ReplayableFrameCacheGlShaderProgram}.java`.
+The two-buffer cache is owned/released by the existing video graph. Runtime tests of exact
+paused-frame display/GPU resource behavior remain pending. Added Android test source asserts
+live recipe updates retain effect/factory identity; it is not runtime GPU evidence.
