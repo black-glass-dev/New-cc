@@ -431,7 +431,7 @@ internal object ClipColorEditor {
                 main.post { if(!closed.get() && inline==null) {
                     if(metadata!=null) {
                         statusRow.visibility=android.view.View.VISIBLE
-            lastFailure=ColorPreviewFailure.describe(error)
+                        lastFailure=ColorPreviewFailure.describe(error)
                         startInline(metadata)
                     } else showFailure(error)
                 } }
