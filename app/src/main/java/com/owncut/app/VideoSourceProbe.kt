@@ -49,11 +49,11 @@ internal object VideoSourceProbe {
         val retriever=androidx.media3.exoplayer.MetadataRetriever.Builder(context,
             androidx.media3.common.MediaItem.fromUri(source.mediaId)).build()
         val future=retriever.retrieveTrackGroups()
-        val formats=try {
+        val formats: List<androidx.media3.common.Format> = try {
             cancelled()
             val tracks=future.get(8,java.util.concurrent.TimeUnit.SECONDS)
             cancelled()
-            buildList {
+            buildList<androidx.media3.common.Format> {
                 for(g in 0 until tracks.length) for(t in 0 until tracks[g].length) {
                     val f=tracks[g].getFormat(t)
                     if(f.sampleMimeType?.startsWith("video/")==true) add(f)
