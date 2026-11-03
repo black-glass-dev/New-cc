@@ -35,6 +35,7 @@ internal class InlineGradePreview(
     private var drawnBefore=false
     private var generation=0L
     private var timeout: Runnable?=null
+    private var surfaceTimeout: Runnable?=null
     private val pump=Runnable { applyLatest() }
     private var anchor=PreviewProgress.clipRelative(positionMs,clip.sourceInMs,clip.sourceOutMs)
     private var seekForward=false
@@ -67,7 +68,7 @@ internal class InlineGradePreview(
                     if(!closed && !stopped && epoch==generation && work.finish(token)) {
                         timeout?.let { main.removeCallbacks(it) };timeout=null
                         drawn=true;drawnBefore=selectedBefore
-                        if(!userPlaying) player?.pause()
+                        if(!userPlaying && surfaceReady) player?.pause()
                         if(surfaceReady) onFrame(drawnBefore,work.pending)
                         if(work.pending) main.postDelayed(pump,66)
                     }
@@ -97,7 +98,14 @@ internal class InlineGradePreview(
             p.addListener(object: Player.Listener {
                 override fun onPlayerError(error: PlaybackException) { if(player===p) failed(error) }
                 override fun onRenderedFirstFrame() {
-                    if(!closed && player===p) { surfaceReady=true;if(drawn) onFrame(drawnBefore,work.pending) }
+                    if(!closed && player===p) {
+                        surfaceReady=true
+                        surfaceTimeout?.let { main.removeCallbacks(it) };surfaceTimeout=null
+                        if(drawn) {
+                            if(!userPlaying && work.active==null) p.pause()
+                            onFrame(drawnBefore,work.pending)
+                        }
+                    }
                 }
                 override fun onVideoSizeChanged(size: VideoSize) {
                     if(player===p) texture.setVideoSize((size.width*size.pixelWidthHeightRatio).toInt().coerceAtLeast(1),size.height)
@@ -106,6 +114,11 @@ internal class InlineGradePreview(
             p.setVideoTextureView(texture);p.setVideoEffects(listOf(prepared.effect));p.repeatMode=Player.REPEAT_MODE_ONE
             p.setMediaItem(MediaItem.Builder().setUri(clip.mediaId).setClippingConfiguration(
                 MediaItem.ClippingConfiguration.Builder().setStartPositionMs(clip.sourceInMs).setEndPositionMs(clip.sourceOutMs).build()).build())
+            val revealDeadline=Runnable {
+                if(!closed && epoch==generation && !surfaceReady)
+                    failed(IllegalStateException("Timed out waiting for the preview surface first frame; Refresh to retry"))
+            }
+            surfaceTimeout=revealDeadline;main.postDelayed(revealDeadline,10000)
             p.seekTo(anchor);p.volume=if(userPlaying) 1f else 0f;p.playWhenReady=true;p.prepare()
         } catch(error: Exception) { failed(error) }
     }
@@ -119,6 +132,7 @@ internal class InlineGradePreview(
     private fun release() {
         generation++;work.cancel();main.removeCallbacks(pump)
         timeout?.let { main.removeCallbacks(it) };timeout=null
+        surfaceTimeout?.let { main.removeCallbacks(it) };surfaceTimeout=null
         val old=player;player=null;userPlaying=false;surfaceReady=false;drawn=false
         try { old?.release() } catch(error: Exception) { android.util.Log.e("OwncutInlineGrade","Preview release failed",error) }
     }

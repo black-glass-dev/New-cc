@@ -63,3 +63,11 @@ phone continuous drag paused/playing, latest release position, audio silence, de
 background/close during prepare, source/HDR refusal, small portrait/landscape and reduced
 animation. Subjective polish still user acceptance. No10-bit/export proof or readiness credit;
 25% complete /75% remaining.
+
+
+### First-surface race review
+Initial muted decode must continue until BOTH shader draw and player first-surface event;
+pausing immediately on upstream GL draw alone could race the first visible output. Separate
+10s surface deadline is canceled only by that surface event/release, not shader completion.
+Subsequent paused requests already have a surface and pause on their own acknowledged draw.
+This is implemented lifecycle ordering, not phone proof of visible output or audio behavior.
