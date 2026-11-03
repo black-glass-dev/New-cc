@@ -12,6 +12,7 @@ val hasSigning = !signingPath.isNullOrBlank()
 if (providers.gradleProperty("requireStableSigning").orNull == "true") require(hasSigning) { "Stable signing is required for downloadable patches" }
 
 android {
+    buildFeatures { buildConfig = true }
     namespace = "com.owncut.app"
     compileSdk = 36
     ndkVersion = "28.2.13676358"
@@ -22,6 +23,7 @@ android {
         targetSdk = 36
         versionCode = patchCode
         versionName = "0.2.$patchCode"
+        buildConfigField("String", "PREVIEW_REVISION", "\"" + providers.environmentVariable("GITHUB_SHA").orElse("local").get().filter { it.isLetterOrDigit() }.take(12) + "\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
         externalNativeBuild {

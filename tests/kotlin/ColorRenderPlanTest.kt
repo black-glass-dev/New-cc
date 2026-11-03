@@ -43,6 +43,30 @@ fun main() {
             .divide(java.math.BigInteger.valueOf(1000)).longValueExact()
         check(PreviewProgress.position(Long.MAX_VALUE,p)==exact)
     }
+    run {
+        val expected=ColorEngine.DecodedVideoFormat(2880,2160,
+            ColorEngine.VideoColorMetadata(ColorEngine.VideoPrimaries.REC709,
+                ColorEngine.VideoTransfer.SDR_VIDEO,ColorEngine.VideoRange.LIMITED))
+        val sequence=DecoderOutputSequence(expected)
+        var reads=0
+        sequence.formatChanged { reads++;expected }
+        repeat(100) { sequence.beforeRender() }
+        check(reads==1)
+        sequence.clear()
+        check(runCatching { sequence.beforeRender() }.isFailure)
+        check(runCatching { sequence.formatChanged { expected } }.isFailure)
+        val changed=DecoderOutputSequence(expected)
+        changed.formatChanged { expected };changed.beforeRender()
+        check(runCatching { changed.formatChanged { expected.copy(height=2176) } }.isFailure)
+        check(runCatching { changed.beforeRender() }.isFailure)
+        val malformed=DecoderOutputSequence(expected)
+        check(runCatching { malformed.formatChanged { error("malformed crop") } }.isFailure)
+        check(runCatching { malformed.formatChanged { expected } }.isFailure)
+        val closed=DecoderOutputSequence(expected)
+        closed.close()
+        check(runCatching { closed.formatChanged { expected } }.isFailure)
+        println("Timestamp-bound output sequence: one transport read, repeated native guards, clear/change/malformed/close terminal PASS")
+    }
     println("Experimental preview seek transport: clip-relative progress and overflow-safe duration mapping passed")
     val supported=ColorEngine.VideoColorMetadata(ColorEngine.VideoPrimaries.REC709,
         ColorEngine.VideoTransfer.SDR_VIDEO,ColorEngine.VideoRange.LIMITED)

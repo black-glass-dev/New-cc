@@ -361,4 +361,5 @@
     <string name="color_assumed_frame">প্রিভিউ · অনুমিত Rec.709 SDR</string>
     <string name="color_assumed_before">আগে · অনুমিত Rec.709 SDR</string>
     <string name="color_grade_short">গ্রেড</string>
+    <string name="color_copy_report">রিপোর্ট কপি করুন</string>
 </resources>

@@ -57,7 +57,7 @@ if len(sys.argv) == 4:
         shutil.copyfile(library,Path(directory)/'libowncut_android.so')
         subprocess.run(['bash',str(kotlin_home/'bin/kotlinc'),
             *[str(root/'app/src/main/java/com/owncut/app'/name) for name in
-                ('ColorEngine.kt','TimelineSnapshot.kt','ColorRenderPlan.kt','DecoderColorGate.kt','PreviewProgress.kt','PreviewColorPolicy.kt')],
+                ('ColorEngine.kt','TimelineSnapshot.kt','ColorRenderPlan.kt','DecoderColorGate.kt','DecoderOutputSequence.kt','PreviewProgress.kt','PreviewColorPolicy.kt')],
             str(root/'tests/kotlin/ColorRenderPlanTest.kt'),'-Werror','-include-runtime','-d',str(jar)],env=env,check=True)
         subprocess.run([str(java_home/'bin/java'),'-Xcheck:jni','--enable-native-access=ALL-UNNAMED',
             '-Djava.library.path='+directory,'-jar',str(jar)],env=env,check=True)

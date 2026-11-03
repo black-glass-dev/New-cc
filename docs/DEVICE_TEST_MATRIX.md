@@ -755,3 +755,16 @@ Pinned official public source inspected (not copied):
 Local strict production JNI compile, actual pinned Kotlin2.3.21 -Werror, native geometry
 ASan+UBSan and27 Python policy tests PASS. Phone decoder output size/crop still unavailable;
 do not label the2176-high synthetic fixture a measured phone report. No10-bit output proof.
+
+## ADR0037 preview output-format sequencing (2026-11-03)
+
+User again reports no graded live frame/Play; screenshot is REFERENCE ONLY. Installed
+build identity is unconfirmed because supplied exception lacks ADR0036 diagnostics.
+Preview validation now follows Media3's buffer-associated output-format event, rather
+than polling potentially newer asynchronous codec state for each older buffer. Native
+validation still runs before every render; codec release clears the bound descriptor and
+invalid/missing/changed/malformed formats remain terminal. Details adds version/code/source
+revision/SDK and explicit bilingual Copy report. No telemetry, guessed geometry, source/HDR
+or export relaxation. Real Kotlin/JNI sequence regressions and344 bilingual/3theme/17label
+checks PASS; Android/phone pending. No measured phone root cause or10-bit output proof.
+Dependencies unchanged; domain C++ and narrow JNI retained. Readiness25%/75%.

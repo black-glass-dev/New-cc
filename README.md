@@ -600,3 +600,16 @@ No graph evaluation, UI-memory virtualization, Android ABI/device verification o
 install-over success is claimed. Readiness stays 25% credited / 75% remaining.
 APK publication remains gated by UPDATE_APKS; earlier delivery blockers are not fixed
 by this native refactor.
+
+## ADR0037 preview output-format sequencing (2026-11-03)
+
+User again reports no graded live frame/Play; screenshot is REFERENCE ONLY. Installed
+build identity is unconfirmed because supplied exception lacks ADR0036 diagnostics.
+Preview validation now follows Media3's buffer-associated output-format event, rather
+than polling potentially newer asynchronous codec state for each older buffer. Native
+validation still runs before every render; codec release clears the bound descriptor and
+invalid/missing/changed/malformed formats remain terminal. Details adds version/code/source
+revision/SDK and explicit bilingual Copy report. No telemetry, guessed geometry, source/HDR
+or export relaxation. Real Kotlin/JNI sequence regressions and344 bilingual/3theme/17label
+checks PASS; Android/phone pending. No measured phone root cause or10-bit output proof.
+Dependencies unchanged; domain C++ and narrow JNI retained. Readiness25%/75%.

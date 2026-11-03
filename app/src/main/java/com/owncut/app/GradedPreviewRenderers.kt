@@ -36,19 +36,21 @@ internal class GradedPreviewRenderers(context: Context, private val prepared: Gr
         fun admitted(format: ColorEngine.DecodedVideoFormat)=format.copy(color=PreviewColorPolicy.decoded(format.color,source.color,interpretMissing))
         val expected=ColorEngine.DecodedVideoFormat(source.width,source.height,source.color)
         out.add(object : MediaCodecVideoRenderer(builder) {
-            private val gate=DecoderColorGate(expected)
+            private val gate=DecoderOutputSequence(expected)
+            private var boundRaw: String="no output format event"
             private fun diagnostic(stage: String,error: Exception,format: Format?,raw: MediaFormat?): PlaybackException {
                 gate.invalidate()
                 val message="Grade preview stage=$stage expected-visible=${source.width}x${source.height} " +
                     "source-rotation=${source.rotationDegrees} codec=${getCodecInfo()?.name ?: "not-created"}; " +
                     "input=${format?.width}x${format?.height} input-rotation=${format?.rotationDegrees} pixel-ratio=${format?.pixelWidthHeightRatio}; " +
-                    "decoded-raw={${VideoSourceProbe.geometryDescription(raw)}}; source-raw={${source.geometryDescription}}"
+                    "decoded-raw={${raw?.let { VideoSourceProbe.geometryDescription(it) } ?: boundRaw}}; source-raw={${source.geometryDescription}}"
                 return createRendererException(IllegalArgumentException(message,error),format,
                     PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED)
             }
             private fun verifyRaw(raw: MediaFormat?) {
                 // Normalize inside the terminal gate, so malformed crop cannot leave it VERIFIED.
-                gate.beforeRender { raw?.let { admitted(VideoSourceProbe.decoded(it)) } }
+                boundRaw=VideoSourceProbe.geometryDescription(raw)
+                gate.formatChanged { raw?.let { admitted(VideoSourceProbe.decoded(it)) } }
             }
             override fun createPlaybackVideoGraphWrapper(context: Context,
                 videoFrameReleaseControl: VideoFrameReleaseControl): PlaybackVideoGraphWrapper =
@@ -83,7 +85,7 @@ internal class GradedPreviewRenderers(context: Context, private val prepared: Gr
                     ColorEngine.validateDecodedFormat(expected,admitted(GuardedDecoderFactory.descriptor(format)))
                 } catch(error: Exception) { throw diagnostic("input-track",error,format,mediaFormat) }
                 try {
-                    if(mediaFormat!=null) verifyRaw(mediaFormat)
+                    verifyRaw(mediaFormat)
                 } catch(error: Exception) { throw diagnostic("decoder-format",error,format,mediaFormat) }
                 try { super.onOutputFormatChanged(format,mediaFormat) }
                 catch(error: Exception) { throw diagnostic("video-sink-setup",error,format,mediaFormat) }
@@ -92,12 +94,17 @@ internal class GradedPreviewRenderers(context: Context, private val prepared: Gr
                 buffer: ByteBuffer?, bufferIndex: Int, bufferFlags: Int, sampleCount: Int,
                 bufferPresentationTimeUs: Long, isDecodeOnlyBuffer: Boolean, isLastBuffer: Boolean, format: Format): Boolean {
                 if(!isDecodeOnlyBuffer || isLastBuffer) {
-                    var raw: MediaFormat?=null
-                    try { raw=codec?.outputFormat;verifyRaw(raw) }
-                    catch(error: Exception) { throw diagnostic("decoded-buffer",error,format,raw) }
+                    // Media3 associates the format event with this dequeued buffer timestamp.
+                    // Polling codec.outputFormat here can observe a future async event.
+                    try { gate.beforeRender() }
+                    catch(error: Exception) { throw diagnostic("decoded-buffer",error,format,null) }
                 }
                 return super.processOutputBuffer(positionUs,elapsedRealtimeUs,codec,buffer,bufferIndex,bufferFlags,
                     sampleCount,bufferPresentationTimeUs,isDecodeOnlyBuffer,isLastBuffer,format)
+            }
+            override fun onCodecReleased(name: String) {
+                gate.clear();boundRaw="codec released; awaiting output format event"
+                super.onCodecReleased(name)
             }
             override fun onRelease() {
                 try { super.onRelease() } finally { gate.close() }

@@ -211,7 +211,7 @@ internal object ClipColorEditor {
         }
         fun showFailure(error: Exception, previewRelated: Boolean=true) {
             statusRow.visibility=android.view.View.VISIBLE
-            lastFailure=ColorPreviewFailure.details(error)
+            lastFailure=PreviewDiagnostics.report(error)
             status.text=AppLanguage.text(if(previewRelated) R.string.color_preview_unavailable else R.string.color_error,lastFailure)
             details.visibility=android.view.View.VISIBLE
             if(previewRelated) loading.visibility=android.view.View.GONE
@@ -220,7 +220,7 @@ internal object ClipColorEditor {
         details.setOnClickListener {
             diagnosticsDialog?.dismiss()
             diagnosticsDialog=AlertDialog.Builder(activity).setTitle(AppLanguage.text(R.string.color_error_details))
-                .setMessage(lastFailure ?: status.text).setPositiveButton(AppLanguage.text(R.string.color_details_close),null).show()
+                .setMessage(lastFailure ?: status.text).setNeutralButton(AppLanguage.text(R.string.color_copy_report)) { _,_ -> PreviewDiagnostics.copy(activity,lastFailure ?: status.text) }.setPositiveButton(AppLanguage.text(R.string.color_details_close),null).show()
             diagnosticsDialog?.findViewById<TextView>(android.R.id.message)?.setTextIsSelectable(true)
         }
         var inline: InlineGradePreview?=null
@@ -465,7 +465,7 @@ internal object ClipColorEditor {
                 main.post { if(!closed.get() && inline==null) {
                     if(metadata!=null) {
                         statusRow.visibility=android.view.View.VISIBLE
-                        lastFailure=ColorPreviewFailure.details(error)
+                        lastFailure=PreviewDiagnostics.report(error)
                         startInline(metadata)
                     } else showFailure(error)
                 } }
