@@ -101,6 +101,27 @@ class ColorEditorInteractionTest {
         }
     }
 
+    @Test fun primaryDragCancelRejectsFurtherMotion() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val input=GradeDragValue(activity,ColorSliderScale.forParameter(0,0.0))
+                input.layout(0,0,200,48);input.bind(0.0)
+                var changes=0
+                input.onValue={ changes++ }
+                fun send(action: Int,x: Float) {
+                    val event=android.view.MotionEvent.obtain(0,0,action,x,20f,0)
+                    try { input.onTouchEvent(event) } finally { event.recycle() }
+                }
+                send(android.view.MotionEvent.ACTION_DOWN,20f)
+                send(android.view.MotionEvent.ACTION_MOVE,100f)
+                assertEquals(1,changes)
+                send(android.view.MotionEvent.ACTION_CANCEL,100f)
+                send(android.view.MotionEvent.ACTION_MOVE,180f)
+                assertEquals(1,changes)
+            }
+        }
+    }
+
     @Test fun failedCommitDoesNotPretendToSaveOrDismiss() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->

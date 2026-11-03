@@ -14,7 +14,7 @@ fun main() {
     check(PreviewColorPolicy.merge(unknown,known)==known)
     check(PreviewColorPolicy.merge(known,unknown)==known)
     for(c in listOf(unknown.copy(primaries=ColorEngine.VideoPrimaries.OTHER),unknown.copy(transfer=ColorEngine.VideoTransfer.PQ),
-        unknown.copy(transfer=ColorEngine.VideoTransfer.HLG),unknown.copy(hasHdrStaticMetadata=true))) {
+        unknown.copy(transfer=ColorEngine.VideoTransfer.HLG),unknown.copy(transfer=ColorEngine.VideoTransfer.SRGB),unknown.copy(hasHdrStaticMetadata=true))) {
         check(!PreviewColorPolicy.canInterpret(c))
         check(runCatching { PreviewColorPolicy.resolve(c,true) }.isFailure)
     }

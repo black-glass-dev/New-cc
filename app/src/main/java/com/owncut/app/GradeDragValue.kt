@@ -18,6 +18,7 @@ internal class GradeDragValue(context: Context, private val scale: ColorSliderSc
     private var startX=0f
     private var startY=0f
     private var startProgress=0
+    private var captured=false
     private var dragging=false
     private var feedback=0f
     private var animator: android.animation.ValueAnimator?=null
@@ -42,7 +43,7 @@ internal class GradeDragValue(context: Context, private val scale: ColorSliderSc
         super.onDraw(canvas)
     }
     override fun onDetachedFromWindow() {
-        removeCallbacks(quiet);animator?.cancel();feedback=0f;dragging=false;isPressed=false
+        removeCallbacks(quiet);animator?.cancel();feedback=0f;dragging=false;captured=false;isPressed=false
         super.onDetachedFromWindow()
     }
     init {
@@ -63,19 +64,19 @@ internal class GradeDragValue(context: Context, private val scale: ColorSliderSc
         if(value!=current) { bind(value);onValue?.invoke(value) }
     }
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if(!isEnabled) return false
+        if(!isEnabled || (event.actionMasked!=MotionEvent.ACTION_DOWN && !captured)) return false
         when(event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> { startX=event.x;startY=event.y;startProgress=scale.progress(current);dragging=false;isPressed=true;removeCallbacks(quiet);animateFeedback(1f);return true }
+            MotionEvent.ACTION_DOWN -> { startX=event.x;startY=event.y;startProgress=scale.progress(current);captured=true;dragging=false;isPressed=true;removeCallbacks(quiet);animateFeedback(1f);return true }
             MotionEvent.ACTION_MOVE -> {
                 val dx=event.x-startX;val dy=event.y-startY
                 val slop=ViewConfiguration.get(context).scaledTouchSlop
-                if(!dragging && abs(dy)>slop && abs(dy)>abs(dx)) { isPressed=false;animateFeedback(0f);return false }
+                if(!dragging && abs(dy)>slop && abs(dy)>abs(dx)) { captured=false;isPressed=false;animateFeedback(0f);return false }
                 if(abs(dx)>slop) { dragging=true;parent?.requestDisallowInterceptTouchEvent(true) }
                 if(dragging) emit((startProgress+(dx/resources.displayMetrics.density*5).roundToInt()).coerceIn(0,ColorSliderScale.STEPS))
                 return true
             }
-            MotionEvent.ACTION_UP -> { isPressed=false;animateFeedback(0f);parent?.requestDisallowInterceptTouchEvent(false);if(!dragging) performClick();return true }
-            MotionEvent.ACTION_CANCEL,MotionEvent.ACTION_POINTER_DOWN,MotionEvent.ACTION_POINTER_UP -> { dragging=false;isPressed=false;animateFeedback(0f);parent?.requestDisallowInterceptTouchEvent(false);return true }
+            MotionEvent.ACTION_UP -> { captured=false;isPressed=false;animateFeedback(0f);parent?.requestDisallowInterceptTouchEvent(false);if(!dragging) performClick();return true }
+            MotionEvent.ACTION_CANCEL,MotionEvent.ACTION_POINTER_DOWN,MotionEvent.ACTION_POINTER_UP -> { captured=false;dragging=false;isPressed=false;animateFeedback(0f);parent?.requestDisallowInterceptTouchEvent(false);return true }
         }
         return super.onTouchEvent(event)
     }

@@ -205,7 +205,7 @@ internal object ClipColorEditor {
         var probedSource: VideoSourceMetadata?=null
         var inlineFrameReady=false
         var interpretMissing=false
-        fun videoCaption()=AppLanguage.text(if(compare.isChecked) R.string.color_frame_before else if(interpretMissing) R.string.color_assumed_frame else R.string.color_inline_frame)
+        fun videoCaption()=AppLanguage.text(if(compare.isChecked && interpretMissing) R.string.color_assumed_before else if(compare.isChecked) R.string.color_frame_before else if(interpretMissing) R.string.color_assumed_frame else R.string.color_inline_frame)
         var original: Bitmap?=null
         var graded: Bitmap?=null
         var source: IntArray?=null // extraction/render worker only

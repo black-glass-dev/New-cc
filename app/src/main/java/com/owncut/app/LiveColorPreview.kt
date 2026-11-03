@@ -53,7 +53,7 @@ internal object LiveColorPreview {
         val before=CheckBox(activity).apply { text=AppLanguage.text(R.string.color_live_before);isEnabled=false }
         val position=SeekBar(activity).apply { isEnabled=false;max=1000 }
         root.addView(position);root.addView(play);root.addView(before)
-        val dialog=AlertDialog.Builder(activity).setTitle(AppLanguage.text(R.string.color_live_title)).setView(root)
+        val dialog=AlertDialog.Builder(activity).setTitle(AppLanguage.text(if(interpretMissing) R.string.color_assumed_frame else R.string.color_live_title)).setView(root)
             .setNegativeButton(AppLanguage.text(R.string.color_cancel),null).create()
         var player: ExoPlayer?=null
         val playback=PreviewPlaybackState()

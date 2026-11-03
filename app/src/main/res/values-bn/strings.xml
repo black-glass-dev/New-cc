@@ -359,4 +359,5 @@
     <string name="color_input_assume">অনুপস্থিত ট্যাগ ধরে দেখুন</string>
     <string name="color_input_tagged">শুধু ট্যাগ ব্যবহার</string>
     <string name="color_assumed_frame">প্রিভিউ · অনুমিত Rec.709 SDR</string>
+    <string name="color_assumed_before">আগে · অনুমিত Rec.709 SDR</string>
 </resources>

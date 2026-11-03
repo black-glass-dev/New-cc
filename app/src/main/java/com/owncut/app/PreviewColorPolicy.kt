@@ -4,7 +4,7 @@ package com.owncut.app
 internal object PreviewColorPolicy {
     fun canInterpret(c: ColorEngine.VideoColorMetadata)=!c.hasHdrStaticMetadata &&
         c.primaries!=ColorEngine.VideoPrimaries.OTHER &&
-        c.transfer in listOf(ColorEngine.VideoTransfer.UNKNOWN,ColorEngine.VideoTransfer.SDR_VIDEO,ColorEngine.VideoTransfer.SRGB)
+        c.transfer in listOf(ColorEngine.VideoTransfer.UNKNOWN,ColorEngine.VideoTransfer.SDR_VIDEO)
     fun resolve(c: ColorEngine.VideoColorMetadata, enabled: Boolean): ColorEngine.VideoColorMetadata {
         if(!enabled) return c
         require(canInterpret(c)) { "Explicit non-709/HDR color cannot be overridden: $c" }
