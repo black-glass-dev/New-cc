@@ -1,3 +1,25 @@
+## Focused wheels / cached live redraw APK PUBLISHED (2026-11-03)
+
+[Download focused live-preview APK](https://github.com/islamyousuf032-glitch/New-cc/releases/download/fresh-install-41641807647/owncut-fresh-install-debug.apk).
+Sourceedaabbcb807c33c470d31543bfc08ca35a9c5f6e; Android41641807647 / Portable41641807536 PASS.
+Assembly, lint, UI-test source compilation, alignment and publication complete. GitHub
+release API reports8,084,779bytes and SHA256
+`3f63e972c10a4197b4e2479c3f046902c24e3d143d99265283c1675f88fccc7d`.
+No local APK download/rehash claimed (release-assets host restricted). Local Make6, actual
+JVM/JNI + Kotlin2.3.21 -Werror (10000-event scheduling/token regressions included),343 bilingual/
+3theme/17label checks and27 Python policy tests PASS. UI/emulator tests were NOT executed;
+install-over skipped. No independent phone/display/latency/GPU-memory acceptance.
+
+ADR0035 fixes provable trailing-debounce and CPU completion discard starvation. Stable live
+shader effect + public Media3 replay cache/REDRAW handles paused updates without seek or
+playback pump; playing frames read latest atomic recipe. Source/HDR/Input guards retained.
+One180dp active wheel +48dp selectors replaces four competing cards; unified compact controls,
+accessible reset/refresh icons, hidden-animation and redundant-shader work reduction. Editing
+returns After/enables grade; Play stays inline after probing. Official cache capacity2 adds
+GPU memory/power cost; no performance, exact10-bit or export-parity claim. User reported prior
+UI improved but wheel live preview failed; new phone acceptance pending. Readiness25%/75%.
+Fresh debug signer; back up before any required uninstall, no stable update continuity.
+
 ## Non-starving live preview / focused wheel candidate (2026-11-03)
 
 User says734b947 improved but wheel live preview still fails; no new phone trace. ADR0035

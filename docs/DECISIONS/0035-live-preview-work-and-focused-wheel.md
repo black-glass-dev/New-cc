@@ -1,6 +1,6 @@
 # ADR0035 — Non-starving preview work and a focused wheel workspace
 
-Date:2026-11-03. Implementation candidate; Android/device verification pending.
+Date:2026-11-03. Android candidate published; device verification pending.
 
 ## Evidence / diagnosis boundary
 User reports previous734b947 UI improved but live preview does not work while using wheels;
@@ -73,7 +73,7 @@ animation. Subjective polish still user acceptance. No10-bit/export proof or rea
 25% complete /75% remaining.
 
 
-### First-surface race review
+### Earlier pump candidate review (superseded by public replay below)
 Initial muted decode must continue until BOTH shader draw and player first-surface event;
 pausing immediately on upstream GL draw alone could race the first visible output. Separate
 10s surface deadline is canceled only by that surface event/release, not shader completion.
@@ -101,3 +101,14 @@ shader source keeps its compiled program while still acknowledging the new redra
 Play remains disabled until the source probe supplies an inline source, avoiding accidental
 old immutable snapshot playback during initial probe. These reduce avoidable work; no phone
 FPS/latency/power benchmark is claimed.
+
+
+## Published final evidence
+Final sourceedaabbc built as fresh-install-41641807647. Android41641807647 and Portable41641807536
+PASS: assembly/lint/UI-test source compilation/alignment/publication. UI/emulator execution
+and install-over were skipped, not passed. API reports8,084,779bytes, SHA256
+3f63e972c10a4197b4e2479c3f046902c24e3d143d99265283c1675f88fccc7d. No local binary rehash.
+Final source uses stable-effect public cached replay, not the interim muted-pump candidate.
+Actual pinned Kotlin/JVM/JNI tests, Make6 suites,343 resource/3theme/17label and27 Python checks
+PASS. Phone/display/GPU memory, exact paused frame, audio behavior and polish remain pending.
+The old734b947 user's wheel-preview failure is not disproved by successful compilation.

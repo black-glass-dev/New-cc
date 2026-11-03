@@ -84,3 +84,10 @@ GPU work stays one-active/latest-pending with draw tokens; paused redraw via pub
 bounded by watchdogs (phone exact-frame verification pending). One focused wheel and compact shared controls; no new dependency.
 Actual Kotlin/JNI tests pass; Android/phone proof pending. Keep HDR/source and explicit
 Input safeguards; no10-bit/export or readiness claim (25%/75%).
+
+ADR0035 final sourceedaabbc published as fresh-install-41641807647. Android41641807647 and
+Portable41641807536 PASS. UI regressions compile only; phone cached-redraw/continuous-drag,
+polish and GPU-resource acceptance pending. Final candidate uses public replay cache and
+stable effect, NOT the earlier muted pump prototype. Source/HDR/Input/export guards retained.
+Existing Media3 pin/license unchanged; cache uses two SDK-owned textures. Readiness25%/75%;
+no10-bit, output parity or device-performance proof. Latest evidence: BUILD_AND_TEST.
