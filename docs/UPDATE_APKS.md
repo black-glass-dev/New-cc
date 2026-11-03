@@ -180,3 +180,12 @@ and verifier tests pass, including signer mismatch with the approved legacy APK.
 Workflow concurrency supersedes older runs on the same ref; publication rejects
 reruns not newer than the most recently published app-patch version. These latest
 Android-facing changes still require an actual CI run once billing is restored.
+
+
+### Preview-input / polish candidate — 2026-11-03
+
+See ADR0034. Source unknown is not Rec709 proof; second parser can recover tags, explicit
+preview-only missing-tag interpretation is opt-in/revocable and must stay visibly labelled.
+Never allow it into export/project persistence or override known HDR/non-709 tags. Native
+hue pixel tests and compact original UI/feedback added. No dependencies or readiness change.
+Android/device validation pending; user reports latest prior draft fails, not current success.

@@ -69,7 +69,7 @@ internal object ClipColorEditor {
             text=AppLanguage.text(R.string.color_processing);setTextColor(StudioUi.muted);textSize=12f
             maxLines=1;ellipsize=android.text.TextUtils.TruncateAt.END
         }
-        statusRow.addView(status,LinearLayout.LayoutParams(0,dp(40),1f))
+        statusRow.addView(status,LinearLayout.LayoutParams(0,dp(24),1f))
         val details=action(R.string.color_error_details).apply { visibility=android.view.View.GONE }
         statusRow.addView(details,LinearLayout.LayoutParams(-2,dp(48)));viewerSide.addView(statusRow)
         val buttons=LinearLayout(activity)
@@ -82,7 +82,8 @@ internal object ClipColorEditor {
             backgroundTintList=null;background=StudioUi.shape(activity,StudioUi.surface,8)
         }
         val live=action(R.string.color_live_short).apply { isEnabled=previewDraft!=null }
-        for(button in listOf(compare,render,live)) buttons.addView(button,LinearLayout.LayoutParams(0,dp(48),1f).apply { setMargins(dp(2),0,dp(2),0) })
+        val inputColor=action(R.string.color_input_short).apply { isEnabled=false;contentDescription=AppLanguage.text(R.string.color_input_title) }
+        for(button in listOf(compare,render,live,inputColor)) buttons.addView(button,LinearLayout.LayoutParams(0,dp(48),1f).apply { setMargins(dp(2),0,dp(2),0) })
         viewerSide.addView(buttons)
         val controls=LinearLayout(activity).apply { orientation=LinearLayout.VERTICAL }
         body.addView(controls,if(landscape) LinearLayout.LayoutParams(0,-1,1f) else LinearLayout.LayoutParams(-1,0,1f))
@@ -132,18 +133,17 @@ internal object ClipColorEditor {
                 val title=listOf(R.string.color_wheel_balance,R.string.color_wheel_lift,R.string.color_wheel_gamma,R.string.color_wheel_gain)[index]
                 card.addView(StudioUi.label(activity,AppLanguage.text(title),14f))
                 val wheel=GradeColorWheel(activity);wheels.add(wheel)
-                card.addView(wheel,LinearLayout.LayoutParams(-1,dp(148)))
+                card.addView(wheel,LinearLayout.LayoutParams(-1,dp(128)))
                 val readout=StudioUi.label(activity,"",10f,true).apply { typeface=android.graphics.Typeface.MONOSPACE;gravity=android.view.Gravity.CENTER }
                 wheelReadouts.add(readout);card.addView(readout)
-                val channelsButton=action(R.string.color_group_channels).apply { setOnClickListener { showGroup(2) } }
-                card.addView(channelsButton,LinearLayout.LayoutParams(-1,dp(48)))
+                // Channels tab is shared: no repeated full-size button on each wheel.
                 deck.addView(card,LinearLayout.LayoutParams(0,-2,1f).apply { setMargins(dp(3),dp(4),dp(3),dp(4)) })
             }
         }
         values.forEachIndexed { index,value ->
             val row=LinearLayout(activity).apply {
                 gravity=android.view.Gravity.CENTER_VERTICAL;background=StudioUi.shape(activity,StudioUi.surface,12)
-                setPadding(dp(10),dp(8),dp(8),dp(8))
+                setPadding(dp(10),dp(2),dp(4),dp(2))
             }
             row.addView(StudioUi.label(activity,names[index].substringBefore('(').trim(),13f),LinearLayout.LayoutParams(0,-2,1f))
             val input=GradeDragValue(activity,scales[index]).apply { parameterName=names[index];bind(value) }
@@ -159,7 +159,7 @@ internal object ClipColorEditor {
             }
             row.addView(minus,LinearLayout.LayoutParams(dp(48),dp(48)))
             row.addView(plus,LinearLayout.LayoutParams(dp(48),dp(48)))
-            groups[if(index<5) 0 else 2].addView(row,LinearLayout.LayoutParams(-1,-2).apply { bottomMargin=dp(8) })
+            groups[if(index<5) 0 else 2].addView(row,LinearLayout.LayoutParams(-1,-2).apply { bottomMargin=dp(4) })
         }
         groups.forEach { controlBody.addView(it) };showGroup(0)
         controlBody.addView(StudioUi.label(activity,AppLanguage.text(R.string.color_precision_hint),12f,true))
@@ -187,6 +187,7 @@ internal object ClipColorEditor {
             caption.text=AppLanguage.text(R.string.color_frame_reference)
         }
         fun showFailure(error: Exception, previewRelated: Boolean=true) {
+            statusRow.visibility=android.view.View.VISIBLE
             lastFailure=ColorPreviewFailure.describe(error)
             status.text=AppLanguage.text(if(previewRelated) R.string.color_preview_unavailable else R.string.color_error,lastFailure)
             details.visibility=android.view.View.VISIBLE
@@ -201,7 +202,10 @@ internal object ClipColorEditor {
         }
         var inline: InlineGradePreview?=null
         var inlineSource: VideoSourceMetadata?=null
+        var probedSource: VideoSourceMetadata?=null
         var inlineFrameReady=false
+        var interpretMissing=false
+        fun videoCaption()=AppLanguage.text(if(compare.isChecked) R.string.color_frame_before else if(interpretMissing) R.string.color_assumed_frame else R.string.color_inline_frame)
         var original: Bitmap?=null
         var graded: Bitmap?=null
         var source: IntArray?=null // extraction/render worker only
@@ -218,7 +222,10 @@ internal object ClipColorEditor {
         fun updateButtons() { render.isEnabled=(original!=null || inlineSource!=null) && !busy }
         fun startInline(metadata: VideoSourceMetadata) {
             if(closed.get()) return
-            inlineSource=metadata;inlineFrameReady=false
+            revision++;original=null
+            inlineSource=metadata;probedSource=metadata;inlineFrameReady=false
+            inputColor.isEnabled=PreviewColorPolicy.canInterpret(metadata.color)
+            statusRow.visibility=android.view.View.VISIBLE
             compare.isEnabled=false
             inline?.close()
             val controller=InlineGradePreview(activity,videoTexture,clip,metadata,positionMs,{
@@ -226,8 +233,9 @@ internal object ClipColorEditor {
                     inlineFrameReady=true
                     preview.visibility=android.view.View.INVISIBLE;empty.visibility=android.view.View.GONE
                     compare.isEnabled=true;hasReference=true;lastFailure=null;details.visibility=android.view.View.GONE
-                    caption.text=AppLanguage.text(if(compare.isChecked) R.string.color_frame_before else R.string.color_inline_frame)
+                    caption.text=videoCaption()
                     status.text=AppLanguage.text(R.string.color_inline_ready)
+                    statusRow.visibility=android.view.View.GONE
                     live.text=AppLanguage.text(if(inline?.isPlaying==true) R.string.action_pause else R.string.color_live_short)
                     updateButtons()
                 }
@@ -235,11 +243,20 @@ internal object ClipColorEditor {
                 inline?.close();inline=null;inlineFrameReady=false
                 preview.visibility=android.view.View.VISIBLE;compare.isEnabled=false
                 if(!closed.get()) { showFailure(error);updateButtons() }
-            })
+            },interpretMissing)
             inline=controller
             status.text=AppLanguage.text(R.string.color_inline_loading)
             controller.update(draft(),compare.isChecked)
             updateButtons()
+        }
+        inputColor.setOnClickListener {
+            val metadata=probedSource ?: return@setOnClickListener
+            diagnosticsDialog?.dismiss()
+            diagnosticsDialog=AlertDialog.Builder(activity).setTitle(AppLanguage.text(R.string.color_input_title))
+                .setMessage(AppLanguage.text(R.string.color_input_warning)+"\n\n"+metadata.color.toString())
+                .setPositiveButton(AppLanguage.text(R.string.color_input_assume)) { _,_ -> interpretMissing=true;startInline(metadata) }
+                .setNeutralButton(AppLanguage.text(R.string.color_input_tagged)) { _,_ -> interpretMissing=false;startInline(metadata) }
+                .setNegativeButton(AppLanguage.text(R.string.color_cancel),null).show()
         }
         fun requestRender() { main.removeCallbacks(debounced);main.postDelayed(debounced,if(inline!=null) 66 else 220) }
         fun startRender() {
@@ -248,8 +265,9 @@ internal object ClipColorEditor {
                 try {
                     video.update(validatedDraft(),compare.isChecked)
                     if(inline===video && inlineFrameReady) {
-                        caption.text=AppLanguage.text(if(compare.isChecked) R.string.color_frame_before else R.string.color_inline_frame)
+                        caption.text=videoCaption()
                         status.text=AppLanguage.text(R.string.color_inline_ready)
+                        statusRow.visibility=android.view.View.GONE
                     }
                 } catch(error: Exception) { showFailure(error) }
                 return
@@ -328,7 +346,7 @@ internal object ClipColorEditor {
                 if(video!=null) {
                     video.togglePlaying()
                     live.text=AppLanguage.text(if(video.isPlaying) R.string.action_pause else R.string.color_live_short)
-                } else { draftPlayer?.dismiss();draftPlayer=previewDraft?.invoke(validatedDraft()) }
+                } else { draftPlayer?.dismiss();draftPlayer=if(interpretMissing) LiveColorPreview.show(activity,clip.copy(grade=validatedDraft()),positionMs,true) else previewDraft?.invoke(validatedDraft()) }
             }
             catch(error: Exception) { showFailure(error,false) }
         }
@@ -368,6 +386,9 @@ internal object ClipColorEditor {
             try {
                 val metadata=VideoSourceProbe.read(activity.applicationContext,clip.mediaId) { check(!closed.get()) }
                 metadataForVideo=metadata
+                main.post { if(!closed.get()) {
+                    probedSource=metadata;inputColor.isEnabled=PreviewColorPolicy.canInterpret(metadata.color)
+                } }
                 check(!closed.get())
                 val requested=PreviewFrameSize.fit(metadata.width,metadata.height,metadata.rotationDegrees)
                 if(Build.VERSION.SDK_INT<27) require(PreviewFrameSize.fitsUnscaled(metadata.width,metadata.height,metadata.rotationDegrees)) {
@@ -390,7 +411,7 @@ internal object ClipColorEditor {
                     decoded
                 } finally { retriever.release() }
                 check(!closed.get())
-                main.post { if(!closed.get()) displayReference(frame) }
+                main.post { if(!closed.get() && inline==null) displayReference(frame) }
                 // A platform reference can be shown even when grading admission fails.
                 // Never feed this (or the supplied timeline capture) into native grading
                 // until source/bitmap color provenance is explicitly admitted.
@@ -400,12 +421,13 @@ internal object ClipColorEditor {
                 val pixels=IntArray(frame.width*frame.height)
                 frame.getPixels(pixels,0,frame.width,0,0,frame.width,frame.height) // straight ARGB sRGB ints
                 source=pixels
-                main.post { if(!closed.get()) { original=frame;preview.setImageBitmap(frame);startRender() } }
+                main.post { if(!closed.get() && inline==null) { original=frame;preview.setImageBitmap(frame);startRender() } }
             } catch(error: Exception) {
                 val metadata=metadataForVideo
-                main.post { if(!closed.get()) {
+                main.post { if(!closed.get() && inline==null) {
                     if(metadata!=null) {
-                        lastFailure=ColorPreviewFailure.describe(error)
+                        statusRow.visibility=android.view.View.VISIBLE
+            lastFailure=ColorPreviewFailure.describe(error)
                         startInline(metadata)
                     } else showFailure(error)
                 } }

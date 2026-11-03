@@ -27,3 +27,6 @@ signing.properties
 # Host Python check caches
 __pycache__/
 *.pyc
+
+# Local research/tooling only
+/.cache/

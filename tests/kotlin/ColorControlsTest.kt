@@ -1,6 +1,13 @@
 package com.owncut.app
 
 fun main() {
+    val palette=WheelPalette.colors()
+    check(palette.size==7 && palette.first()==palette.last())
+    val expected=listOf(listOf(0),listOf(0,2),listOf(2),listOf(1,2),listOf(1),listOf(0,1))
+    for(i in 0..5) {
+        val rgb=listOf((palette[i] ushr 16) and 255,(palette[i] ushr 8) and 255,palette[i] and 255)
+        check(rgb.indices.filter { rgb[it]==rgb.max() }==expected[i])
+    }
     val drag=WheelDragSession(0.2,-0.3,100.0,100.0,100.0)
     check(drag.point(100.0,100.0).contentEquals(doubleArrayOf(0.2,-0.3)))
     check(kotlin.math.abs(drag.point(120.0,100.0)[0]-0.31)<1e-12)

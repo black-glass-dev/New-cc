@@ -1,3 +1,13 @@
+## Preview metadata and wheel-polish candidate (2026-11-03)
+
+User now reports168a106 Play draft fails with explicit Rec709-primaries admission error;
+previous draft success is historical, not current. ADR0034 adds second-parser tag recovery
+and explicit preview-only Input interpretation for missing tags (never known HDR/non-709),
+original six-hue compact wheels, directional native pixel regressions and numeric feedback.
+Source/HDR payload unmeasured; no phone success,10-bit output or graded export claim.
+Local Make6/resource341/3themes/17labels/27Python checks PASS; Android/Kotlin candidate tests
+pending.25%/75% unchanged. Existing pinned Media3 API reviewed, no new dependencies/licenses.
+
 ## Inline grading viewer APK PUBLISHED (2026-10-25)
 
 [Download inline viewer + relative wheel APK](https://github.com/islamyousuf032-glitch/New-cc/releases/download/fresh-install-40202669644/owncut-fresh-install-debug.apk).

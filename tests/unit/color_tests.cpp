@@ -40,6 +40,17 @@ void wheel_and_hdr_metadata() {
             check(grade.enabled==identity.enabled && grade.exposure_stops==identity.exposure_stops);
         }
     }
+    // Wheel screen hue directions must bias neutral pixels toward the same RGB hue.
+    for(int group=0;group<4;++group) for(int sector=0;sector<6;++sector) {
+        const auto angle=static_cast<double>(sector)*std::acos(-1.0)/3;
+        const auto grade=wheel_adjust({},group,0.1*std::cos(angle),0.1*std::sin(angle));
+        const auto pixel=Pipeline(grade).linear({0.18,0.18,0.18});
+        const std::array<double,3> values{pixel.r,pixel.g,pixel.b};
+        const std::array<std::array<int,3>,6> order{{{0,1,2},{0,2,1},{2,0,1},{1,2,0},{1,0,2},{0,1,2}}};
+        const auto selected=order[static_cast<std::size_t>(sector)];
+        if(sector%2==0) { check(values[selected[0]]>values[selected[1]]);near(values[selected[1]],values[selected[2]]); }
+        else { near(values[selected[0]],values[selected[1]]);check(values[selected[1]]>values[selected[2]]); }
+    }
     Grade custom;custom.enabled=false;custom.exposure_stops=2;
     check(!wheel_adjust(custom,0,0.5,0.5).enabled);
     check(wheel_adjust(custom,1,0.5,0.5).exposure_stops==2);

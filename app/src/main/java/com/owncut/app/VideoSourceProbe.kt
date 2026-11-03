@@ -37,8 +37,38 @@ internal object VideoSourceProbe {
                             hdrStatic(format)))
             }
             checkCancelled()
-            return requireNotNull(found) { "No video track in source" }
+            return enrich(context,requireNotNull(found) { "No video track in source" },checkCancelled)
         } finally { extractor.release() }
+    }
+
+    private fun enrich(context: Context, source: VideoSourceMetadata, cancelled: () -> Unit): VideoSourceMetadata {
+        val c=source.color
+        if(c.primaries!=ColorEngine.VideoPrimaries.UNKNOWN && c.transfer!=ColorEngine.VideoTransfer.UNKNOWN && c.range!=ColorEngine.VideoRange.UNKNOWN) return source
+        // Media3 can expose container/codec tags omitted by Android MediaExtractor.
+        // A single matching video format only; no selecting a different track by accident.
+        val retriever=androidx.media3.exoplayer.MetadataRetriever.Builder(context,
+            androidx.media3.common.MediaItem.fromUri(source.mediaId)).build()
+        val future=retriever.retrieveTrackGroups()
+        val formats=try {
+            cancelled()
+            val tracks=future.get(8,java.util.concurrent.TimeUnit.SECONDS)
+            cancelled()
+            buildList {
+                for(g in 0 until tracks.length) for(t in 0 until tracks[g].length) {
+                    val f=tracks[g].getFormat(t)
+                    if(f.sampleMimeType?.startsWith("video/")==true) add(f)
+                }
+            }
+        } catch(error: Exception) {
+            if(error is InterruptedException) Thread.currentThread().interrupt()
+            cancelled()
+            android.util.Log.w("OwncutSourceProbe","Secondary color probe unavailable",error)
+            return source // UNKNOWN remains UNKNOWN; no guessed tags
+        } finally { future.cancel(true);retriever.close() }
+        if(formats.size!=1) return source
+        val f=formats.single()
+        if(f.width!=source.width || f.height!=source.height) return source
+        return source.copy(color=PreviewColorPolicy.merge(source.color,color(f.colorInfo)))
     }
 
     internal fun decoded(format: MediaFormat): ColorEngine.DecodedVideoFormat {

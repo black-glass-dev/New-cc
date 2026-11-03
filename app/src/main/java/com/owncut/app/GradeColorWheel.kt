@@ -35,25 +35,36 @@ internal class GradeColorWheel(context: Context) : View(context) {
         super.onSizeChanged(w,h,oldw,oldh)
         val x=w/2f;val y=h/2f;val r=radius()
         if(r<=0) return
-        hue=SweepGradient(x,y,intArrayOf(0xffde716b.toInt(),0xff6a8bdf.toInt(),0xff78bf98.toInt(),0xffde716b.toInt()),floatArrayOf(0f,1f/3,2f/3,1f))
+        hue=SweepGradient(x,y,WheelPalette.colors(),null)
         neutral=RadialGradient(x,y,r,intArrayOf(StudioUi.surface,StudioUi.surface and 0x00ffffff),null,Shader.TileMode.CLAMP)
     }
     override fun onDraw(canvas: Canvas) {
         val x=width/2f;val y=height/2f;val r=radius()
         if(r<=0) return
-        ink.shader=hue
-        canvas.drawCircle(x,y,r,ink)
-        ink.shader=neutral
-        canvas.drawCircle(x,y,r,ink);ink.shader=null
+        val density=resources.displayMetrics.density
+        ink.style=Paint.Style.FILL;ink.color=StudioUi.surface;canvas.drawCircle(x,y,r,ink)
+        ink.shader=hue;ink.alpha=70
+        canvas.drawCircle(x,y,r-density*4,ink)
+        ink.alpha=255;ink.shader=neutral
+        canvas.drawCircle(x,y,r-density*4,ink);ink.shader=null
+        // A precise chromatic perimeter and quiet interior; no pasted reference artwork.
+        ink.style=Paint.Style.STROKE;ink.strokeWidth=density*2.5f;ink.shader=hue
+        canvas.drawCircle(x,y,r,ink);ink.shader=null;ink.style=Paint.Style.FILL
         ink.color=StudioUi.muted;ink.strokeWidth=resources.displayMetrics.density
         canvas.drawLine(x-5,y,x+5,y,ink);canvas.drawLine(x,y-5,x,y+5,ink)
-        ink.style=Paint.Style.STROKE;ink.color=StudioUi.border;canvas.drawCircle(x,y,r,ink)
+        ink.style=Paint.Style.STROKE;ink.color=StudioUi.border;canvas.drawCircle(x,y,r-density*5,ink)
+        if(kotlin.math.hypot(px,py)>0.02f) {
+            ink.color=(StudioUi.text and 0x00ffffff) or 0x55000000
+            canvas.drawLine(x,y,x+px*r,y+py*r,ink)
+        }
         if(pressure>0) {
             ink.style=Paint.Style.FILL;ink.color=(StudioUi.accent and 0x00ffffff) or ((pressure*42).toInt() shl 24)
             canvas.drawCircle(x+px*r,y+py*r,resources.displayMetrics.density*(12+pressure*4),ink)
             ink.style=Paint.Style.STROKE
         }
-        ink.strokeWidth=resources.displayMetrics.density*2;ink.color=Color.WHITE
+        ink.style=Paint.Style.FILL;ink.color=StudioUi.background
+        canvas.drawCircle(x+px*r,y+py*r,density*6,ink)
+        ink.style=Paint.Style.STROKE;ink.strokeWidth=density*1.7f;ink.color=Color.WHITE
         canvas.drawCircle(x+px*r,y+py*r,resources.displayMetrics.density*6,ink)
         ink.style=Paint.Style.FILL
     }
@@ -89,6 +100,6 @@ internal class GradeColorWheel(context: Context) : View(context) {
             addUpdateListener { pressure=it.animatedValue as Float;invalidate() };start()
         }
     }
-    override fun onDetachedFromWindow() { pulse?.cancel();drag=null;captured=false;super.onDetachedFromWindow() }
+    override fun onDetachedFromWindow() { pulse?.cancel();pressure=0f;drag=null;captured=false;super.onDetachedFromWindow() }
     override fun performClick(): Boolean { super.performClick();return true }
 }

@@ -7,6 +7,31 @@ private fun rejected(block: () -> Unit) {
     error("expected invalid color plan rejection")
 }
 fun main() {
+    val unknown=ColorEngine.VideoColorMetadata(ColorEngine.VideoPrimaries.UNKNOWN,ColorEngine.VideoTransfer.UNKNOWN,ColorEngine.VideoRange.UNKNOWN)
+    val known=ColorEngine.VideoColorMetadata(ColorEngine.VideoPrimaries.REC709,ColorEngine.VideoTransfer.SDR_VIDEO,ColorEngine.VideoRange.LIMITED)
+    check(PreviewColorPolicy.resolve(unknown,false)==unknown)
+    check(PreviewColorPolicy.resolve(unknown,true)==known)
+    check(PreviewColorPolicy.merge(unknown,known)==known)
+    check(PreviewColorPolicy.merge(known,unknown)==known)
+    for(c in listOf(unknown.copy(primaries=ColorEngine.VideoPrimaries.OTHER),unknown.copy(transfer=ColorEngine.VideoTransfer.PQ),
+        unknown.copy(transfer=ColorEngine.VideoTransfer.HLG),unknown.copy(hasHdrStaticMetadata=true))) {
+        check(!PreviewColorPolicy.canInterpret(c))
+        check(runCatching { PreviewColorPolicy.resolve(c,true) }.isFailure)
+    }
+    val full=known.copy(range=ColorEngine.VideoRange.FULL)
+    check(PreviewColorPolicy.resolve(full,true)==full)
+    check(PreviewColorPolicy.decoded(unknown,full,true)==full)
+    check(PreviewColorPolicy.decoded(unknown,full,false)==unknown)
+    for(p in ColorEngine.VideoPrimaries.entries) for(t in ColorEngine.VideoTransfer.entries)
+        for(r in ColorEngine.VideoRange.entries) for(h in listOf(false,true)) {
+            val c=ColorEngine.VideoColorMetadata(p,t,r,h)
+            check(PreviewColorPolicy.resolve(c,false)==c)
+            check(runCatching { PreviewColorPolicy.resolve(c,true) }.isSuccess==PreviewColorPolicy.canInterpret(c))
+            if(PreviewColorPolicy.canInterpret(c)) ColorEngine.validateVideoSource(PreviewColorPolicy.resolve(c,true))
+        }
+    check(runCatching { PreviewColorPolicy.merge(full,known) }.isFailure)
+    check(PreviewColorPolicy.merge(known,unknown.copy(hasHdrStaticMetadata=true)).hasHdrStaticMetadata)
+
     check(PreviewProgress.position(Long.MAX_VALUE,1000)==Long.MAX_VALUE)
     check(PreviewProgress.position(12345,500)==6172L)
     check(PreviewProgress.position(12345,0)==0L)

@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 @UnstableApi
 internal object LiveColorPreview {
-    fun show(activity: Activity, clip: ClipSnapshot, sourcePositionMs: Long): AlertDialog {
+    fun show(activity: Activity, clip: ClipSnapshot, sourcePositionMs: Long, interpretMissing: Boolean=false): AlertDialog {
         require(clip.sourceInMs>=0 && clip.sourceOutMs>clip.sourceInMs)
         val handler=Handler(Looper.getMainLooper())
         val closed=AtomicBoolean(false)
@@ -126,14 +126,16 @@ internal object LiveColorPreview {
         worker.execute {
             try {
                 val plan=ColorRenderPlan.prepare("clip-preview-${clip.id}",listOf(clip),{ check(!closed.get()) }) {
-                    VideoSourceProbe.read(activity.applicationContext,it) { check(!closed.get()) }
+                    VideoSourceProbe.read(activity.applicationContext,it) { check(!closed.get()) }.let { metadata ->
+                        metadata.copy(color=PreviewColorPolicy.resolve(metadata.color,interpretMissing))
+                    }
                 }
                 val snapshot=plan.clips.single()
                 val prepared=GradedFramePipeline.prepare(snapshot)
                 handler.post {
                     if(!closed.get() && !playback.terminal) try {
                         val p=ExoPlayer.Builder(activity.applicationContext,
-                            GradedPreviewRenderers(activity.applicationContext,prepared,snapshot.source)).build()
+                            GradedPreviewRenderers(activity.applicationContext,prepared,snapshot.source,interpretMissing)).build()
                         player=p
                         p.setAudioAttributes(AudioAttributes.DEFAULT,true)
                         p.addListener(object: Player.Listener {

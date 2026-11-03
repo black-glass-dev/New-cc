@@ -60,3 +60,12 @@ Final ADR0033 source168a106 built/published as fresh-install-40202669644; Androi
 and Portable40202669634 PASS. UI regression sources compile only, not executed. Phone
 inline-viewer/paused-adjustment acceptance pending; do not equate build success with visible
 grading or10-bit output. Existing dependencies unchanged. Latest evidence: BUILD_AND_TEST.
+
+
+### Preview-input / polish candidate — 2026-11-03
+
+See ADR0034. Source unknown is not Rec709 proof; second parser can recover tags, explicit
+preview-only missing-tag interpretation is opt-in/revocable and must stay visibly labelled.
+Never allow it into export/project persistence or override known HDR/non-709 tags. Native
+hue pixel tests and compact original UI/feedback added. No dependencies or readiness change.
+Android/device validation pending; user reports latest prior draft fails, not current success.

@@ -23,13 +23,14 @@ import java.nio.ByteBuffer
  */
 @UnstableApi
 internal class GradedPreviewRenderers(context: Context, private val prepared: GradedFramePipeline.Prepared,
-    private val source: VideoSourceMetadata) : DefaultRenderersFactory(context) {
+    private val source: VideoSourceMetadata, private val interpretMissing: Boolean=false) : DefaultRenderersFactory(context) {
     override fun buildVideoRenderers(context: Context, extensionRendererMode: Int,
         mediaCodecSelector: MediaCodecSelector, enableDecoderFallback: Boolean, eventHandler: Handler,
         eventListener: VideoRendererEventListener, allowedVideoJoiningTimeMs: Long, out: ArrayList<Renderer>) {
         val builder=MediaCodecVideoRenderer.Builder(context).setMediaCodecSelector(mediaCodecSelector)
             .setEnableDecoderFallback(enableDecoderFallback).setEventHandler(eventHandler).setEventListener(eventListener)
             .setAllowedJoiningTimeMs(allowedVideoJoiningTimeMs)
+        fun admitted(format: ColorEngine.DecodedVideoFormat)=format.copy(color=PreviewColorPolicy.decoded(format.color,source.color,interpretMissing))
         val expected=ColorEngine.DecodedVideoFormat(source.width,source.height,source.color)
         out.add(object : MediaCodecVideoRenderer(builder) {
             private val gate=DecoderColorGate(expected)
@@ -42,11 +43,11 @@ internal class GradedPreviewRenderers(context: Context, private val prepared: Gr
             override fun onOutputFormatChanged(format: Format, mediaFormat: MediaFormat?) {
                 try {
                     // Reject changed/HDR input even if a platform decoder could tone-map its output.
-                    ColorEngine.validateDecodedFormat(expected,GuardedDecoderFactory.descriptor(format))
+                    ColorEngine.validateDecodedFormat(expected,admitted(GuardedDecoderFactory.descriptor(format)))
                     // Media3 may notify an input-only change before codec output exists.
                     // Only actual rendered buffers must have raw metadata; processOutputBuffer
                     // below still rejects null/unknown/changed formats on every render.
-                    if(mediaFormat!=null) gate.beforeRender(VideoSourceProbe.decoded(mediaFormat))
+                    if(mediaFormat!=null) gate.beforeRender(admitted(VideoSourceProbe.decoded(mediaFormat)))
                 } catch(error: Exception) {
                     gate.invalidate()
                     throw createRendererException(error,format,PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED)
@@ -57,7 +58,7 @@ internal class GradedPreviewRenderers(context: Context, private val prepared: Gr
                 buffer: ByteBuffer?, bufferIndex: Int, bufferFlags: Int, sampleCount: Int,
                 bufferPresentationTimeUs: Long, isDecodeOnlyBuffer: Boolean, isLastBuffer: Boolean, format: Format): Boolean {
                 if(!isDecodeOnlyBuffer || isLastBuffer) {
-                    try { gate.beforeRender { codec?.outputFormat?.let { VideoSourceProbe.decoded(it) } } }
+                    try { gate.beforeRender { codec?.outputFormat?.let { admitted(VideoSourceProbe.decoded(it)) } } }
                     catch(error: Exception) {
                         gate.invalidate()
                         throw createRendererException(error,format,PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED)

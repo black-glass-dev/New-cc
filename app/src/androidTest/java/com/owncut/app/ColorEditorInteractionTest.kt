@@ -29,6 +29,9 @@ class ColorEditorInteractionTest {
                     assertTrue(views.none { it is EditText })
                     assertTrue(views.none { it is SeekBar })
                     assertEquals(4,views.filterIsInstance<GradeColorWheel>().size)
+                    assertEquals(1,views.filterIsInstance<android.widget.Button>().count {
+                        it.text==AppLanguage.text(R.string.color_group_channels)
+                    })
                     val sliders=views.filterIsInstance<GradeDragValue>()
                     assertEquals(17,sliders.size)
                     val argument=Bundle().apply { putFloat(AccessibilityNodeInfo.ACTION_ARGUMENT_PROGRESS_VALUE,2f) }

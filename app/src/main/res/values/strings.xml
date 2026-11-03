@@ -335,7 +335,7 @@
     <string name="color_frame_updating">LAST FRAME · updating grade…</string>
     <string name="color_error_details">Details</string>
     <string name="color_refresh_frame">Refresh</string>
-    <string name="color_live_short">Play draft</string>
+    <string name="color_live_short">Play</string>
     <string name="color_fine_minus">Fine decrease</string>
     <string name="color_fine_plus">Fine increase</string>
     <string name="color_step_down">Decrease %1$s one step</string>
@@ -353,4 +353,10 @@
     <string name="color_inline_loading">Still retriever unavailable. Preparing guarded video preview…</string>
     <string name="color_inline_frame">GRADED VIDEO · platform decoder</string>
     <string name="color_inline_ready">Video preview active. Adjust controls here; Play draft toggles playback. Paused adjustments request a fresh frame.</string>
+    <string name="color_input_short">Input</string>
+    <string name="color_input_title">Preview color interpretation</string>
+    <string name="color_input_warning">Missing color tags are not proof of Rec.709 or SDR. For this preview only, you may explicitly interpret missing primaries as Rec.709, transfer as SDR and range as limited. Known non-709, PQ/HLG, HDR or conflicting tags remain blocked. This is not a verified color match, 10-bit output or export setting. Tagged only restores strict checks.</string>
+    <string name="color_input_assume">Interpret missing tags</string>
+    <string name="color_input_tagged">Tagged only</string>
+    <string name="color_assumed_frame">PREVIEW · assumed Rec.709 SDR</string>
 </resources>

@@ -335,7 +335,7 @@
     <string name="color_frame_updating">আগের ফ্রেম · গ্রেড আপডেট হচ্ছে…</string>
     <string name="color_error_details">বিস্তারিত</string>
     <string name="color_refresh_frame">রিফ্রেশ</string>
-    <string name="color_live_short">ড্রাফট চালান</string>
+    <string name="color_live_short">চালান</string>
     <string name="color_fine_minus">সূক্ষ্মভাবে কমান</string>
     <string name="color_fine_plus">সূক্ষ্মভাবে বাড়ান</string>
     <string name="color_step_down">%1$s এক ধাপ কমান</string>
@@ -353,4 +353,10 @@
     <string name="color_inline_loading">স্থির ফ্রেম পাওয়া যায়নি। সুরক্ষিত ভিডিও প্রিভিউ তৈরি হচ্ছে…</string>
     <string name="color_inline_frame">গ্রেডেড ভিডিও · প্ল্যাটফর্ম ডিকোডার</string>
     <string name="color_inline_ready">ভিডিও প্রিভিউ চালু। এখানেই মান বদলান; ড্রাফট চালান দিয়ে প্লে/পজ করুন। পজ অবস্থায় পরিবর্তনে নতুন ফ্রেম চাওয়া হবে।</string>
+    <string name="color_input_short">ইনপুট</string>
+    <string name="color_input_title">প্রিভিউর ইনপুট রং</string>
+    <string name="color_input_warning">রঙের তথ্য না থাকলেই Rec.709 বা SDR প্রমাণ হয় না। শুধু এই প্রিভিউতে অনুপস্থিত primaries-কে Rec.709, transfer-কে SDR ও range-কে limited ধরে দেখার অনুমতি দিতে পারেন। ভিন্ন primaries, PQ/HLG, HDR বা বিরোধপূর্ণ তথ্য বাধা থাকবে। এটি নিশ্চিত সঠিক রং, ১০-বিট আউটপুট বা এক্সপোর্টের সেটিং নয়। শুধু ট্যাগ ব্যবহার করলে কঠোর যাচাই ফিরবে।</string>
+    <string name="color_input_assume">অনুপস্থিত ট্যাগ ধরে দেখুন</string>
+    <string name="color_input_tagged">শুধু ট্যাগ ব্যবহার</string>
+    <string name="color_assumed_frame">প্রিভিউ · অনুমিত Rec.709 SDR</string>
 </resources>

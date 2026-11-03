@@ -20,6 +20,7 @@ internal class InlineGradePreview(
     private val activity: Activity, private val texture: AspectRatioTextureView,
     private val clip: ClipSnapshot, private val source: VideoSourceMetadata,
     positionMs: Long, private val onFrame: () -> Unit, private val onFailure: (Exception) -> Unit,
+    private val interpretMissing: Boolean=false,
 ) : Application.ActivityLifecycleCallbacks {
     private var player: ExoPlayer?=null
     private var closed=false
@@ -36,10 +37,12 @@ internal class InlineGradePreview(
         if(stopped) return
         try {
             require(source.mediaId==clip.mediaId && source.videoTrackIndex>=0 && source.width>0 && source.height>0 && source.rotationDegrees in listOf(0,90,180,270)) { "Invalid or mismatched video fallback source" }
-            ColorEngine.validateVideoSource(source.color)
+            val admitted=source.copy(color=PreviewColorPolicy.resolve(source.color,interpretMissing))
+            try { ColorEngine.validateVideoSource(admitted.color) }
+            catch(error: Exception) { throw IllegalArgumentException("Source color: ${source.color}. ${error.message}",error) }
             val selected=if(before) settings.copy(enabled=false) else settings
             val shaders=ColorEngine.shaderSources(selected,ColorEngine.TextureEncoding.MEDIA3_SDR_709)
-            val prepared=GradedFramePipeline.prepare(ColorRenderPlan.PreparedClip(clip.copy(grade=selected),source,shaders))
+            val prepared=GradedFramePipeline.prepare(ColorRenderPlan.PreparedClip(clip.copy(grade=selected),admitted,shaders))
             val current=player
             if(current!=null) {
                 current.setVideoEffects(listOf(prepared.effect))
@@ -52,7 +55,7 @@ internal class InlineGradePreview(
                 }
                 return
             }
-            val p=ExoPlayer.Builder(activity.applicationContext,GradedPreviewRenderers(activity.applicationContext,prepared,source)).build()
+            val p=ExoPlayer.Builder(activity.applicationContext,GradedPreviewRenderers(activity.applicationContext,prepared,admitted,interpretMissing)).build()
             player=p
             p.setAudioAttributes(AudioAttributes.DEFAULT,true)
             p.addListener(object: Player.Listener {
