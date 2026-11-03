@@ -58,3 +58,21 @@ Android compile/lint/device tests pending. User phone acceptance remains mandato
 missing-tag recovery, explicit opt-in/revoke, HDR refusal, visible paused/playing changes,
 Before, background/resume, small screen, wheel hue/feel and Primary feedback. No readiness
 credit from subjective polish or host passes;25%/75% unchanged.
+
+
+## Implementation verification follow-up
+Strict production JNI g++ build with conversion/sign warnings and actual JVM/JNI using
+SHA512-verified Kotlin2.3.21 PASS. Exhaustive108 metadata tuples exercise opt-in refusal,
+known-value preservation, HDR union, conflict rejection and decoded full-range inheritance.
+This caught an sRGB-transfer eligibility mismatch with the native video contract; fixed
+before handoff (only UNKNOWN/SDR_VIDEO are eligible, never overriding known sRGB).
+Six-hue palette rankings and native24 group/direction neutral-pixel cases PASS. Native
+color ASan+UBSan PASS;342 bilingual/3theme/17labels PASS. Numeric cancel/multitouch now
+ends capture; new UI regression source added, execution pending. Assumed interpretation
+warning persists for Before and the standalone draft title.
+
+Official Media3 1.8.1 MediaFormatUtil.getColorInfo was also inspected: invalid platform
+color integers are normalized to NO_VALUE there. Our independent mapping recognizes only
+exact unset sentinels0/-1/null as UNKNOWN (not SDR); other unsupported codes remain OTHER.
+Added Android source regression confirms unset tags still fail strict native admission.
+No claim that the user's actual integer tags are0/-1: bytes/probe report still unavailable.

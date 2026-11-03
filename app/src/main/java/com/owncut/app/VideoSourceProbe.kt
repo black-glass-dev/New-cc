@@ -89,11 +89,12 @@ internal object VideoSourceProbe {
     }
 
     // Android MediaFormat and Media3 constants are mapped independently, not assumed equal.
+    // Exact unset sentinels stay UNKNOWN, never Rec709. Other unsupported codes stay OTHER.
     internal fun color(standard: Int?, transfer: Int?, range: Int?)=ColorEngine.VideoColorMetadata(
-        when(standard) { null -> ColorEngine.VideoPrimaries.UNKNOWN
+        when(standard) { null,0,-1 -> ColorEngine.VideoPrimaries.UNKNOWN
             MediaFormat.COLOR_STANDARD_BT709 -> ColorEngine.VideoPrimaries.REC709
             else -> ColorEngine.VideoPrimaries.OTHER },
-        when(transfer) { null -> ColorEngine.VideoTransfer.UNKNOWN
+        when(transfer) { null,0,-1 -> ColorEngine.VideoTransfer.UNKNOWN
             MediaFormat.COLOR_TRANSFER_SDR_VIDEO -> ColorEngine.VideoTransfer.SDR_VIDEO
             MediaFormat.COLOR_TRANSFER_ST2084 -> ColorEngine.VideoTransfer.PQ
             MediaFormat.COLOR_TRANSFER_HLG -> ColorEngine.VideoTransfer.HLG

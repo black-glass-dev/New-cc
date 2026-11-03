@@ -14,6 +14,11 @@ class ColorSourcePlanTest {
         val unknown=VideoSourceProbe.color(null,null,null)
         assertEquals(ColorEngine.VideoPrimaries.UNKNOWN,unknown.primaries)
         assertThrows(IllegalArgumentException::class.java) { ColorEngine.validateVideoSource(unknown) }
+        for(unset in listOf(0,-1)) {
+            val untagged=VideoSourceProbe.color(unset,unset,unset)
+            assertEquals(unknown,untagged)
+            assertThrows(IllegalArgumentException::class.java) { ColorEngine.validateVideoSource(untagged) }
+        }
         val good=VideoSourceProbe.color(MediaFormat.COLOR_STANDARD_BT709,
             MediaFormat.COLOR_TRANSFER_SDR_VIDEO,MediaFormat.COLOR_RANGE_LIMITED)
         ColorEngine.validateVideoSource(good)
