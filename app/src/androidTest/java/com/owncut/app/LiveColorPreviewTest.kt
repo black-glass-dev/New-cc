@@ -10,6 +10,28 @@ import org.junit.Test
  */
 @UnstableApi
 class LiveColorPreviewTest {
+    @Test fun paddedHevcUsesInclusiveVisibleCropWithoutChangingSourceColorOrRotation() {
+        val format=MediaFormat.createVideoFormat("video/raw",2880,2176)
+        format.setInteger(MediaFormat.KEY_COLOR_STANDARD,MediaFormat.COLOR_STANDARD_BT709)
+        format.setInteger(MediaFormat.KEY_COLOR_TRANSFER,MediaFormat.COLOR_TRANSFER_SDR_VIDEO)
+        format.setInteger(MediaFormat.KEY_COLOR_RANGE,MediaFormat.COLOR_RANGE_LIMITED)
+        format.setInteger("crop-left",0);format.setInteger("crop-top",0)
+        format.setInteger("crop-right",2879);format.setInteger("crop-bottom",2159)
+        format.setInteger(MediaFormat.KEY_ROTATION,90)
+        format.setInteger("stride",3072);format.setInteger("slice-height",2304)
+        val visible=VideoSourceProbe.decoded(format)
+        assertEquals(2880,visible.width);assertEquals(2160,visible.height)
+        val gate=DecoderColorGate(visible)
+        gate.beforeRender { VideoSourceProbe.decoded(format) }
+        assertTrue(VideoSourceProbe.geometryDescription(format).contains("crop-bottom=2159"))
+        format.setInteger("crop-bottom",2160)
+        assertThrows(IllegalArgumentException::class.java) { gate.beforeRender { VideoSourceProbe.decoded(format) } }
+        assertEquals(DecoderColorGate.State.FAILED,gate.state)
+        val malformed=MediaFormat.createVideoFormat("video/raw",2880,2176)
+        malformed.setInteger("crop-right",2879)
+        assertThrows(IllegalArgumentException::class.java) { VideoSourceProbe.decoded(malformed) }
+    }
+
     @Test fun rendererRawOutputNeverDefaultsMissingColorTags() {
         val format=MediaFormat.createVideoFormat("video/raw",1920,1080)
         val unknown=VideoSourceProbe.decoded(format)

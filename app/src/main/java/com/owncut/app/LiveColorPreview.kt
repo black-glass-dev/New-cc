@@ -86,7 +86,7 @@ internal object LiveColorPreview {
             if(closed.get() || !playback.fail()) return
             handler.removeCallbacks(ticker);worker.shutdownNow();scrubbing=false
             controls();releasePlayer() // don't retain decoder/GL/audio focus until the user closes
-            failureDetails=ColorPreviewFailure.describe(error)
+            failureDetails=ColorPreviewFailure.details(error)
             status.text=AppLanguage.text(R.string.color_live_stopped)
             details.visibility=android.view.View.VISIBLE
         }

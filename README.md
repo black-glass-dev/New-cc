@@ -1,3 +1,13 @@
+## Crop-aware preview geometry candidate (2026-11-03)
+
+User reports edaabbc Play/inline/experimental all fail decoded-geometry admission. Supplied
+input declares HEVC2880x2160@24, Rec709 SDR,10bit; raw output dimensions/crop remain unknown.
+ADR0036 fixes confirmed adapter omission: source/decoder MediaFormat crop normalizes through
+C++/narrow JNI before strict visible-size comparison. No blind rounding/rotation swap or
+HDR relaxation. Adds stage/codec/expected/raw-crop Details. Local Make6/strict JNI + actual
+JVM/Kotlin crop checks/343 bilingual3themes17labels PASS. Android/phone validation pending;
+no confirmed file diagnosis or10-bit output proof.25%/75%; dependencies unchanged.
+
 ## Focused wheels / cached live redraw APK PUBLISHED (2026-11-03)
 
 [Download focused live-preview APK](https://github.com/islamyousuf032-glitch/New-cc/releases/download/fresh-install-41641807647/owncut-fresh-install-debug.apk).

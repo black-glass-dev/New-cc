@@ -241,3 +241,13 @@ GPU work stays one-active/latest-pending with draw tokens; paused redraw via pub
 bounded by watchdogs (phone exact-frame verification pending). One focused wheel and compact shared controls; no new dependency.
 Actual Kotlin/JNI tests pass; Android/phone proof pending. Keep HDR/source and explicit
 Input safeguards; no10-bit/export or readiness claim (25%/75%).
+
+
+### Visible geometry candidate — 2026-11-03
+
+ADR0036: compare pre-rotation visible geometry derived from validated inclusive crop, not
+raw allocation size. C++ owns bounds/math; narrow JNI transports seven ints. Never round
+codec dimensions, swap width/height, infer HDR/depth or drop source/decoder gates to get
+playback. Source/decoded raw Details and stage retained. User reports previous candidate
+all preview paths fail geometry; new Android/phone validation pending.25%/75% unchanged;
+existing Media3 API reviewed, no dependency/license or project-schema changes.

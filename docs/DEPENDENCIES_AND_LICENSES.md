@@ -339,3 +339,13 @@ polish and GPU-resource acceptance pending. Final candidate uses public replay c
 stable effect, NOT the earlier muted pump prototype. Source/HDR/Input/export guards retained.
 Existing Media3 pin/license unchanged; cache uses two SDK-owned textures. Readiness25%/75%;
 no10-bit, output parity or device-performance proof. Latest evidence: BUILD_AND_TEST.
+
+
+### Visible geometry candidate — 2026-11-03
+
+ADR0036: compare pre-rotation visible geometry derived from validated inclusive crop, not
+raw allocation size. C++ owns bounds/math; narrow JNI transports seven ints. Never round
+codec dimensions, swap width/height, infer HDR/depth or drop source/decoder gates to get
+playback. Source/decoded raw Details and stage retained. User reports previous candidate
+all preview paths fail geometry; new Android/phone validation pending.25%/75% unchanged;
+existing Media3 API reviewed, no dependency/license or project-schema changes.

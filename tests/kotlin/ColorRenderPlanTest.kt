@@ -80,6 +80,25 @@ fun main() {
     try { invalidated.beforeRender(expected);error("query failure resumed") } catch (_: IllegalStateException) { }
     rejected { DecoderColorGate(expected.copy(width=0)) }
     println("Production Kotlin/native decoded gate: repeated validation, late format changes, unknown output and terminal lifecycle passed")
+    val hevc=ColorEngine.DecodedVideoFormat(2880,2160,supported)
+    val croppedGate=DecoderColorGate(hevc)
+    fun cropped(bottom: Int): ColorEngine.DecodedVideoFormat {
+        val dimensions=ColorEngine.visibleVideoGeometry(2880,2176,15,intArrayOf(0,0,2879,bottom))
+        return hevc.copy(width=dimensions[0],height=dimensions[1])
+    }
+    croppedGate.beforeRender { cropped(2159) }
+    check(croppedGate.state==DecoderColorGate.State.VERIFIED)
+    rejected { croppedGate.beforeRender { cropped(2160) } }
+    check(croppedGate.state==DecoderColorGate.State.FAILED)
+    val invalidCropGate=DecoderColorGate(hevc)
+    rejected { invalidCropGate.beforeRender {
+        ColorEngine.visibleVideoGeometry(2880,2176,7,intArrayOf(0,0,2879,2159));hevc
+    } }
+    check(invalidCropGate.state==DecoderColorGate.State.FAILED)
+    val mismatch=runCatching { ColorEngine.validateDecodedFormat(hevc,hevc.copy(height=2176)) }.exceptionOrNull()
+    check(mismatch?.message?.contains("expected-visible=2880x2160")==true)
+    check(mismatch.message?.contains("actual-visible=2880x2176")==true)
+    println("Native crop-normalized HEVC admission and terminal changed/malformed crop through JVM/JNI passed")
     val grade=ColorGrade(exposureStops=1.0)
     val first=ClipSnapshot("first","v1","content://shared",0,30,0,1000,grade,true)
     val second=first.copy(id="second",startFrame=30,sourceInMs=1000,sourceOutMs=2000,

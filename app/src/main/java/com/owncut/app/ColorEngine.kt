@@ -70,6 +70,12 @@ internal object ColorEngine {
     }
     fun validateDecodedFormat(expected: DecodedVideoFormat, actual: DecodedVideoFormat) =
         nativeValidateDecodedFormatV1(expected.parametersV1()+actual.parametersV1())
+    /** Transport only; C++ validates inclusive crop bounds and computes visible geometry. */
+    fun visibleVideoGeometry(width: Int,height: Int,cropMask: Int,crop: IntArray): IntArray {
+        require(crop.size==4) { "Four crop coordinates required" }
+        return nativeVisibleGeometryV1(intArrayOf(width,height,cropMask)+crop)
+    }
+    private external fun nativeVisibleGeometryV1(fields: IntArray): IntArray
     private external fun nativeValidateDecodedFormatV1(parameters: IntArray)
     private external fun nativeValidateVideoSourceV1(primaries: Int, transfer: Int, range: Int, hdrStatic: Boolean)
     private external fun nativeShaderV1(parameters: DoubleArray, enabled: Boolean, encoding: Int, vertex: Boolean): String

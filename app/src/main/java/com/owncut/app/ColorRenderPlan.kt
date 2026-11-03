@@ -8,6 +8,7 @@ import java.util.Collections
 internal data class VideoSourceMetadata(
     val mediaId: String, val videoTrackIndex: Int, val width: Int, val height: Int,
     val rotationDegrees: Int, val color: ColorEngine.VideoColorMetadata,
+    val geometryDescription: String="",
 )
 
 /** Pure immutable transport for BOTH candidate preview and export. No timeline math.

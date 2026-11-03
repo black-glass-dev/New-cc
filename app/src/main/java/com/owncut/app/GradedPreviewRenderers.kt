@@ -37,6 +37,19 @@ internal class GradedPreviewRenderers(context: Context, private val prepared: Gr
         val expected=ColorEngine.DecodedVideoFormat(source.width,source.height,source.color)
         out.add(object : MediaCodecVideoRenderer(builder) {
             private val gate=DecoderColorGate(expected)
+            private fun diagnostic(stage: String,error: Exception,format: Format?,raw: MediaFormat?): PlaybackException {
+                gate.invalidate()
+                val message="Grade preview stage=$stage expected-visible=${source.width}x${source.height} " +
+                    "source-rotation=${source.rotationDegrees} codec=${getCodecInfo()?.name ?: "not-created"}; " +
+                    "input=${format?.width}x${format?.height} input-rotation=${format?.rotationDegrees} pixel-ratio=${format?.pixelWidthHeightRatio}; " +
+                    "decoded-raw={${VideoSourceProbe.geometryDescription(raw)}}; source-raw={${source.geometryDescription}}"
+                return createRendererException(IllegalArgumentException(message,error),format,
+                    PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED)
+            }
+            private fun verifyRaw(raw: MediaFormat?) {
+                // Normalize inside the terminal gate, so malformed crop cannot leave it VERIFIED.
+                gate.beforeRender { raw?.let { admitted(VideoSourceProbe.decoded(it)) } }
+            }
             override fun createPlaybackVideoGraphWrapper(context: Context,
                 videoFrameReleaseControl: VideoFrameReleaseControl): PlaybackVideoGraphWrapper =
                 PlaybackVideoGraphWrapper.Builder(context,videoFrameReleaseControl)
@@ -60,34 +73,28 @@ internal class GradedPreviewRenderers(context: Context, private val prepared: Gr
                     super.changeVideoSinkInputStream(videoSink,inputType,
                         format.buildUpon().setColorInfo(interpreted).build(),firstFrameReleaseInstruction)
                 } catch(error: Exception) {
-                    gate.invalidate()
-                    throw createRendererException(error,format,PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED)
+                    throw diagnostic("graph-input",error,format,null)
                 }
             }
 
             override fun onOutputFormatChanged(format: Format, mediaFormat: MediaFormat?) {
                 try {
-                    // Reject changed/HDR input even if a platform decoder could tone-map its output.
+                    // Track format is pre-rotation visible geometry, not codec allocation size.
                     ColorEngine.validateDecodedFormat(expected,admitted(GuardedDecoderFactory.descriptor(format)))
-                    // Media3 may notify an input-only change before codec output exists.
-                    // Only actual rendered buffers must have raw metadata; processOutputBuffer
-                    // below still rejects null/unknown/changed formats on every render.
-                    if(mediaFormat!=null) gate.beforeRender(admitted(VideoSourceProbe.decoded(mediaFormat)))
-                } catch(error: Exception) {
-                    gate.invalidate()
-                    throw createRendererException(error,format,PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED)
-                }
-                super.onOutputFormatChanged(format,mediaFormat)
+                } catch(error: Exception) { throw diagnostic("input-track",error,format,mediaFormat) }
+                try {
+                    if(mediaFormat!=null) verifyRaw(mediaFormat)
+                } catch(error: Exception) { throw diagnostic("decoder-format",error,format,mediaFormat) }
+                try { super.onOutputFormatChanged(format,mediaFormat) }
+                catch(error: Exception) { throw diagnostic("video-sink-setup",error,format,mediaFormat) }
             }
             override fun processOutputBuffer(positionUs: Long, elapsedRealtimeUs: Long, codec: MediaCodecAdapter?,
                 buffer: ByteBuffer?, bufferIndex: Int, bufferFlags: Int, sampleCount: Int,
                 bufferPresentationTimeUs: Long, isDecodeOnlyBuffer: Boolean, isLastBuffer: Boolean, format: Format): Boolean {
                 if(!isDecodeOnlyBuffer || isLastBuffer) {
-                    try { gate.beforeRender { codec?.outputFormat?.let { admitted(VideoSourceProbe.decoded(it)) } } }
-                    catch(error: Exception) {
-                        gate.invalidate()
-                        throw createRendererException(error,format,PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED)
-                    }
+                    var raw: MediaFormat?=null
+                    try { raw=codec?.outputFormat;verifyRaw(raw) }
+                    catch(error: Exception) { throw diagnostic("decoded-buffer",error,format,raw) }
                 }
                 return super.processOutputBuffer(positionUs,elapsedRealtimeUs,codec,buffer,bufferIndex,bufferFlags,
                     sampleCount,bufferPresentationTimeUs,isDecodeOnlyBuffer,isLastBuffer,format)

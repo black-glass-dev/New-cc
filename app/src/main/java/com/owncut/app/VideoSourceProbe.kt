@@ -30,11 +30,11 @@ internal object VideoSourceProbe {
                 if (format.getString(MediaFormat.KEY_MIME)?.startsWith("video/") != true) continue
                 require(found == null) { "Multiple video tracks require an explicit track selector" }
                 fun integer(key: String): Int? = if(format.containsKey(key)) format.getInteger(key) else null
-                found=VideoSourceMetadata(mediaId,index,integer(MediaFormat.KEY_WIDTH) ?: 0,
-                    integer(MediaFormat.KEY_HEIGHT) ?: 0,integer(MediaFormat.KEY_ROTATION) ?: 0,
+                val size=visibleGeometry(format)
+                found=VideoSourceMetadata(mediaId,index,size[0],size[1],integer(MediaFormat.KEY_ROTATION) ?: 0,
                     color(integer(MediaFormat.KEY_COLOR_STANDARD),integer(MediaFormat.KEY_COLOR_TRANSFER),
                         integer(MediaFormat.KEY_COLOR_RANGE)).copy(hasHdrStaticMetadata=
-                            hdrStatic(format)))
+                            hdrStatic(format)),geometryDescription(format))
             }
             checkCancelled()
             return enrich(context,requireNotNull(found) { "No video track in source" },checkCancelled)
@@ -73,9 +73,33 @@ internal object VideoSourceProbe {
 
     internal fun decoded(format: MediaFormat): ColorEngine.DecodedVideoFormat {
         fun integer(key: String): Int? = if(format.containsKey(key)) format.getInteger(key) else null
-        return ColorEngine.DecodedVideoFormat(integer(MediaFormat.KEY_WIDTH) ?: 0,integer(MediaFormat.KEY_HEIGHT) ?: 0,
+        val size=visibleGeometry(format)
+        return ColorEngine.DecodedVideoFormat(size[0],size[1],
             color(integer(MediaFormat.KEY_COLOR_STANDARD),integer(MediaFormat.KEY_COLOR_TRANSFER),integer(MediaFormat.KEY_COLOR_RANGE))
                 .copy(hasHdrStaticMetadata=hdrStatic(format)))
+    }
+
+    // Stable MediaFormat key strings work on minSdk26; KEY_CROP_* public constants are newer.
+    private val cropKeys=listOf("crop-left","crop-top","crop-right","crop-bottom")
+    internal fun visibleGeometry(format: MediaFormat): IntArray {
+        var mask=0
+        val crop=IntArray(4)
+        cropKeys.forEachIndexed { index,key -> if(format.containsKey(key)) {
+            mask=mask or (1 shl index);crop[index]=format.getInteger(key)
+        } }
+        return ColorEngine.visibleVideoGeometry(
+            if(format.containsKey(MediaFormat.KEY_WIDTH)) format.getInteger(MediaFormat.KEY_WIDTH) else 0,
+            if(format.containsKey(MediaFormat.KEY_HEIGHT)) format.getInteger(MediaFormat.KEY_HEIGHT) else 0,mask,crop)
+    }
+    /** Bounded, URI-free diagnostics; never dumps CSD/HDR buffers or provider paths. */
+    internal fun geometryDescription(format: MediaFormat?): String {
+        if(format==null) return "no raw MediaFormat"
+        val keys=listOf("width","height")+cropKeys+listOf("rotation-degrees","sar-width","sar-height","stride","slice-height",
+            "color-standard","color-transfer","color-range")
+        return keys.joinToString(" ") { key ->
+            val value=if(!format.containsKey(key)) "absent" else runCatching { format.getInteger(key).toString() }.getOrDefault("invalid")
+            "$key=$value"
+        }
     }
 
     private fun hdrStatic(format: MediaFormat): Boolean {

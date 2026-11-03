@@ -25,6 +25,25 @@ void tests() {
     actual=expected;actual.color.transfer=VideoTransfer::unknown;fails([&]{validate_decoded_video_format(expected,actual);});
     actual=expected;actual.color.has_hdr_static_metadata=true;fails([&]{validate_decoded_video_format(expected,actual);});
     actual=expected;actual.width=0;fails([&]{validate_decoded_video_format(actual,actual);});
+    // HEVC padding is not a display-size change when a complete valid crop proves it.
+    check(visible_video_geometry(2880,2176,15,{0,0,2879,2159})==std::array<int,2>{2880,2160});
+    check(visible_video_geometry(2944,2176,15,{64,16,2943,2175})==std::array<int,2>{2880,2160});
+    check(visible_video_geometry(2880,2160,0,{})==std::array<int,2>{2880,2160});
+    check(visible_video_geometry(1,1,15,{0,0,0,0})==std::array<int,2>{1,1});
+    check(visible_video_geometry(std::numeric_limits<int>::max(),std::numeric_limits<int>::max(),15,
+        {0,0,std::numeric_limits<int>::max()-1,std::numeric_limits<int>::max()-1})==
+        std::array<int,2>{std::numeric_limits<int>::max(),std::numeric_limits<int>::max()});
+    for(int mask=-1;mask<=16;++mask) if(mask!=0 && mask!=15)
+        fails([&]{(void)visible_video_geometry(2880,2176,mask,{0,0,2879,2159});});
+    for(const auto crop : {std::array<int,4>{-1,0,2879,2159},{0,-1,2879,2159},{0,0,2880,2159},
+        {0,0,2879,2176},{5,0,4,2159},{0,5,2879,4},{0,0,std::numeric_limits<int>::max(),2159}})
+        fails([&]{(void)visible_video_geometry(2880,2176,15,crop);});
+    fails([]{(void)visible_video_geometry(0,2160,0,{});});
+    const DecodedVideoFormat hevc{2880,2160,expected.color};
+    auto padded=hevc;const auto visible=visible_video_geometry(2880,2176,15,{0,0,2879,2159});
+    padded.width=visible[0];padded.height=visible[1];validate_decoded_video_format(hevc,padded);
+    padded.height=2176;fails([&]{validate_decoded_video_format(hevc,padded);});
+    padded.width=2160;padded.height=2880;fails([&]{validate_decoded_video_format(hevc,padded);});
     check(grade_vertex_shader().find("#version 100") == 0);
     const Rgb input{0.5,0.25,0.75};
     for(auto e : {TextureEncoding::srgb,TextureEncoding::linear709,TextureEncoding::media3_sdr709}) {

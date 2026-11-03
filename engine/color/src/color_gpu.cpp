@@ -15,11 +15,28 @@ void validate_sdr_video_source(const VideoColorMetadata& source) {
     if (source.range != VideoRange::full && source.range != VideoRange::limited)
         throw std::invalid_argument("grade source requires explicit full or limited video range");
 }
+std::array<int,2> visible_video_geometry(int width,int height,int crop_mask,const std::array<int,4>& crop) {
+    const auto describe=[&] {
+        return "coded="+std::to_string(width)+"x"+std::to_string(height)+" crop-mask="+std::to_string(crop_mask)+
+            " crop=["+std::to_string(crop[0])+","+std::to_string(crop[1])+","+
+            std::to_string(crop[2])+","+std::to_string(crop[3])+"]";
+    };
+    if(width<=0 || height<=0) throw std::invalid_argument("invalid video dimensions: "+describe());
+    if(crop_mask==0) return {width,height};
+    if(crop_mask!=15) throw std::invalid_argument("incomplete video crop rectangle: "+describe());
+    const auto left=crop[0],top=crop[1],right=crop[2],bottom=crop[3];
+    if(left<0 || top<0 || right<left || bottom<top || right>=width || bottom>=height)
+        throw std::invalid_argument("invalid video crop bounds: "+describe());
+    // Bounds above make inclusive +1 arithmetic safe, even at INT_MAX dimensions.
+    return {right-left+1,bottom-top+1};
+}
 void validate_decoded_video_format(const DecodedVideoFormat& expected, const DecodedVideoFormat& actual) {
     validate_sdr_video_source(expected.color);
     validate_sdr_video_source(actual.color);
     if (expected.width <= 0 || expected.height <= 0 || actual.width != expected.width || actual.height != expected.height)
-        throw std::invalid_argument("decoded video geometry differs from admitted input");
+        throw std::invalid_argument("decoded video geometry differs from admitted input: expected-visible="+
+            std::to_string(expected.width)+"x"+std::to_string(expected.height)+" actual-visible="+
+            std::to_string(actual.width)+"x"+std::to_string(actual.height));
     if (actual.color.primaries != expected.color.primaries || actual.color.transfer != expected.color.transfer ||
         actual.color.range != expected.color.range)
         throw std::invalid_argument("decoded video color differs from admitted input");

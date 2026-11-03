@@ -25,7 +25,11 @@ struct DecodedVideoFormat {
     int height{};
     VideoColorMetadata color{};
 };
-// Strict initial subset: unknown tags, changed coded geometry/range/transfer fail.
+// Android crop right/bottom are inclusive. Mask0=no crop,15=all four keys.
+// Returns pre-rotation visible pixels; never infers padding, swaps dimensions or uses stride.
+[[nodiscard]] std::array<int,2> visible_video_geometry(int width,int height,int crop_mask,
+    const std::array<int,4>& crop);
+// Strict subset: unknown tags, changed normalized visible geometry/range/transfer fail.
 // Does not verify URI byte identity, rotation/crop transforms, or texture pixels.
 void validate_decoded_video_format(const DecodedVideoFormat& expected, const DecodedVideoFormat& actual);
 [[nodiscard]] Rgb texture_reference(Rgb normalized, const Grade& grade, TextureEncoding encoding);

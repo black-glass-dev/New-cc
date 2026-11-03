@@ -8,6 +8,17 @@ private fun rejected(block: () -> Unit) {
 }
 private fun bytes(buffer: ByteBuffer): List<Int> = (0 until buffer.capacity()).map { buffer.get(it).toInt() and 255 }
 fun main() {
+    check(ColorEngine.visibleVideoGeometry(2880,2176,15,intArrayOf(0,0,2879,2159)).contentEquals(intArrayOf(2880,2160)))
+    check(ColorEngine.visibleVideoGeometry(2880,2176,0,IntArray(4)).contentEquals(intArrayOf(2880,2176)))
+    check(ColorEngine.visibleVideoGeometry(Int.MAX_VALUE,Int.MAX_VALUE,15,intArrayOf(0,0,Int.MAX_VALUE-1,Int.MAX_VALUE-1)).contentEquals(intArrayOf(Int.MAX_VALUE,Int.MAX_VALUE)))
+    for(mask in -1..16) if(mask!=0 && mask!=15) rejected { ColorEngine.visibleVideoGeometry(2880,2176,mask,intArrayOf(0,0,2879,2159)) }
+    rejected { ColorEngine.visibleVideoGeometry(0,2176,0,IntArray(4)) }
+    rejected { ColorEngine.visibleVideoGeometry(2880,2176,15,intArrayOf(0,0,2880,2159)) }
+    rejected { ColorEngine.visibleVideoGeometry(2880,2176,15,intArrayOf(-1,0,2879,2159)) }
+    rejected { ColorEngine.visibleVideoGeometry(2880,2176,15,IntArray(3)) }
+    val nativeGeometry=ColorEngine::class.java.getDeclaredMethod("nativeVisibleGeometryV1",IntArray::class.java).apply { isAccessible=true }
+    check(runCatching { nativeGeometry.invoke(ColorEngine,intArrayOf(2880,2176)) }.exceptionOrNull()?.cause is IllegalArgumentException)
+    println("Native inclusive crop geometry through real JNI: padding, partial/invalid bounds, overflow and malformed schema passed")
     val values=ColorGrade().parametersV1().map { it.toString() }.toMutableList()
     values[0]="১.৫";values[5]="−০.২৫"
     val parsed=ColorGradeDraft.parse(values,true)

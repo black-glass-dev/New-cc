@@ -211,7 +211,7 @@ internal object ClipColorEditor {
         }
         fun showFailure(error: Exception, previewRelated: Boolean=true) {
             statusRow.visibility=android.view.View.VISIBLE
-            lastFailure=ColorPreviewFailure.describe(error)
+            lastFailure=ColorPreviewFailure.details(error)
             status.text=AppLanguage.text(if(previewRelated) R.string.color_preview_unavailable else R.string.color_error,lastFailure)
             details.visibility=android.view.View.VISIBLE
             if(previewRelated) loading.visibility=android.view.View.GONE
@@ -465,7 +465,7 @@ internal object ClipColorEditor {
                 main.post { if(!closed.get() && inline==null) {
                     if(metadata!=null) {
                         statusRow.visibility=android.view.View.VISIBLE
-                        lastFailure=ColorPreviewFailure.describe(error)
+                        lastFailure=ColorPreviewFailure.details(error)
                         startInline(metadata)
                     } else showFailure(error)
                 } }

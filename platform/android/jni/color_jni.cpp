@@ -161,3 +161,22 @@ Java_com_owncut_app_ColorEngine_nativeHdrStaticPresentV1(JNIEnv* env,jobject,jby
     if(env->ExceptionCheck()) return JNI_TRUE;
     return editor::color::hdr_static_info_present({reinterpret_cast<const std::uint8_t*>(bytes.data()),bytes.size()}) ? JNI_TRUE:JNI_FALSE;
 }
+
+extern "C" JNIEXPORT jintArray JNICALL
+Java_com_owncut_app_ColorEngine_nativeVisibleGeometryV1(JNIEnv* env,jobject,jintArray values) {
+    try {
+        if(!values || env->GetArrayLength(values)!=7)
+            throw std::invalid_argument("video geometry requires 7 integers");
+        std::array<jint,7> fields{};
+        env->GetIntArrayRegion(values,0,7,fields.data());
+        if(env->ExceptionCheck()) return nullptr;
+        const auto size=editor::color::visible_video_geometry(fields[0],fields[1],fields[2],
+            {fields[3],fields[4],fields[5],fields[6]});
+        const std::array<jint,2> output{size[0],size[1]};
+        auto result=env->NewIntArray(2);
+        if(result) env->SetIntArrayRegion(result,0,2,output.data());
+        return result;
+    } catch(const std::bad_alloc&) { fail(env,"java/lang/OutOfMemoryError","video geometry allocation failed"); }
+      catch(const std::exception& error) { fail(env,"java/lang/IllegalArgumentException",error.what()); }
+    return nullptr;
+}
