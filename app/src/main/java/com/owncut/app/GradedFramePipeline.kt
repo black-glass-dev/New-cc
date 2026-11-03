@@ -96,15 +96,16 @@ internal object GradedFramePipeline {
         override fun drawFrame(inputTexId: Int, presentationTimeUs: Long) {
             try {
                 val next=readLatest?.invoke() ?: recipe
-                if(next !== recipe) {
+                if(next.sources!=recipe.sources) {
                     val replacement=compile(next.sources)
                     try { program.delete() }
                     catch(error: Exception) {
                         runCatching { replacement.delete() }.exceptionOrNull()?.let { error.addSuppressed(it) }
                         throw error
                     }
-                    program=replacement;recipe=next
+                    program=replacement
                 }
+                recipe=next
                 program.use()
                 program.setSamplerTexIdUniform("uSource",inputTexId,0)
                 program.bindAttributesAndUniforms()

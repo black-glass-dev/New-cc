@@ -86,7 +86,7 @@ internal object ClipColorEditor {
             stateListAnimator=null;elevation=0f
             backgroundTintList=null;background=StudioUi.shape(activity,StudioUi.surface,8)
         }
-        val live=action(R.string.color_live_short).apply { isEnabled=previewDraft!=null }
+        val live=action(R.string.color_live_short).apply { isEnabled=false }
         val inputColor=action(R.string.color_input_short).apply { isEnabled=false;contentDescription=AppLanguage.text(R.string.color_input_title) }
         for(button in listOf(compare,render,live,inputColor)) buttons.addView(button,LinearLayout.LayoutParams(0,dp(48),1f).apply { setMargins(dp(2),0,dp(2),0) })
         viewerSide.addView(buttons)
@@ -109,6 +109,7 @@ internal object ClipColorEditor {
         val inputs=mutableListOf<GradeDragValue>()
         val wheels=mutableListOf<GradeColorWheel>()
         val wheelReadouts=mutableListOf<TextView>()
+        val previousWheelValues=Array(4) { DoubleArray(3) { Double.NaN } }
         val groups=List(3) { LinearLayout(activity).apply { orientation=LinearLayout.VERTICAL } }
         val tabButtons=mutableListOf<Button>()
         fun showGroup(group: Int) {
@@ -187,10 +188,12 @@ internal object ClipColorEditor {
             inputs.forEachIndexed { index,input -> input.bind(values[index]) }
             val settings=ColorGrade.fromParametersV1(values.copyOf(),enabled.isChecked)
             wheels.forEachIndexed { group,wheel ->
-                wheel.bind(ColorEngine.wheelPosition(settings,group))
                 val offset=5+group*3
-                val text=String.format(java.util.Locale.ROOT,"R %.2f  G %.2f  B %.2f",values[offset],values[offset+1],values[offset+2])
-                if(wheelReadouts[group].text.toString()!=text) wheelReadouts[group].text=text
+                if((0..2).any { previousWheelValues[group][it]!=values[offset+it] }) {
+                    wheel.bind(ColorEngine.wheelPosition(settings,group))
+                    wheelReadouts[group].text=String.format(java.util.Locale.ROOT,"R %.2f  G %.2f  B %.2f",values[offset],values[offset+1],values[offset+2])
+                    for(channel in 0..2) previousWheelValues[group][channel]=values[offset+channel]
+                }
             }
         }
         labels()

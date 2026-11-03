@@ -54,7 +54,7 @@ internal class GradeDragValue(context: Context, private val scale: ColorSliderSc
     }
     fun bind(value: Double) {
         if(text.isNotEmpty() && value==current) return
-        if(isAttachedToWindow && !isPressed) { removeCallbacks(quiet);animateFeedback(1f);postDelayed(quiet,90) }
+        if(isShown && !isPressed) { removeCallbacks(quiet);animateFeedback(1f);postDelayed(quiet,90) }
         current=value;text=String.format(java.util.Locale.ROOT,"%.3f",value)
         contentDescription="$parameterName $text"
     }

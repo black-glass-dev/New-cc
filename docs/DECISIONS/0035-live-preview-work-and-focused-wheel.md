@@ -92,3 +92,12 @@ effect/.../DefaultVideoFrameProcessor,effect/.../ReplayableFrameCacheGlShaderPro
 The two-buffer cache is owned/released by the existing video graph. Runtime tests of exact
 paused-frame display/GPU resource behavior remain pending. Added Android test source asserts
 live recipe updates retain effect/factory identity; it is not runtime GPU evidence.
+
+
+### Avoidable-work review
+Hidden numeric controls no longer start feedback animators from wheel edits. Wheel labels/
+native wheel-position requests only refresh for changed RGB triplets; identical native
+shader source keeps its compiled program while still acknowledging the new redraw token.
+Play remains disabled until the source probe supplies an inline source, avoiding accidental
+old immutable snapshot playback during initial probe. These reduce avoidable work; no phone
+FPS/latency/power benchmark is claimed.
