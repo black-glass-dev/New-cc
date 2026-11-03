@@ -1,12 +1,23 @@
-## Crop-aware preview geometry candidate (2026-11-03)
+## Crop-aware preview APK PUBLISHED (2026-11-03)
 
-User reports edaabbc Play/inline/experimental all fail decoded-geometry admission. Supplied
-input declares HEVC2880x2160@24, Rec709 SDR,10bit; raw output dimensions/crop remain unknown.
-ADR0036 fixes confirmed adapter omission: source/decoder MediaFormat crop normalizes through
-C++/narrow JNI before strict visible-size comparison. No blind rounding/rotation swap or
-HDR relaxation. Adds stage/codec/expected/raw-crop Details. Local Make6/strict JNI + actual
-JVM/Kotlin crop checks/343 bilingual3themes17labels PASS. Android/phone validation pending;
-no confirmed file diagnosis or10-bit output proof.25%/75%; dependencies unchanged.
+[Download geometry-fix APK](https://github.com/islamyousuf032-glitch/New-cc/releases/download/fresh-install-41650076264/owncut-fresh-install-debug.apk).
+Source `ecc40b49fe501fd88e759065cee16f606ea85a75`; Android41650076264 and
+Portable41650076270 PASS. Android assembly, lint, instrumentation-source compilation,
+APK alignment and publication passed; instrumentation/emulator/install-over NOT run.
+GitHub release API reports8,108,011bytes, SHA256
+`a59058222d55a902238ec60ca74dcbd742777ab3228e27fc19d22e5517c4575f`;
+no independent local APK rehash claimed. Local Make6, strict JNI build, real pinned
+Kotlin/JVM/JNI including terminal changed/malformed HEVC-crop cases, geometry ASan+UBSan,
+27 Python policies and343 bilingual/3themes/17labels checks PASS.
+
+ADR0036 corrects a confirmed adapter omission: explicit inclusive source/decoder crop
+normalization in C++ before strict pre-rotation visible-size admission. Detailed errors
+identify stage, codec, expected visible dimensions and raw crop/stride/slice/color/SAR.
+No guessed padding, rotation swap, resizing or HDR/export guard bypass. The2880x2176
+padded fixture is synthetic, NOT measured phone output. User's actual original-file
+cause, inline/experimental first frame/Play, grading and10-bit output remain phone-unverified.
+Earlier edaabbc APK failed on user's phone despite CI success. Fresh temporary debug
+signer: back up before required uninstall; no stable update continuity. Readiness25%/75%.
 
 ## Focused wheels / cached live redraw APK PUBLISHED (2026-11-03)
 
@@ -724,3 +735,23 @@ Pinned official public source inspected (not copied):
 - https://github.com/androidx/media/blob/1.8.1/libraries/effect/src/main/java/androidx/media3/effect/DefaultVideoFrameProcessor.java
 - https://github.com/androidx/media/blob/1.8.1/libraries/exoplayer/src/main/java/androidx/media3/exoplayer/video/MediaCodecVideoRenderer.java
 - https://github.com/androidx/media/blob/1.8.1/libraries/effect/src/main/java/androidx/media3/effect/ReplayableFrameCacheGlShaderProgram.java
+
+### ADR0036 decoder geometry acceptance (2026-11-03)
+
+| Scenario | Expected result | Evidence |
+| --- | --- | --- |
+| Prior edaabbc inline/Play/experimental | No success carried forward | User reports same geometry rejection in all paths |
+| Input log | HEVC2880x2160@24 Rec709 SDR10bit declared | User exception, not original-file/raw-output inspection |
+| Padded2880x2176 + crop0,0,2879,2159 | Visible2880x2160 admitted | Native + real JVM/JNI PASS; synthetic fixture |
+| Nonzero valid crop origin | Bounds validated, inclusive visible dimensions | Native PASS |
+| No crop + changed allocation | Remains rejected, no guessed padding | Native/JNI PASS |
+| Partial/reversed/negative/out-of-bounds crop | Terminal refusal | Native/JNI PASS; Android adapter source added |
+| Changed visible crop between frames | Gate fails terminally | Actual Kotlin/JNI PASS; device pending |
+| Rotation/stride/slice-height | Never mistaken for pre-rotation picture size | Android adapter source added, execution pending |
+| Source/input/raw disagreement | Details names stage, codec, expected WxH and crop | Implemented; Android/phone pending |
+| Inline + experimental first frame/Play | Actual video visible, grading changes while paused/playing | Phone pending |
+| Source/HDR/Input/history/export | Existing safeguards/persistence unchanged | Native/JNI regressions PASS; phone/storage not remeasured |
+
+Local strict production JNI compile, actual pinned Kotlin2.3.21 -Werror, native geometry
+ASan+UBSan and27 Python policy tests PASS. Phone decoder output size/crop still unavailable;
+do not label the2176-high synthetic fixture a measured phone report. No10-bit output proof.
