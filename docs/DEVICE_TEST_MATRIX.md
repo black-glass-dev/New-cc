@@ -1,3 +1,14 @@
+## Non-starving live preview / focused wheel candidate (2026-11-03)
+
+User says734b947 improved but wheel live preview still fails; no new phone trace. ADR0035
+fixes provable trailing-debounce and CPU-frame discard starvation, adds latest-only GPU
+work acknowledged by actual shader draw and bounded muted paused-frame decoding. Play uses
+inline draft so controls remain accessible. Focused one-wheel UI replaces four competing
+cards; shared compact controls and accessible icon actions. Source/HDR/Input safeguards
+unchanged. Actual pinned Kotlin/JVM/JNI queue/old-policy tests and343 resources PASS;
+Android/UI/device verification pending. No phone-success,10-bit or performance claim.
+Readiness25%/75%, existing dependencies unchanged. See ADR0035 and DEVICE_TEST_MATRIX.
+
 ## Color-input recovery and compact wheel APK PUBLISHED (2026-11-03)
 
 [Download updated APK](https://github.com/islamyousuf032-glitch/New-cc/releases/download/fresh-install-41635353326/owncut-fresh-install-debug.apk).

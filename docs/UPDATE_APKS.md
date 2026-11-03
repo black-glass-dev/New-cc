@@ -210,3 +210,12 @@ preview-only missing-tag interpretation is opt-in/revocable and must stay visibl
 Never allow it into export/project persistence or override known HDR/non-709 tags. Native
 hue pixel tests and compact original UI/feedback added. No dependencies or readiness change.
 Android/device validation pending; user reports latest prior draft fails, not current success.
+
+
+### Focused live-work candidate — 2026-11-03
+
+ADR0035: do not trailing-debounce every wheel move or discard every in-flight CPU frame.
+GPU work stays one-active/latest-pending with draw tokens; paused decode muted/bounded,
+not exact frozen replay. One focused wheel and compact shared controls; no new dependency.
+Actual Kotlin/JNI tests pass; Android/phone proof pending. Keep HDR/source and explicit
+Input safeguards; no10-bit/export or readiness claim (25%/75%).

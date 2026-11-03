@@ -29,7 +29,7 @@ internal object GradedFramePipeline {
         return prepareSources(ColorEngine.shaderSources(clip.grade,ColorEngine.TextureEncoding.MEDIA3_SDR_709))
     }
 
-    fun prepare(clip: ColorRenderPlan.PreparedClip): Prepared = prepareSources(clip.shaders)
+    fun prepare(clip: ColorRenderPlan.PreparedClip, onDraw: (() -> Unit)?=null): Prepared = prepareSources(clip.shaders,onDraw)
 
     data class PreparedPlan(val effects: List<GlEffect>, val factory: DefaultVideoFrameProcessor.Factory)
     fun prepare(plan: ColorRenderPlan, checkCancelled: () -> Unit): PreparedPlan {
@@ -40,15 +40,15 @@ internal object GradedFramePipeline {
 
     private fun processorFactory()=DefaultVideoFrameProcessor.Factory.Builder()
         .setSdrWorkingColorSpace(DefaultVideoFrameProcessor.WORKING_COLOR_SPACE_DEFAULT).build()
-    private fun prepareSources(sources: ColorEngine.ShaderSources)=Prepared(effect(sources),processorFactory())
-    private fun effect(sources: ColorEngine.ShaderSources): GlEffect = object : GlEffect {
+    private fun prepareSources(sources: ColorEngine.ShaderSources, onDraw: (() -> Unit)?=null)=Prepared(effect(sources,onDraw),processorFactory())
+    private fun effect(sources: ColorEngine.ShaderSources, onDraw: (() -> Unit)?=null): GlEffect = object : GlEffect {
         override fun toGlShaderProgram(context: Context, useHdr: Boolean): GlShaderProgram {
             if (useHdr) throw VideoFrameProcessingException("HDR grading is not supported by this SDR adapter")
-            return Program(sources)
+            return Program(sources,onDraw)
         }
     }
 
-    private class Program(sources: ColorEngine.ShaderSources) : BaseGlShaderProgram(false,1) {
+    private class Program(sources: ColorEngine.ShaderSources, private val onDraw: (() -> Unit)?) : BaseGlShaderProgram(false,1) {
         private val program: GlProgram
         init {
             val range=IntArray(2); val precision=IntArray(1)
@@ -80,6 +80,7 @@ internal object GradedFramePipeline {
                 program.bindAttributesAndUniforms()
                 GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP,0,4)
                 GlUtil.checkGlError()
+                onDraw?.invoke()
             } catch (error: Exception) { throw VideoFrameProcessingException(error,presentationTimeUs) }
         }
         override fun release() {

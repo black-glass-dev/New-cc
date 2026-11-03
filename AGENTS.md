@@ -132,3 +132,12 @@ and Portable41635353307 PASS; actual JNI/Kotlin eligibility and native hue tests
 regressions compile only; device execution/phone acceptance pending. Explicit Input override
 must stay preview-only/labelled/revocable; strict normal export unchanged. No new dependency,
 10-bit proof, source-accuracy proof or readiness credit. Latest evidence: BUILD_AND_TEST.
+
+
+### Focused live-work candidate — 2026-11-03
+
+ADR0035: do not trailing-debounce every wheel move or discard every in-flight CPU frame.
+GPU work stays one-active/latest-pending with draw tokens; paused decode muted/bounded,
+not exact frozen replay. One focused wheel and compact shared controls; no new dependency.
+Actual Kotlin/JNI tests pass; Android/phone proof pending. Keep HDR/source and explicit
+Input safeguards; no10-bit/export or readiness claim (25%/75%).

@@ -25,7 +25,7 @@ with tempfile.TemporaryDirectory(prefix='owncut-preview-policy-') as directory:
     jar = Path(directory)/'preview-policy.jar'
     subprocess.run(['bash',str(kotlin_home/'bin/kotlinc'),
         *[str(root/'app/src/main/java/com/owncut/app'/name) for name in
-          ('PreviewPlaybackState.kt','PreviewFrameSize.kt','PreviewProgress.kt')],
+          ('PreviewPlaybackState.kt','PreviewFrameSize.kt','PreviewProgress.kt','PreviewWorkQueue.kt')],
         str(root/'tests/kotlin/PreviewPolicyTest.kt'),'-Werror','-include-runtime','-d',str(jar)],env=env,check=True)
     subprocess.run([str(java_home/'bin/java'),'-jar',str(jar)],env=env,check=True)
 

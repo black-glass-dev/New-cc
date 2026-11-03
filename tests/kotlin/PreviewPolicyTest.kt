@@ -5,6 +5,23 @@ private fun refused(block: () -> Unit) {
     error("invalid preview policy accepted")
 }
 fun main() {
+    val pulse=PreviewPulse()
+    check(pulse.request())
+    repeat(10000) { check(!pulse.request()) } // movement cannot move the deadline
+    check(pulse.take() && !pulse.take())
+    check(pulse.request() && pulse.take())
+    pulse.close();check(!pulse.request() && !pulse.take())
+    val queue=PreviewWorkQueue()
+    queue.request();val first=requireNotNull(queue.begin())
+    repeat(10000) { queue.request();check(queue.begin()==null) }
+    check(!queue.finish(first+1) && queue.active==first)
+    check(queue.finish(first) && queue.pending)
+    val latest=requireNotNull(queue.begin());check(latest==10001L)
+    check(!queue.finish(first) && queue.finish(latest) && !queue.pending)
+    queue.request();val canceled=requireNotNull(queue.begin());queue.cancel()
+    check(!queue.finish(canceled) && !queue.pending)
+    queue.request();val resumed=requireNotNull(queue.begin());check(resumed>canceled)
+    queue.close();check(!queue.finish(resumed));queue.request();check(queue.begin()==null)
     val s=PreviewPlaybackState()
     check(!s.canTransport && !s.canSeek && !s.canCompare(true))
     check(s.buffering() && s.canTransport && !s.canSeek)

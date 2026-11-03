@@ -122,6 +122,29 @@ class ColorEditorInteractionTest {
         }
     }
 
+    @Test fun focusedWheelSelectorShowsOneWheelAndEditsLeaveBefore() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val dialog=ClipColorEditor.show(activity,missing,0) { }
+                try {
+                    val views=children(requireNotNull(dialog.window).decorView)
+                    val wheels=views.filterIsInstance<GradeColorWheel>()
+                    assertEquals(4,wheels.size)
+                    assertEquals(1,wheels.count { it.isShown })
+                    views.filterIsInstance<android.widget.Button>().single {
+                        it.text==AppLanguage.text(R.string.color_wheel_gain)
+                    }.performClick()
+                    assertTrue(wheels[3].isShown)
+                    assertEquals(1,wheels.count { it.isShown })
+                    val compare=views.filterIsInstance<android.widget.ToggleButton>().single()
+                    compare.isChecked=true
+                    views.filterIsInstance<GradeDragValue>().first().step(1)
+                    assertFalse(compare.isChecked)
+                } finally { dialog.dismiss() }
+            }
+        }
+    }
+
     @Test fun failedCommitDoesNotPretendToSaveOrDismiss() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->
