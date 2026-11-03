@@ -1,3 +1,24 @@
+## Color-input recovery and compact wheel APK PUBLISHED (2026-11-03)
+
+[Download updated APK](https://github.com/islamyousuf032-glitch/New-cc/releases/download/fresh-install-41635353326/owncut-fresh-install-debug.apk).
+Source734b9472aa018bd6846ee4320be94a7d26a60c55; Android41635353326 / Portable41635353307 PASS.
+Assembly, lint, UI-test source compilation, APK alignment and publication complete. GitHub
+release API:8,067,959bytes, SHA256
+`6f0b24abcbea744f93cc56b687bd81569b7ec87df77f4feb9c612e79ddb1884f`.
+No independent local APK rehash claimed (release-assets host restricted).
+Local Make6, strict JNI build/real JVM+Kotlin2.3.21 -Werror, native24 hue-direction cases,
+6palette rankings,108 metadata eligibility cases, color ASan+UBSan,342 bilingual/3themes/
+17labels and27 Python policy tests PASS. Android UI/device tests compile, NOT executed;
+emulator/install-over skipped. Phone metadata recovery/visible grading/polish acceptance
+pending. Earlier168a106 Play draft failure remains user evidence, not disproved by CI.
+
+ADR0034: second-parser source-tag recovery; Input → Interpret missing tags is explicit,
+revocable PREVIEW-ONLY Rec709 SDR interpretation, not source proof. Known HDR/non-709/
+conflicting tags remain blocked. No normal graded-export,10-bit output or parity claim.
+Original compact six-hue wheels/shared controls and numeric feedback; no grading SeekBars.
+Fresh debug signing; back up before any required uninstall, no update-continuity guarantee.
+Readiness25%/75% unchanged. Full acceptance matrix below / DEVICE_TEST_MATRIX.
+
 ## Inline grading viewer APK PUBLISHED (2026-10-25)
 
 [Download inline viewer + relative wheel APK](https://github.com/islamyousuf032-glitch/New-cc/releases/download/fresh-install-40202669644/owncut-fresh-install-debug.apk).

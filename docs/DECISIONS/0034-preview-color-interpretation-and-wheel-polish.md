@@ -1,6 +1,6 @@
 # ADR0034 — Source color evidence and explicit preview interpretation
 
-Date: 2026-11-03. Candidate implementation; Android/phone acceptance pending.
+Date: 2026-11-03. Android candidate published; phone acceptance pending.
 
 ## New evidence, not an inferred codec diagnosis
 User reports168a106 Play draft fails: `grade source requires explicit Rec709 primaries`.
@@ -85,3 +85,14 @@ proof. Known graph-input conflicts still invalidate the gate. Default mode forwa
 original Format unchanged. Old video surface is hidden during recreate/failure until a new
 first-frame event; video readiness is no longer confused with an available reference bitmap.
 Assumption warning stays visible during adjustment as well as Before and ready states.
+
+
+## Final candidate / failure history
+734b947 published as fresh-install-41635353326. Android41635353326 and Portable41635353307
+PASS. Assembly/lint/UI-source compilation/alignment/publication complete; emulator/UI test
+execution/install-over skipped. Earlier41634026846 failed Kotlin list type inference;
+7914660 added explicit Format list types.41634635509 then caught suspicious indentation in
+the fallback block;734b947 corrected it without disabling lint. No failed build is delivered.
+GitHub release API size8,067,959; digest6f0b24abcbea744f93cc56b687bd81569b7ec87df77f4feb9c612e79ddb1884f.
+No local binary download/rehash claimed. User-source metadata/recovery, real graded frame,
+10-bit output and subjective polish remain phone acceptance work, not CI results.

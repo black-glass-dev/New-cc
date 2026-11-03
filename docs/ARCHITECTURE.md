@@ -519,3 +519,9 @@ preview-only missing-tag interpretation is opt-in/revocable and must stay visibl
 Never allow it into export/project persistence or override known HDR/non-709 tags. Native
 hue pixel tests and compact original UI/feedback added. No dependencies or readiness change.
 Android/device validation pending; user reports latest prior draft fails, not current success.
+
+ADR0034 final candidate734b947 published as fresh-install-41635353326. Android41635353326
+and Portable41635353307 PASS; actual JNI/Kotlin eligibility and native hue tests PASS. UI
+regressions compile only; device execution/phone acceptance pending. Explicit Input override
+must stay preview-only/labelled/revocable; strict normal export unchanged. No new dependency,
+10-bit proof, source-accuracy proof or readiness credit. Latest evidence: BUILD_AND_TEST.

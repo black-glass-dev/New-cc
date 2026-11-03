@@ -1,3 +1,24 @@
+## Color-input recovery and compact wheel APK PUBLISHED (2026-11-03)
+
+[Download updated APK](https://github.com/islamyousuf032-glitch/New-cc/releases/download/fresh-install-41635353326/owncut-fresh-install-debug.apk).
+Source734b9472aa018bd6846ee4320be94a7d26a60c55; Android41635353326 / Portable41635353307 PASS.
+Assembly, lint, UI-test source compilation, APK alignment and publication complete. GitHub
+release API:8,067,959bytes, SHA256
+`6f0b24abcbea744f93cc56b687bd81569b7ec87df77f4feb9c612e79ddb1884f`.
+No independent local APK rehash claimed (release-assets host restricted).
+Local Make6, strict JNI build/real JVM+Kotlin2.3.21 -Werror, native24 hue-direction cases,
+6palette rankings,108 metadata eligibility cases, color ASan+UBSan,342 bilingual/3themes/
+17labels and27 Python policy tests PASS. Android UI/device tests compile, NOT executed;
+emulator/install-over skipped. Phone metadata recovery/visible grading/polish acceptance
+pending. Earlier168a106 Play draft failure remains user evidence, not disproved by CI.
+
+ADR0034: second-parser source-tag recovery; Input → Interpret missing tags is explicit,
+revocable PREVIEW-ONLY Rec709 SDR interpretation, not source proof. Known HDR/non-709/
+conflicting tags remain blocked. No normal graded-export,10-bit output or parity claim.
+Original compact six-hue wheels/shared controls and numeric feedback; no grading SeekBars.
+Fresh debug signing; back up before any required uninstall, no update-continuity guarantee.
+Readiness25%/75% unchanged. Full acceptance matrix below / DEVICE_TEST_MATRIX.
+
 ## Preview metadata and wheel-polish candidate (2026-11-03)
 
 User now reports168a106 Play draft fails with explicit Rec709-primaries admission error;
@@ -621,3 +642,21 @@ by this native refactor.
 | Small landscape / animation off | Viewer separate from scrolling controls; disabled animation honored | Phone pending |
 
 Source original4K10-bit and HDR payload still unmeasured. No output-depth or export parity claim.
+
+### ADR0034 candidate acceptance (2026-11-03)
+
+| Check | Required observation | Current evidence |
+| --- | --- | --- |
+| Prior APK Play draft | Must not reuse older success as current proof | User reports168a106 fails explicit Rec709 admission |
+| Missing platform tags | Single matching secondary parser recovers only actual missing tags | Implemented, codec/device test pending |
+| Input → Interpret missing tags | Warning requires explicit choice; assumed label stays in preview/Before | Implemented, phone pending |
+| Input → Tagged only | Strict unknown tags refused again, override not persisted | Policy/JNI tests PASS; phone pending |
+| Known HDR/non-709/conflicts | Cannot override or falsely mark source verified | Exhaustive policy/JNI PASS; Android mapping source added |
+| Full range | Known full range retained, missing decoded range inherits admitted interpretation only in opt-in mode | JVM/JNI policy PASS; video output phone pending |
+| Hue direction | R/M/B/C/G/Y directions bias neutral pixels accordingly in all4 groups | Native24 directional cases and6 palette-ranking cases PASS |
+| Wheel UI | Compact shared controls, no tap jump, press halo, cancel/multitouch stop | Pure geometry PASS; Android UI source added, execution pending |
+| Primary drag | Animated feedback without parameter inertia;48dp target/cancel capture | Implemented; UI source regression added, execution pending |
+| Retry / background | Old surface hidden until real new first frame; return paused; source interpretation retained only for dialog | Implemented, phone pending |
+
+No source file was independently inspected. Do not equate Input interpretation with automatic
+HDR→SDR conversion, professional color matching,10-bit output or normal graded export support.
