@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <memory>
 #include <limits>
+#include <optional>
 #include <type_traits>
 #include <stdexcept>
 #include <string>
@@ -469,4 +470,68 @@ Java_com_owncut_app_EngineSession_nativeSetClipGrades(JNIEnv* env, jobject, jlon
         }
         session->execute(std::make_unique<SetClipGradesCommand>(std::move(ids),color::from_parameters(parameters,enabled != JNI_FALSE)));
     } catch (const std::exception& error) { throw_java_argument(env,error.what()); }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_owncut_app_EngineSession_nativeEnsureTrack(JNIEnv* env, jobject, jlong handle,
+                                                    jstring track_id, jboolean is_audio) {
+    try {
+        auto session = require_session(handle);
+        auto id = from_java(env, track_id);
+        session->ensure_track(id, is_audio == JNI_TRUE ? TrackKind::audio : TrackKind::video);
+    } catch (const std::exception& error) { throw_java_argument(env, error.what()); }
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_owncut_app_EngineSession_nativeAddMediaToTrack(JNIEnv* env, jobject, jlong handle,
+                                                          jstring track_id, jstring media_id,
+                                                          jlong duration_ms, jlong start_frame) {
+    try {
+        auto session = require_session(handle);
+        auto tr = from_java(env, track_id);
+        auto media = from_java(env, media_id);
+        std::optional<Timestamp> start_at;
+        if (start_frame >= 0) start_at = Timestamp{start_frame, kFrameTimeBase};
+        const auto id = session->add_media_to_track(tr, media, duration_ms, start_at);
+        return to_java(env, id);
+    } catch (const std::exception& error) {
+        throw_java_argument(env, error.what());
+        return nullptr;
+    }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_owncut_app_EngineSession_nativeSetTrackState(JNIEnv* env, jobject, jlong handle,
+                                                      jstring track_id, jboolean muted, jboolean locked) {
+    try {
+        auto session = require_session(handle);
+        auto id = from_java(env, track_id);
+        session->set_track_state(id, muted == JNI_TRUE, locked == JNI_TRUE);
+    } catch (const std::exception& error) { throw_java_argument(env, error.what()); }
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_owncut_app_EngineSession_nativeGetTracksJson(JNIEnv* env, jobject, jlong handle) {
+    try {
+        auto session = require_session(handle);
+        const auto snap = session->snapshot();
+        std::string json = "{\"tracks\":[";
+        bool first = true;
+        for (const auto& tr : snap.project.timeline.tracks()) {
+            if (!first) json.push_back(',');
+            first = false;
+            json += "{\"id\":";
+            append_json_string(json, tr.id);
+            json += ",\"kind\":";
+            append_json_string(json, tr.kind == TrackKind::audio ? "audio" : "video");
+            json += ",\"muted\":" + std::string(tr.muted ? "true" : "false");
+            json += ",\"locked\":" + std::string(tr.locked ? "true" : "false");
+            json += ",\"clipCount\":" + std::to_string(tr.clips.size()) + "}";
+        }
+        json += "]}";
+        return to_java(env, json);
+    } catch (const std::exception& error) {
+        throw_java_argument(env, error.what());
+        return nullptr;
+    }
 }

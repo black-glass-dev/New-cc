@@ -3,8 +3,10 @@ package com.owncut.app
 import android.content.Context
 import android.os.Handler
 import android.os.HandlerThread
+import androidx.media3.common.Effect
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
+import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Clock
 import androidx.media3.effect.DefaultVideoFrameProcessor
@@ -101,6 +103,125 @@ internal object TimelineRenderExporter {
             .build()
     }
 
+    internal fun richComposition(
+        plan: TimelineRemuxExporter.Plan,
+        richDoc: TimelineRichDocument,
+        allClips: List<ClipSnapshot>,
+        tracks: List<TimelineTrackInfo>,
+        grades: List<GlEffect>? = null,
+        checkCancelled: () -> Unit = {},
+    ): Composition {
+        val trackStates = tracks.associateBy { it.id }
+        val v1TrackMuted = trackStates["v1"]?.muted == true
+        val videoItems = plan.clips.mapIndexed { index, clip ->
+            checkCancelled()
+            val fx = richDoc.fxFor(clip.id)
+            val durMs = (clip.sourceOutMs - clip.sourceInMs).coerceAtLeast(1L)
+            val durUs = durMs * 1000L
+            val media = MediaItem.Builder()
+                .setUri(clip.mediaId)
+                .setClippingConfiguration(
+                    MediaItem.ClippingConfiguration.Builder()
+                        .setStartPositionMs(clip.sourceInMs)
+                        .setEndPositionMs(clip.sourceOutMs)
+                        .build()
+                )
+                .build()
+
+            val videoFx = mutableListOf<Effect>()
+            if (fx.hasVideoTransformOrFx()) {
+                videoFx += TimelineClipGlEffect(fx, durUs)
+            }
+            if (grades != null && index < grades.size) {
+                videoFx += grades[index]
+            }
+
+            val audioFx = mutableListOf<AudioProcessor>()
+            val effectiveFx = if (v1TrackMuted) fx.copy(muted = true) else fx
+            if (effectiveFx.hasAudioEnvelope()) {
+                audioFx += ClipVolumeAudioProcessor(effectiveFx, durMs)
+            }
+
+            EditedMediaItem.Builder(media).apply {
+                if (audioFx.isNotEmpty() || videoFx.isNotEmpty()) {
+                    setEffects(Effects(audioFx, videoFx))
+                }
+            }.build()
+        }
+
+        val sequences = mutableListOf<EditedMediaItemSequence>()
+        sequences += EditedMediaItemSequence.Builder(videoItems)
+            .experimentalSetForceAudioTrack(true)
+            .build()
+
+        // Extra audio tracks (a1, a2, ...) mixed cleanly alongside v1
+        val audioTracks = allClips
+            .filter { it.trackId.startsWith("a", ignoreCase = true) }
+            .groupBy { it.trackId }
+        for ((trackId, trackClips) in audioTracks) {
+            if (trackStates[trackId]?.muted == true) continue
+            val sorted = trackClips.sortedBy { it.startFrame }
+            val seqBuilder = EditedMediaItemSequence.Builder().experimentalSetForceAudioTrack(true)
+            var cursorFrame = 0L
+            var hasItems = false
+            for (aClip in sorted) {
+                checkCancelled()
+                val gapFrames = (aClip.startFrame - cursorFrame).coerceAtLeast(0L)
+                if (gapFrames > 0L) {
+                    seqBuilder.addGap((gapFrames * 1_000_000L) / TimelineGeometry.FPS)
+                }
+                val fx = richDoc.fxFor(aClip.id)
+                val durMs = (aClip.sourceOutMs - aClip.sourceInMs).coerceAtLeast(1L)
+                val duckFactor = if (fx.duckingDb < -0.5f) {
+                    Math.pow(10.0, fx.duckingDb / 20.0).toFloat().coerceIn(0.1f, 1f)
+                } else 1.0f
+                val aMedia = MediaItem.Builder()
+                    .setUri(aClip.mediaId)
+                    .setClippingConfiguration(
+                        MediaItem.ClippingConfiguration.Builder()
+                            .setStartPositionMs(aClip.sourceInMs)
+                            .setEndPositionMs(aClip.sourceOutMs)
+                            .build()
+                    )
+                    .build()
+                val audioProcessors: List<AudioProcessor> =
+                    if (fx.hasAudioEnvelope() || duckFactor < 0.99f) {
+                        listOf(ClipVolumeAudioProcessor(fx, durMs, duckFactor))
+                    } else emptyList()
+                val item = EditedMediaItem.Builder(aMedia)
+                    .setRemoveVideo(true)
+                    .apply {
+                        if (audioProcessors.isNotEmpty()) {
+                            setEffects(Effects(audioProcessors, emptyList()))
+                        }
+                    }
+                    .build()
+                seqBuilder.addItem(item)
+                hasItems = true
+                cursorFrame = maxOf(cursorFrame, aClip.startFrame + aClip.durationFrames)
+            }
+            if (hasItems) {
+                sequences += seqBuilder.build()
+            }
+        }
+
+        val globalVideoEffects = mutableListOf<Effect>()
+        if (richDoc.overlays.isNotEmpty() || richDoc.subtitles.isNotEmpty()) {
+            globalVideoEffects += TextBurnGlEffect(richDoc)
+        }
+        globalVideoEffects += Presentation.createForHeight(OUTPUT_HEIGHT)
+
+        return Composition.Builder(sequences)
+            .setTransmuxAudio(false)
+            .setTransmuxVideo(false)
+            .setHdrMode(
+                if (grades == null) Composition.HDR_MODE_TONE_MAP_HDR_TO_SDR_USING_OPEN_GL
+                else Composition.HDR_MODE_KEEP_HDR
+            )
+            .setEffects(Effects(emptyList(), globalVideoEffects))
+            .build()
+    }
+
     /** Blocking worker entry point; Transformer and all its operations stay on one owned looper. */
     fun export(
         context: Context,
@@ -111,6 +232,47 @@ internal object TimelineRenderExporter {
     ) {
         check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper())
         exportComposition(context,plan,output,cancelled,progress,composition(plan),null)
+    }
+
+    fun exportRich(
+        context: Context,
+        plan: TimelineRemuxExporter.Plan,
+        richDoc: TimelineRichDocument,
+        allClips: List<ClipSnapshot>,
+        tracks: List<TimelineTrackInfo>,
+        output: File,
+        cancelled: AtomicBoolean,
+        progress: (String) -> Unit,
+    ) {
+        check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper())
+        requireShippingExportSupported(plan)
+        val comp = richComposition(plan, richDoc, allClips, tracks, null) {
+            if (cancelled.get()) throw CancellationException("Export cancelled")
+        }
+        exportComposition(context, plan, output, cancelled, progress, comp, null)
+    }
+
+    internal fun exportRichGraded(
+        context: Context,
+        plan: TimelineRemuxExporter.Plan,
+        revision: String,
+        richDoc: TimelineRichDocument,
+        allClips: List<ClipSnapshot>,
+        tracks: List<TimelineTrackInfo>,
+        output: File,
+        cancelled: AtomicBoolean,
+        progress: (String) -> Unit,
+    ) {
+        check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper())
+        val captured = plan.copy(clips = plan.clips.toList())
+        val checkCancelled = { if (cancelled.get()) throw CancellationException("Color preparation cancelled") }
+        val colors = ColorRenderPlan.prepare(revision, captured.clips, checkCancelled) { uri ->
+            VideoSourceProbe.read(context, uri, checkCancelled)
+        }
+        val prepared = GradedFramePipeline.prepare(colors, checkCancelled)
+        val comp = richComposition(captured, richDoc, allClips, tracks, prepared.effects, checkCancelled)
+        val candidate = Candidate(colors, comp, prepared.factory)
+        exportComposition(context, captured, output, cancelled, progress, comp, candidate)
     }
 
     /** Explicit test/consented experimental entry: REAL encoder path, not parity proof.

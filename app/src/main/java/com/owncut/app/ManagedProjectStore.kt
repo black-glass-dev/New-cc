@@ -16,6 +16,7 @@ internal class ManagedProjectStore private constructor(private val file: File, p
         checkOpen()
         stableSnapshot(file) { snapshot, hash ->
             session.loadProject(snapshot.absolutePath) // native parse before live-state replacement
+            session.loadRichSidecarFromFile(TimelineRichDocument.sidecarFor(file.absolutePath))
             expected = hash
             loaded = true
         }
@@ -40,7 +41,10 @@ internal class ManagedProjectStore private constructor(private val file: File, p
             session.saveCopy(copy.absolutePath)
             val actual=fingerprint()
             if (actual != null && actual == fingerprint(copy)) expected=actual
-        } finally { copy.delete() }
+        } finally {
+            copy.delete()
+            TimelineRichDocument.sidecarFor(copy.absolutePath).delete()
+        }
     }
     @Synchronized fun repairCheckpoint(session: EngineSession): Boolean {
         checkOpen(); check(loaded)
@@ -55,7 +59,10 @@ internal class ManagedProjectStore private constructor(private val file: File, p
         checkOpen(); check(loaded)
         val recovery = File(file.absolutePath + ".autosave")
         if (!recovery.exists()) return false
-        stableSnapshot(recovery) { snapshot, _ -> session.restoreDraft(snapshot.absolutePath) }
+        stableSnapshot(recovery) { snapshot, _ ->
+            session.restoreDraft(snapshot.absolutePath)
+            session.loadRichSidecarFromFile(TimelineRichDocument.sidecarFor(recovery.absolutePath))
+        }
         return true
     }
     private fun checkOpen() { check(!closed) { "Managed store closed" } }

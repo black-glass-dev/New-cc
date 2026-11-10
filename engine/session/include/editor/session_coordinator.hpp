@@ -40,7 +40,11 @@ public:
     [[nodiscard]] ClipPage clip_page(std::size_t offset, std::size_t limit,
         std::optional<std::uint64_t> expected_revision = std::nullopt) const;
     [[nodiscard]] std::optional<PlayheadPosition> resolve_playhead(const std::string& track, Timestamp at) const;
+    void ensure_track(const std::string& track_id, TrackKind kind);
+    void set_track_state(const std::string& track_id, bool muted, bool locked);
     [[nodiscard]] std::string add_media(const std::string& media, std::int64_t duration_ms);
+    [[nodiscard]] std::string add_media_to_track(const std::string& track_id, const std::string& media,
+        std::int64_t duration_ms, std::optional<Timestamp> start_at = std::nullopt);
     void execute(std::unique_ptr<EditCommand> command);
     [[nodiscard]] bool undo();
     [[nodiscard]] bool redo();

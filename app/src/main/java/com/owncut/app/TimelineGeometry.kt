@@ -24,6 +24,13 @@ internal object TimelineGeometry {
     fun pixelsPerFrame(end: Long, density: Float): Double =
         minOf(48.0 * density / FPS, (MAX_WIDTH_PX - 24.0 * density).coerceAtLeast(1.0) / end.coerceAtLeast(1L))
 
+    fun pixelsPerFrame(end: Long, density: Float, zoomScale: Double): Double {
+        val base = pixelsPerFrame(end, density)
+        val maxFit = (MAX_WIDTH_PX - 24.0 * density).coerceAtLeast(1.0) / end.coerceAtLeast(1L)
+        val safeZoom = if (zoomScale.isFinite() && zoomScale > 0.0) zoomScale else 1.0
+        return (base * safeZoom).coerceIn(minOf(base, maxFit) * 0.25, maxFit.coerceAtLeast(base))
+    }
+
     fun frameAt(x: Float, pixelsPerFrame: Double, end: Long): Long =
         (x.coerceAtLeast(0f) / pixelsPerFrame).roundToLong().coerceIn(0L, end.coerceAtLeast(0L))
 }

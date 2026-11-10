@@ -30,3 +30,5 @@ __pycache__/
 
 # Local research/tooling only
 /.cache/
+/build/
+/build_timeline/

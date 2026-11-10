@@ -58,7 +58,8 @@ internal object StudioUi {
 }
 
 internal enum class StudioIcon { HOME, EDIT, MEDIA, COLOR, FLOW, EXPORT, SPLIT, TRIM_LEFT, TRIM_RIGHT, DELETE, RIPPLE,
-    UNDO, REDO, SAVE, SAVE_AS, OPEN, RECOVER, IMPORT, LINK, PLAY, FOLLOW, CANCEL, PLUS, SETTINGS, RENAME, REFRESH, INFO }
+    UNDO, REDO, SAVE, SAVE_AS, OPEN, RECOVER, IMPORT, LINK, PLAY, FOLLOW, CANCEL, PLUS, SETTINGS, RENAME, REFRESH, INFO,
+    SPEED, AUDIO, TRANSFORM, TEXT, SUBTITLES, TRANSITION, PIP, BEAT, MAGNET, MARKER, DUPLICATE, FREEZE }
 
 /** Original stroke-vector icons: no icon font, emoji, external assets or proprietary artwork.
  * Button's text is semantic state (TalkBack/tooltip); the visual face draws only the icon.
@@ -135,6 +136,53 @@ internal class StudioButton @JvmOverloads constructor(context: Context, attrs: A
             StudioIcon.SETTINGS -> { canvas.drawCircle(12f,12f,7f,ink); canvas.drawCircle(12f,12f,2.5f,ink)
                 for(i in 0..7) { canvas.save(); canvas.rotate(i*45f,12f,12f); line(12f,2f,12f,5f); canvas.restore() } }
             StudioIcon.INFO -> { canvas.drawCircle(12f,12f,9f,ink); line(12f,11f,12f,17f); canvas.drawCircle(12f,7f,.5f,ink) }
+            StudioIcon.SPEED -> {
+                canvas.drawArc(RectF(3f,5f,21f,23f), 180f, 180f, false, ink)
+                line(12f, 14f, 17f, 8f); canvas.drawCircle(12f, 14f, 1.8f, ink)
+            }
+            StudioIcon.AUDIO -> {
+                path(4f, 9f, 8f, 9f, 13f, 5f, 13f, 19f, 8f, 15f, 4f, 15f, 4f, 9f)
+                canvas.drawArc(RectF(14f, 8f, 19f, 16f), -60f, 120f, false, ink)
+                canvas.drawArc(RectF(15f, 5f, 22f, 19f), -60f, 120f, false, ink)
+            }
+            StudioIcon.TRANSFORM -> {
+                path(4f, 8f, 4f, 4f, 8f, 4f); path(16f, 4f, 20f, 4f, 20f, 8f)
+                path(4f, 16f, 4f, 20f, 8f, 20f); path(16f, 20f, 20f, 20f, 20f, 16f)
+                box(8f, 8f, 16f, 16f)
+            }
+            StudioIcon.TEXT -> {
+                line(5f, 5f, 19f, 5f); line(12f, 5f, 12f, 19f); line(8f, 19f, 16f, 19f)
+            }
+            StudioIcon.SUBTITLES -> {
+                box(3f, 5f, 21f, 19f); line(6f, 11f, 14f, 11f); line(16f, 11f, 18f, 11f)
+                line(6f, 15f, 10f, 15f); line(12f, 15f, 18f, 15f)
+            }
+            StudioIcon.TRANSITION -> {
+                path(4f, 6f, 12f, 12f, 4f, 18f, 4f, 6f)
+                path(20f, 6f, 12f, 12f, 20f, 18f, 20f, 6f)
+            }
+            StudioIcon.PIP -> {
+                box(3f, 5f, 21f, 19f); box(12f, 11f, 19f, 17f)
+            }
+            StudioIcon.BEAT -> {
+                line(10f, 17f, 10f, 5f); path(10f, 5f, 19f, 4f, 19f, 15f)
+                canvas.drawCircle(7.5f, 17.5f, 2.5f, ink); canvas.drawCircle(16.5f, 15.5f, 2.5f, ink)
+            }
+            StudioIcon.MAGNET -> {
+                path(6f, 4f, 6f, 13f); path(18f, 4f, 18f, 13f)
+                canvas.drawArc(RectF(6f, 7f, 18f, 20f), 0f, 180f, false, ink)
+                line(6f, 7f, 9f, 7f); line(15f, 7f, 18f, 7f)
+            }
+            StudioIcon.MARKER -> {
+                path(7f, 3f, 17f, 3f, 17f, 20f, 12f, 15f, 7f, 20f, 7f, 3f)
+            }
+            StudioIcon.DUPLICATE -> {
+                box(4f, 8f, 15f, 20f); path(9f, 8f, 9f, 4f, 20f, 4f, 20f, 15f, 15f, 15f)
+            }
+            StudioIcon.FREEZE -> {
+                line(12f, 3f, 12f, 21f); line(4f, 7.5f, 20f, 16.5f); line(4f, 16.5f, 20f, 7.5f)
+                canvas.drawCircle(12f, 12f, 2.5f, ink)
+            }
         }
         canvas.restoreToCount(save)
         if (isSelected || isFocused) {

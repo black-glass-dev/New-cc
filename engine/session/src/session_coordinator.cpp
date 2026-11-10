@@ -81,6 +81,22 @@ void SessionCoordinator::execute(std::unique_ptr<EditCommand> command) {
     std::lock_guard lock(mutex_);
     execute_locked(std::move(command));
 }
+void SessionCoordinator::ensure_track(const std::string& track_id, TrackKind kind) {
+    std::lock_guard lock(mutex_);
+    const auto& tracks = project_.timeline.tracks();
+    const auto existing = std::find_if(tracks.begin(), tracks.end(),
+        [&](const Track& t) { return t.id == track_id; });
+    if (existing != tracks.end()) return;
+    require_revision_capacity();
+    project_.timeline.add_track({track_id, kind, false, false, {}});
+    ++revision_;
+}
+void SessionCoordinator::set_track_state(const std::string& track_id, bool muted, bool locked) {
+    std::lock_guard lock(mutex_);
+    require_revision_capacity();
+    project_.timeline.set_track_state(track_id, muted, locked);
+    ++revision_;
+}
 std::string SessionCoordinator::add_media(const std::string& media, std::int64_t duration_ms) {
     std::lock_guard lock(mutex_);
     if (duration_ms <= 0) throw std::invalid_argument("media duration must be positive");
@@ -103,6 +119,36 @@ std::string SessionCoordinator::add_media(const std::string& media, std::int64_t
     }
     execute_locked(std::make_unique<AddClipCommand>(track->id,
         Clip{id, media, append_at, {0, {1, 1000}}, {duration_ms, {1, 1000}}}));
+    return id;
+}
+std::string SessionCoordinator::add_media_to_track(const std::string& track_id, const std::string& media,
+                                                   std::int64_t duration_ms, std::optional<Timestamp> start_at) {
+    std::lock_guard lock(mutex_);
+    if (duration_ms <= 0) throw std::invalid_argument("media duration must be positive");
+    const auto& tracks = project_.timeline.tracks();
+    const auto track = std::find_if(tracks.begin(), tracks.end(),
+        [&](const Track& t) { return t.id == track_id; });
+    if (track == tracks.end()) throw std::invalid_argument("unknown track id");
+    const auto base = project_.timeline.frame_time_base();
+    Timestamp target_start{0, base};
+    if (start_at.has_value()) {
+        target_start = start_at->rescaled(base);
+    } else {
+        for (const auto& clip : track->clips) {
+            const auto end = clip.timeline_start + (clip.source_out - clip.source_in).rescaled(base);
+            if (target_start < end) target_start = end;
+        }
+    }
+    std::string id;
+    for (;;) {
+        if (next_clip_id_ == std::numeric_limits<std::uint64_t>::max())
+            throw std::overflow_error("clip identifier exhausted");
+        id = "clip-" + std::to_string(next_clip_id_++);
+        try { (void)project_.timeline.locate_clip(id); }
+        catch (const std::invalid_argument&) { break; }
+    }
+    execute_locked(std::make_unique<AddClipCommand>(track->id,
+        Clip{id, media, target_start, {0, {1, 1000}}, {duration_ms, {1, 1000}}}));
     return id;
 }
 bool SessionCoordinator::undo() {

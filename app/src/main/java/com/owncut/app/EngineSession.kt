@@ -1,7 +1,11 @@
 package com.owncut.app
 
+import com.owncut.timeline.AudioAnalysisResult
+import com.owncut.timeline.SnapDecision
+import com.owncut.timeline.TimelineEngineBridge
 import org.json.JSONObject
 import org.json.JSONArray
+import java.io.File
 
 internal data class MediaAssetSummary(val mediaId: String, val clipIds: List<String>, val requiredSourceEndMs: Long)
 
@@ -12,12 +16,177 @@ internal data class PlayheadPosition(val clipId: String, val timelineFrame: Long
  * Project and autosave file methods are blocking; call them from a worker, not the UI thread.
  */
 internal class EngineSession : AutoCloseable {
+    private enum class HistorySlot { NATIVE, RICH }
+
     private var handle: Long = nativeCreate(java.util.UUID.randomUUID().toString())
+    private val timelineBridge = TimelineEngineBridge()
+    private var syncedTimelineRevision: String? = null
+    private var richDocument: TimelineRichDocument = TimelineRichDocument()
+    private val undoSlots = ArrayDeque<HistorySlot>()
+    private val redoSlots = ArrayDeque<HistorySlot>()
+    private val richUndoStack = ArrayDeque<TimelineRichDocument>()
+    private val richRedoStack = ArrayDeque<TimelineRichDocument>()
 
     private val snapshotCache = TimelineSnapshotCache()
 
     init {
         check(handle != 0L) { AppLanguage.text(R.string.message_22b4d27a73) }
+    }
+
+    private fun recordNativeEdit() {
+        undoSlots.addLast(HistorySlot.NATIVE)
+        if (undoSlots.size > 256) undoSlots.removeFirst()
+        redoSlots.clear()
+        richRedoStack.clear()
+    }
+
+    private fun applyLoadedRichDocument(loaded: TimelineRichDocument) {
+        richDocument = loaded
+        undoSlots.clear()
+        redoSlots.clear()
+        richUndoStack.clear()
+        richRedoStack.clear()
+        timelineBridge.importRichStateJson(richDocument.toJsonString())
+    }
+
+    private fun syncRichBridgeLocked() {
+        timelineBridge.importRichStateJson(richDocument.toJsonString())
+    }
+
+    @Synchronized
+    fun richState(): TimelineRichDocument = richDocument
+
+    @Synchronized
+    fun clipFx(clipId: String): ClipRichFx = richDocument.fxFor(clipId)
+
+    @Synchronized
+    fun mutateRichState(recordUndo: Boolean = true, transform: (TimelineRichDocument) -> TimelineRichDocument) {
+        check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
+        val updated = transform(richDocument)
+        if (updated == richDocument) return
+        if (recordUndo) {
+            richUndoStack.addLast(richDocument)
+            undoSlots.addLast(HistorySlot.RICH)
+            while (undoSlots.size > 256) undoSlots.removeFirst()
+            while (richUndoStack.size > 256) richUndoStack.removeFirst()
+            redoSlots.clear()
+            richRedoStack.clear()
+        }
+        richDocument = updated
+        syncRichBridgeLocked()
+    }
+
+    @Synchronized
+    fun setClipFx(clipId: String, updater: (ClipRichFx) -> ClipRichFx) {
+        val trackId = clips().firstOrNull { it.id == clipId }?.trackId ?: "v1"
+        mutateRichState(recordUndo = true) { doc ->
+            val current = doc.clipFx[clipId] ?: ClipRichFx(clipId = clipId, trackId = trackId)
+            val next = updater(current.copy(trackId = trackId))
+            val map = LinkedHashMap(doc.clipFx)
+            map[clipId] = next
+            doc.copy(clipFx = map)
+        }
+    }
+
+    @Synchronized
+    fun setClipWaveformPeaks(clipId: String, peaks: List<Float>) {
+        if (peaks.isEmpty()) return
+        val trackId = clips().firstOrNull { it.id == clipId }?.trackId ?: "v1"
+        mutateRichState(recordUndo = false) { doc ->
+            val current = doc.clipFx[clipId] ?: ClipRichFx(clipId = clipId, trackId = trackId)
+            if (current.audioPeaks == peaks) return@mutateRichState doc
+            val map = LinkedHashMap(doc.clipFx)
+            map[clipId] = current.copy(audioPeaks = peaks)
+            doc.copy(clipFx = map)
+        }
+    }
+
+    @Synchronized
+    fun setSnapEnabled(enabled: Boolean) {
+        mutateRichState(recordUndo = false) { it.copy(snapEnabled = enabled) }
+        timelineBridge.setSnapEnabled(enabled)
+    }
+
+    @Synchronized
+    fun isSnapEnabled(): Boolean = richDocument.snapEnabled
+
+    @Synchronized
+    fun setBeatGrid(bpm: Double, offsetMs: Long = 0L) {
+        mutateRichState(recordUndo = true) { it.copy(beatBpm = bpm.coerceAtLeast(0.0), beatOffsetMs = offsetMs.coerceAtLeast(0L)) }
+        timelineBridge.setBeatGrid(bpm, offsetMs)
+    }
+
+    @Synchronized
+    fun upsertOverlay(item: TextOverlayItem) {
+        mutateRichState(recordUndo = true) { doc ->
+            val list = doc.overlays.filterNot { it.id == item.id } + item
+            doc.copy(overlays = list.sortedBy { it.startMs })
+        }
+    }
+
+    @Synchronized
+    fun removeOverlay(overlayId: String) {
+        mutateRichState(recordUndo = true) { doc ->
+            doc.copy(overlays = doc.overlays.filterNot { it.id == overlayId })
+        }
+    }
+
+    @Synchronized
+    fun upsertSubtitle(cue: SubtitleCueItem) {
+        mutateRichState(recordUndo = true) { doc ->
+            val list = doc.subtitles.filterNot { it.id == cue.id } + cue
+            doc.copy(subtitles = list.sortedBy { it.startMs })
+        }
+    }
+
+    @Synchronized
+    fun removeSubtitle(cueId: String) {
+        mutateRichState(recordUndo = true) { doc ->
+            doc.copy(subtitles = doc.subtitles.filterNot { it.id == cueId })
+        }
+    }
+
+    @Synchronized
+    fun importSrtSubtitles(srtText: String): Int {
+        val parsed = TimelineRichDocument.parseSrt(srtText)
+        if (parsed.isEmpty()) return 0
+        mutateRichState(recordUndo = true) { doc -> doc.copy(subtitles = parsed) }
+        return parsed.size
+    }
+
+    @Synchronized
+    fun exportSrtSubtitles(): String = TimelineRichDocument.formatSrt(richDocument.subtitles)
+
+    @Synchronized
+    fun upsertMarker(marker: TimelineMarkerItem) {
+        mutateRichState(recordUndo = true) { doc ->
+            val list = doc.markers.filterNot { it.id == marker.id } + marker
+            doc.copy(markers = list.sortedBy { it.positionMs })
+        }
+    }
+
+    @Synchronized
+    fun removeMarker(markerId: String) {
+        mutateRichState(recordUndo = true) { doc ->
+            doc.copy(markers = doc.markers.filterNot { it.id == markerId })
+        }
+    }
+
+    fun analyzeAudioPcm16(pcmInterleaved: ShortArray, channels: Int, sampleRate: Int, numPeaks: Int = 64): AudioAnalysisResult? =
+        timelineBridge.analyzePcm16(pcmInterleaved, channels, sampleRate, numPeaks)
+
+    fun detectVideoSceneCuts(rgbaFrames: ByteArray, numFrames: Int, width: Int, height: Int, threshold: Double = 0.35): IntArray =
+        timelineBridge.detectSceneCuts(rgbaFrames, numFrames, width, height, threshold)
+
+    @Synchronized
+    fun loadRichSidecarFromFile(file: File) {
+        val doc = TimelineRichDocument.readIfExists(file) ?: TimelineRichDocument()
+        applyLoadedRichDocument(doc)
+    }
+
+    @Synchronized
+    fun saveRichSidecarToFile(file: File) {
+        TimelineRichDocument.writeAtomic(file, richDocument)
     }
 
     @Synchronized
@@ -29,9 +198,58 @@ internal class EngineSession : AutoCloseable {
     @Synchronized
     fun clips(): List<ClipSnapshot> {
         check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
-        return snapshotCache.read(nativeGetRevision(handle)) { offset, limit, revision ->
-            clipPage(offset, limit, revision)
+        val revision = nativeGetRevision(handle)
+        val result = snapshotCache.read(revision) { offset, limit, expected ->
+            clipPage(offset, limit, expected)
         }
+        if (syncedTimelineRevision != revision) {
+            timelineBridge.syncClips(result)
+            syncedTimelineRevision = revision
+        }
+        return result
+    }
+
+    @Synchronized
+    fun evaluateTimelineSnap(
+        trackId: String,
+        clipId: String,
+        proposedFrame: Long,
+        durationFrames: Long,
+        playheadFrame: Long,
+        pixelsPerFrame: Double,
+        snapEnabled: Boolean = true,
+    ): SnapDecision {
+        check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
+        clips()
+        return timelineBridge.evaluateSnap(
+            trackId, clipId, proposedFrame, durationFrames,
+            playheadFrame, pixelsPerFrame, snapEnabled
+        )
+    }
+
+    @Synchronized
+    fun pinchTimelineZoom(scaleFactor: Double, focusXPx: Double): Double {
+        check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
+        return timelineBridge.pinchZoom(scaleFactor, focusXPx)
+    }
+
+    @Synchronized
+    fun resetTimelineZoom() {
+        check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
+        timelineBridge.resetZoom()
+    }
+
+    @Synchronized
+    fun timelineZoomScale(): Double {
+        check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
+        return timelineBridge.zoomScale()
+    }
+
+    @Synchronized
+    fun timelineCapabilitiesJson(): String {
+        check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
+        clips()
+        return timelineBridge.capabilitiesJson()
     }
 
     @Synchronized
@@ -60,6 +278,7 @@ internal class EngineSession : AutoCloseable {
     fun setClipGrades(clipIds: List<String>, grade: ColorGrade) {
         check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
         nativeSetClipGrades(handle,clipIds.toTypedArray(),grade.parametersV1(),grade.enabled)
+        recordNativeEdit()
     }
     @Synchronized
     fun resetClipGrades(clipIds: List<String>) = setClipGrades(clipIds,ColorGrade())
@@ -98,9 +317,57 @@ internal class EngineSession : AutoCloseable {
     }
 
     @Synchronized
+    fun ensureTrack(trackId: String, isAudio: Boolean) {
+        check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
+        nativeEnsureTrack(handle, trackId, isAudio)
+    }
+
+    @Synchronized
+    fun setTrackState(trackId: String, muted: Boolean, locked: Boolean) {
+        check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
+        nativeSetTrackState(handle, trackId, muted, locked)
+    }
+
+    @Synchronized
+    fun tracks(): List<TimelineTrackInfo> {
+        check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
+        val array = JSONObject(nativeGetTracksJson(handle)).getJSONArray("tracks")
+        return List(array.length()) { index ->
+            val t = array.getJSONObject(index)
+            TimelineTrackInfo(
+                id = t.getString("id"),
+                kind = t.getString("kind"),
+                muted = t.getBoolean("muted"),
+                locked = t.getBoolean("locked"),
+                clipCount = t.getInt("clipCount"),
+            )
+        }
+    }
+
+    @Synchronized
     fun addMediaClip(mediaId: String, durationMs: Long): String {
         check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
-        return nativeAddMediaClip(handle, mediaId, durationMs)
+        val id = nativeAddMediaClip(handle, mediaId, durationMs)
+        recordNativeEdit()
+        return id
+    }
+
+    @Synchronized
+    fun addMediaClipToTrack(trackId: String, mediaId: String, durationMs: Long, startFrame: Long = -1L): String {
+        check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
+        val isAudio = trackId.startsWith("a", ignoreCase = true)
+        nativeEnsureTrack(handle, trackId, isAudio)
+        val effectiveStart = if (startFrame >= 0L) {
+            val durFrames = ((durationMs * 30L) + 999L) / 1000L
+            val existing = clips().filter { it.trackId == trackId }
+            val overlaps = existing.any { c ->
+                startFrame < c.startFrame + c.durationFrames && c.startFrame < startFrame + durFrames
+            }
+            if (overlaps) -1L else startFrame
+        } else -1L
+        val id = nativeAddMediaToTrack(handle, trackId, mediaId, durationMs, effectiveStart)
+        recordNativeEdit()
+        return id
     }
 
     @Synchronized
@@ -113,72 +380,148 @@ internal class EngineSession : AutoCloseable {
             AppLanguage.text(R.string.message_02a0ab04a0, required)
         }
         nativeRelinkClipMedia(handle, clipId, replacementMediaId)
+        recordNativeEdit()
     }
 
     @Synchronized
     fun moveClip(clipId: String, destinationTrackId: String, destinationStartFrame: Long) {
         check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
         nativeMoveClip(handle, clipId, destinationTrackId, destinationStartFrame)
+        recordNativeEdit()
     }
 
     @Synchronized
     fun splitClip(clipId: String, cutFrame: Long, rightClipId: String) {
         check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
         nativeSplitClip(handle, clipId, cutFrame, rightClipId)
+        // Propagate rich FX from left clip to split right segment cleanly
+        richDocument.clipFx[clipId]?.let { leftFx ->
+            val rightFx = leftFx.copy(clipId = rightClipId, transitionIn = "none", transitionMs = 0L)
+            val map = LinkedHashMap(richDocument.clipFx)
+            map[rightClipId] = rightFx
+            richDocument = richDocument.copy(clipFx = map)
+            syncRichBridgeLocked()
+        }
+        recordNativeEdit()
     }
 
     @Synchronized
     fun trimClip(clipId: String, leftEdge: Boolean, sourceBoundaryMs: Long) {
         check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
         nativeTrimClip(handle, clipId, leftEdge, sourceBoundaryMs)
+        recordNativeEdit()
     }
 
     @Synchronized
     fun deleteClip(clipId: String, ripple: Boolean = false) {
         check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
         nativeDeleteClip(handle, clipId, ripple)
+        recordNativeEdit()
+    }
+
+    @Synchronized
+    fun duplicateClip(clipId: String): String {
+        check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
+        val src = clips().firstOrNull { it.id == clipId } ?: error(AppLanguage.text(R.string.message_3d1d8c290a))
+        val destFrame = src.startFrame + src.durationFrames
+        val newId = addMediaClipToTrack(src.trackId, src.mediaId, src.sourceOutMs, destFrame)
+        if (src.sourceInMs > 0L) {
+            nativeTrimClip(handle, newId, true, src.sourceInMs)
+            recordNativeEdit()
+            nativeMoveClip(handle, newId, src.trackId, destFrame)
+            recordNativeEdit()
+        }
+        if (src.gradeActive && !src.trackId.startsWith("a", ignoreCase = true)) {
+            nativeSetClipGrades(handle, arrayOf(newId), src.grade.parametersV1(), src.grade.enabled)
+            recordNativeEdit()
+        }
+        richDocument.clipFx[clipId]?.let { srcFx ->
+            val map = LinkedHashMap(richDocument.clipFx)
+            map[newId] = srcFx.copy(clipId = newId)
+            richDocument = richDocument.copy(clipFx = map)
+            syncRichBridgeLocked()
+        }
+        return newId
     }
 
     @Synchronized
     fun undo(): Boolean {
         check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
-        return nativeUndo(handle)
+        if (undoSlots.isEmpty()) return nativeUndo(handle)
+        return when (undoSlots.removeLast()) {
+            HistorySlot.RICH -> {
+                if (richUndoStack.isEmpty()) return false
+                richRedoStack.addLast(richDocument)
+                richDocument = richUndoStack.removeLast()
+                redoSlots.addLast(HistorySlot.RICH)
+                syncRichBridgeLocked()
+                true
+            }
+            HistorySlot.NATIVE -> {
+                val ok = nativeUndo(handle)
+                if (ok) redoSlots.addLast(HistorySlot.NATIVE)
+                ok
+            }
+        }
     }
 
     @Synchronized
     fun redo(): Boolean {
         check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
-        return nativeRedo(handle)
+        if (redoSlots.isEmpty()) return nativeRedo(handle)
+        return when (redoSlots.removeLast()) {
+            HistorySlot.RICH -> {
+                if (richRedoStack.isEmpty()) return false
+                richUndoStack.addLast(richDocument)
+                richDocument = richRedoStack.removeLast()
+                undoSlots.addLast(HistorySlot.RICH)
+                syncRichBridgeLocked()
+                true
+            }
+            HistorySlot.NATIVE -> {
+                val ok = nativeRedo(handle)
+                if (ok) undoSlots.addLast(HistorySlot.NATIVE)
+                ok
+            }
+        }
     }
 
     @Synchronized
     fun saveProject(path: String) {
         check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
         nativeSaveProject(handle, path)
+        TimelineRichDocument.writeAtomic(TimelineRichDocument.sidecarFor(path), richDocument)
     }
 
     @Synchronized
     fun loadProject(path: String) {
         check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
         nativeLoadProject(handle, path)
+        applyLoadedRichDocument(TimelineRichDocument.readIfExists(TimelineRichDocument.sidecarFor(path)) ?: TimelineRichDocument())
     }
 
     @Synchronized
     fun saveAutosave(path: String) {
         check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
         nativeSaveAutosave(handle, path)
+        TimelineRichDocument.writeAtomic(TimelineRichDocument.sidecarFor("$path.autosave"), richDocument)
     }
 
     @Synchronized
     fun loadAutosave(path: String): Boolean {
         check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
-        return nativeLoadAutosave(handle, path)
+        val ok = nativeLoadAutosave(handle, path)
+        if (ok) {
+            applyLoadedRichDocument(TimelineRichDocument.readIfExists(TimelineRichDocument.sidecarFor("$path.autosave")) ?: TimelineRichDocument())
+        }
+        return ok
     }
 
     @Synchronized
     fun clearAutosave(path: String) {
         check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
         nativeClearAutosave(handle, path)
+        TimelineRichDocument.sidecarFor("$path.autosave").delete()
     }
 
     @Synchronized
@@ -186,7 +529,13 @@ internal class EngineSession : AutoCloseable {
         val current = handle
         if (current != 0L) {
             handle = 0L
+            syncedTimelineRevision = null
             snapshotCache.clear()
+            undoSlots.clear()
+            redoSlots.clear()
+            richUndoStack.clear()
+            richRedoStack.clear()
+            timelineBridge.close()
             nativeDestroy(current)
         }
     }
@@ -195,11 +544,13 @@ internal class EngineSession : AutoCloseable {
     fun saveCopy(path: String) {
         check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
         nativeSaveCopy(handle,path)
+        TimelineRichDocument.writeAtomic(TimelineRichDocument.sidecarFor(path), richDocument)
     }
     @Synchronized
     fun restoreDraft(path: String) {
         check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
         nativeRestoreDraft(handle,path)
+        applyLoadedRichDocument(TimelineRichDocument.readIfExists(TimelineRichDocument.sidecarFor(path)) ?: TimelineRichDocument())
     }
     private external fun nativeSaveCopy(handle: Long, path: String)
     private external fun nativeRestoreDraft(handle: Long, path: String)
@@ -207,6 +558,7 @@ internal class EngineSession : AutoCloseable {
     fun checkpointProject(path: String) {
         check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
         nativeCheckpointProject(handle,path)
+        TimelineRichDocument.writeAtomic(TimelineRichDocument.sidecarFor(path), richDocument)
     }
     @Synchronized
     fun repairCheckpoint(path: String): Boolean {
@@ -219,7 +571,11 @@ internal class EngineSession : AutoCloseable {
     private external fun nativeGetStatus(handle: Long): String
     private external fun nativeGetTimelineSnapshot(handle: Long): String
     private external fun nativeResolvePlayhead(handle: Long, trackId: String, timelineFrame: Long): String?
+    private external fun nativeEnsureTrack(handle: Long, trackId: String, isAudio: Boolean)
+    private external fun nativeSetTrackState(handle: Long, trackId: String, muted: Boolean, locked: Boolean)
+    private external fun nativeGetTracksJson(handle: Long): String
     private external fun nativeAddMediaClip(handle: Long, mediaId: String, durationMs: Long): String
+    private external fun nativeAddMediaToTrack(handle: Long, trackId: String, mediaId: String, durationMs: Long, startFrame: Long): String
     private external fun nativeRelinkClipMedia(handle: Long, clipId: String, replacementMediaId: String)
     private external fun nativeMoveClip(handle: Long, clipId: String, destinationTrackId: String, destinationStartFrame: Long)
     private external fun nativeSplitClip(handle: Long, clipId: String, cutFrame: Long, rightClipId: String)

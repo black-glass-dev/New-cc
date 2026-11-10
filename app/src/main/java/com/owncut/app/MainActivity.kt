@@ -14,7 +14,6 @@ import android.os.HandlerThread
 import android.os.Looper
 import android.provider.DocumentsContract
 import android.view.Gravity
-import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.Surface
 import android.view.TextureView
@@ -28,13 +27,13 @@ import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
+import com.owncut.timeline.SnapDecision
 import java.io.File
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.CancellationException
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.math.roundToInt
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
@@ -53,6 +52,8 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
     private val workspaceTabs = mutableMapOf<String, Button>()
     private val workspacePanels = mutableMapOf<String, MutableList<android.view.View>>()
     private lateinit var preview: AspectRatioTextureView
+    private var overlayView: PreviewOverlayView? = null
+    private var pendingImportTrackId: String? = null
     private var gradeViewerParent: FrameLayout?=null
     private var mainGradePreview: MainGradePreview?=null
     private var previewSurface: Surface? = null
@@ -584,6 +585,18 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
             setBackgroundColor(android.graphics.Color.BLACK)
             addView(preview, FrameLayout.LayoutParams(-1,-1,Gravity.CENTER))
         }
+        val ov = PreviewOverlayView(this).apply {
+            onOverlayMoved = { ovId, nx, ny ->
+                engine?.mutateRichState(recordUndo = true) { doc ->
+                    val next = doc.overlays.map { if (it.id == ovId) it.copy(x = nx, y = ny) else it }
+                    doc.copy(overlays = next)
+                }
+                updatePreviewOverlay()
+                scheduleAutosave()
+            }
+        }
+        overlayView = ov
+        viewer.addView(ov, FrameLayout.LayoutParams(-1,-1))
         gradeViewerParent=viewer
         root.addView(viewer, if(compactFallback) LinearLayout.LayoutParams(-1,dp(180)) else LinearLayout.LayoutParams(-1,0,1f))
         // Move Play to the transport; eliminate full-width Play and duplicate Import bars.
@@ -597,15 +610,107 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         // Trim and ripple remain accessible in Tools; Split/Delete + history are primary.
         val advanced = listOf(editControls.getChildAt(1),editControls.getChildAt(2),editControls.getChildAt(4))
         for(view in advanced) { editControls.removeView(view); secondaryTools.addView(view,wrapButtonParams()) }
+        secondaryTools.addView(actionButton(AppLanguage.text(R.string.action_duplicate), StudioIcon.DUPLICATE) { duplicateSelectedClip() }, wrapButtonParams())
+        secondaryTools.addView(actionButton(AppLanguage.text(R.string.action_freeze), StudioIcon.FREEZE) { freezeAtPlayhead() }, wrapButtonParams())
+        val secondaryScroll = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            addView(secondaryTools)
+        }
         val undo = projectButtons.getChildAt(0); val redo = projectButtons.getChildAt(1)
         projectButtons.removeView(undo); projectButtons.removeView(redo)
         editControls.addView(undo,0,wrapButtonParams()); editControls.addView(redo,wrapButtonParams())
+        var snapBtn: Button? = null
+        snapBtn = actionButton(AppLanguage.text(R.string.action_snap), StudioIcon.MAGNET) {
+            val s = engine ?: return@actionButton
+            val next = !s.isSnapEnabled()
+            s.setSnapEnabled(next)
+            snapBtn?.isSelected = next
+            refreshTimeline()
+            Toast.makeText(this, AppLanguage.text(R.string.pro_snap_toggled, if (next) "ON" else "OFF"), Toast.LENGTH_SHORT).show()
+        }
+        snapBtn.isSelected = engine?.isSnapEnabled() ?: true
+        editControls.addView(snapBtn, wrapButtonParams())
+        editControls.addView(actionButton(AppLanguage.text(R.string.action_marker), StudioIcon.MARKER) {
+            val s = engine ?: return@actionButton
+            val posMs = frameToMs(timelineFrame)
+            s.upsertMarker(
+                TimelineMarkerItem(
+                    id = "mk-${System.nanoTime()}",
+                    positionMs = posMs,
+                    label = formatTime(posMs),
+                )
+            )
+            refreshTimeline()
+            scheduleAutosave()
+            Toast.makeText(this, AppLanguage.text(R.string.pro_marker_added, formatTime(posMs)), Toast.LENGTH_SHORT).show()
+        }, wrapButtonParams())
         root.addView(editScroll,matchWrap())
+        val proToolsRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        proToolsRow.addView(actionButton(AppLanguage.text(R.string.action_speed), StudioIcon.SPEED) {
+            val s = engine ?: return@actionButton
+            val c = currentSelectedClip() ?: run { Toast.makeText(this, AppLanguage.text(R.string.pro_select_clip_first), Toast.LENGTH_SHORT).show(); return@actionButton }
+            ProEditorPanels.showSpeedPanel(this, s, c, frameToMs(timelineFrame)) {
+                applyClipPlaybackParams(); refreshTimeline(); scheduleAutosave()
+            }
+        }, wrapButtonParams())
+        proToolsRow.addView(actionButton(AppLanguage.text(R.string.action_audio), StudioIcon.AUDIO) {
+            val s = engine ?: return@actionButton
+            val c = currentSelectedClip() ?: run { Toast.makeText(this, AppLanguage.text(R.string.pro_select_clip_first), Toast.LENGTH_SHORT).show(); return@actionButton }
+            ProEditorPanels.showAudioPanel(this, s, c) {
+                applyClipPlaybackParams(); refreshTimeline(); scheduleAutosave()
+            }
+        }, wrapButtonParams())
+        proToolsRow.addView(actionButton(AppLanguage.text(R.string.action_transform), StudioIcon.TRANSFORM) {
+            val s = engine ?: return@actionButton
+            val c = currentSelectedClip() ?: run { Toast.makeText(this, AppLanguage.text(R.string.pro_select_clip_first), Toast.LENGTH_SHORT).show(); return@actionButton }
+            ProEditorPanels.showTransformPanel(this, s, c) {
+                updatePreviewOverlay(); refreshTimeline(); scheduleAutosave()
+            }
+        }, wrapButtonParams())
+        proToolsRow.addView(actionButton(AppLanguage.text(R.string.action_text), StudioIcon.TEXT) {
+            val s = engine ?: return@actionButton
+            ProEditorPanels.showTextOverlayPanel(this, s, frameToMs(timelineFrame)) {
+                updatePreviewOverlay(); refreshTimeline(); scheduleAutosave()
+            }
+        }, wrapButtonParams())
+        proToolsRow.addView(actionButton(AppLanguage.text(R.string.action_subtitles), StudioIcon.SUBTITLES) {
+            val s = engine ?: return@actionButton
+            ProEditorPanels.showSubtitlesPanel(this, s, frameToMs(timelineFrame)) {
+                updatePreviewOverlay(); refreshTimeline(); scheduleAutosave()
+            }
+        }, wrapButtonParams())
+        proToolsRow.addView(actionButton(AppLanguage.text(R.string.action_transition), StudioIcon.TRANSITION) {
+            val s = engine ?: return@actionButton
+            val c = currentSelectedClip() ?: run { Toast.makeText(this, AppLanguage.text(R.string.pro_select_clip_first), Toast.LENGTH_SHORT).show(); return@actionButton }
+            ProEditorPanels.showTransitionPanel(this, s, c) {
+                updatePreviewOverlay(); refreshTimeline(); scheduleAutosave()
+            }
+        }, wrapButtonParams())
+        proToolsRow.addView(actionButton(AppLanguage.text(R.string.action_tracks), StudioIcon.PIP) {
+            val s = engine ?: return@actionButton
+            ProEditorPanels.showTracksPanel(this, s, { targetTrack ->
+                launchMediaPickerForTrack(targetTrack)
+            }) {
+                refreshTimeline(); scheduleAutosave()
+            }
+        }, wrapButtonParams())
+        proToolsRow.addView(actionButton(AppLanguage.text(R.string.action_beat_cut), StudioIcon.BEAT) {
+            val s = engine ?: return@actionButton
+            ProEditorPanels.showBeatAndSceneCutPanel(this, s, currentSelectedClip()) {
+                refreshTimeline(); scheduleAutosave()
+            }
+        }, wrapButtonParams())
+        val proToolsScroll = HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            addView(proToolsRow)
+        }
         val contextBody = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(8),0,dp(8),0) }
         contextBody.addView(mediaText,matchWrap()); contextBody.addView(selectedClipText,matchWrap()); contextBody.addView(seekBar,matchWrap())
         workspacePanels.getOrPut("Media") { mutableListOf() }.addAll(listOf(mediaText,selectedClipText,seekBar))
-        contextBody.addView(controls,matchWrap()); contextBody.addView(secondaryTools,matchWrap())
-        workspacePanels.getOrPut("Tools") { mutableListOf() }.add(secondaryTools)
+        contextBody.addView(controls,matchWrap()); contextBody.addView(secondaryScroll,matchWrap())
+        contextBody.addView(proToolsScroll,matchWrap())
+        workspacePanels.getOrPut("Tools") { mutableListOf() }.add(secondaryScroll)
+        workspacePanels.getOrPut("Tools") { mutableListOf() }.add(proToolsScroll)
         contextBody.addView(projectControls,matchWrap()); contextBody.addView(editHelpText,matchWrap())
         // root.removeAllViews detached Color too: reattach it to the final scrollable pane.
         contextBody.addView(colorPanel,matchWrap())
@@ -773,7 +878,24 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                     }
                 }
                 onScrubCancel = { timelineScrubbing = false; updateTimelinePlayhead() }
+                onEvaluateSnap = { clip, proposedFrame, pixelsPerFrame ->
+                    val s = engine
+                    s?.evaluateTimelineSnap(
+                        clip.trackId, clip.id, proposedFrame, clip.durationFrames,
+                        timelineFrame, pixelsPerFrame, snapEnabled = s.isSnapEnabled()
+                    ) ?: SnapDecision(proposedFrame, false, -1L, false, false)
+                }
+                onPinchZoom = { scaleFactor, focusXPx ->
+                    engine?.pinchTimelineZoom(scaleFactor, focusXPx) ?: 1.0
+                }
                 onMove = { clip, frame -> moveClipToFreeSlot(clip, clip.trackId, frame) }
+                onMoveToTrack = { clip, trackId, frame -> moveClipToFreeSlot(clip, trackId, frame) }
+                onTrimClip = { clip, leftEdge, deltaFrames -> trimClipByFrames(clip, leftEdge, deltaFrames) }
+                onTwoFingerUndo = { runHistory(undo = true) }
+                onThreeFingerRedo = { runHistory(undo = false) }
+                onMarkerClick = { mk ->
+                    Toast.makeText(this@MainActivity, "${mk.label} (${formatTime(mk.positionMs)})", Toast.LENGTH_SHORT).show()
+                }
             }
             timelineView = canvas
             val viewport = object : HorizontalScrollView(this) {
@@ -798,7 +920,15 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
             timelineViewport = viewport
             timelineContainer.addView(viewport, matchWrap())
         }
-        timelineView?.apply { setTimeline(clips, selectedClipId); isEnabled = !projectIoBusy }
+        val session = engine
+        timelineView?.apply {
+            setTimeline(clips, selectedClipId)
+            if (session != null) {
+                updateRich(session.richState(), session.tracks().map { it.id }, session)
+            }
+            isEnabled = !projectIoBusy
+        }
+        updatePreviewOverlay()
         val selected = clips.firstOrNull { it.id == selectedClipId }
         if (::relinkButton.isInitialized) relinkButton.isEnabled = selected != null && !projectIoBusy && !selectedMediaLoading
         selectedClipText.text = selected?.let {
@@ -824,6 +954,127 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         timelineView?.setPlayhead(timelineFrame)
         if (::timelinePositionText.isInitialized)
             timelinePositionText.text = AppLanguage.text(R.string.message_e653e09701, TimelineGeometry.timecode(timelineFrame))
+        updatePreviewOverlay()
+    }
+
+    private fun updatePreviewOverlay() {
+        val ov = overlayView ?: return
+        val session = engine ?: return
+        val richDoc = session.richState()
+        val timeMs = frameToMs(timelineFrame)
+        val v1Clip = timelineClips.firstOrNull {
+            !it.trackId.startsWith("a", true) &&
+                it.trackId == "v1" &&
+                timelineFrame >= it.startFrame &&
+                timelineFrame < it.startFrame + it.durationFrames
+        }
+        val v1SourceMs = if (v1Clip != null) {
+            v1Clip.sourceInMs + frameToMs(timelineFrame - v1Clip.startFrame)
+        } else previewPositionMs
+        val v2Clip = timelineClips.firstOrNull {
+            it.trackId == "v2" &&
+                timelineFrame >= it.startFrame &&
+                timelineFrame < it.startFrame + it.durationFrames
+        }
+        val v2SourceMs = if (v2Clip != null) {
+            v2Clip.sourceInMs + frameToMs(timelineFrame - v2Clip.startFrame)
+        } else 0L
+        ov.updateState(timeMs, richDoc, v1Clip, v1SourceMs, v2Clip, v2SourceMs)
+    }
+
+    private fun applyClipPlaybackParams(applySpeedNow: Boolean = false) {
+        val session = engine ?: return
+        val clip = currentSelectedClip() ?: return
+        val fx = session.clipFx(clip.id)
+        val tracks = session.tracks().associateBy { it.id }
+        val trackMuted = tracks[clip.trackId]?.muted == true
+        val effectiveVol = if (fx.muted || trackMuted) 0f else fx.volume.coerceIn(0f, 1f)
+        val speed = fx.speed.toFloat().coerceIn(0.25f, 4.0f)
+        val current = player ?: return
+        val gen = playerGeneration
+        mediaHandler.post {
+            if (gen == playerGeneration && player === current && playerPrepared) {
+                try {
+                    current.setVolume(effectiveVol, effectiveVol)
+                    if (applySpeedNow && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && kotlin.math.abs(speed - 1.0f) > 0.02f) {
+                        val params = current.playbackParams
+                        params.speed = speed
+                        current.playbackParams = params
+                    }
+                } catch (_: Throwable) {
+                }
+            }
+        }
+    }
+
+    private fun trimClipByFrames(clip: ClipSnapshot, leftEdge: Boolean, deltaFrames: Long) {
+        if (projectIoBusy || blockWhileMediaLoads() || deltaFrames == 0L) return
+        val session = engine ?: return
+        try {
+            val deltaMs = frameToMs(kotlin.math.abs(deltaFrames)) * if (deltaFrames < 0L) -1L else 1L
+            val boundaryMs = if (leftEdge) {
+                (clip.sourceInMs + deltaMs).coerceIn(0L, clip.sourceOutMs - 40L)
+            } else {
+                (clip.sourceOutMs + deltaMs).coerceAtLeast(clip.sourceInMs + 40L)
+            }
+            session.trimClip(clip.id, leftEdge, boundaryMs)
+            refreshTimeline()
+            scheduleAutosave()
+            engineStatusText.text = session.status()
+            session.clips().firstOrNull { it.id == clip.id }?.let { selectClip(it) }
+        } catch (error: Exception) {
+            showError(error)
+        }
+    }
+
+    private fun duplicateSelectedClip() {
+        if (blockWhileMediaLoads()) return
+        val session = engine ?: return
+        try {
+            val clip = currentSelectedClip() ?: throw IllegalStateException(AppLanguage.text(R.string.pro_select_clip_first))
+            val newId = session.duplicateClip(clip.id)
+            selectedClipId = newId
+            refreshTimeline()
+            scheduleAutosave()
+            engineStatusText.text = session.status()
+            session.clips().firstOrNull { it.id == newId }?.let { selectClip(it) }
+        } catch (error: Exception) {
+            showError(error)
+        }
+    }
+
+    private fun freezeAtPlayhead() {
+        if (blockWhileMediaLoads()) return
+        val session = engine ?: return
+        try {
+            val clip = currentSelectedClip() ?: throw IllegalStateException(AppLanguage.text(R.string.pro_select_clip_first))
+            val playheadMs = frameToMs(timelineFrame)
+            val clipStartMs = frameToMs(clip.startFrame)
+            val sourceMs = (clip.sourceInMs + (playheadMs - clipStartMs)).coerceIn(clip.sourceInMs, clip.sourceOutMs)
+            session.setClipFx(clip.id) { fx ->
+                fx.copy(freezeMs = if (fx.freezeMs >= 0L) -1L else sourceMs)
+            }
+            refreshTimeline()
+            scheduleAutosave()
+        } catch (error: Exception) {
+            showError(error)
+        }
+    }
+
+    private fun launchMediaPickerForTrack(trackId: String) {
+        if (projectIoBusy) return
+        pendingImportTrackId = trackId
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            if (trackId.startsWith("a", ignoreCase = true)) {
+                type = "*/*"
+                putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("audio/*", "video/*"))
+            } else {
+                type = "video/*"
+            }
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+        }
+        startActivityForResult(intent, REQUEST_VIDEO)
     }
 
     private fun updateTimelinePlayhead(follow: Boolean = false) {
@@ -1324,10 +1575,14 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
             showError(error)
             return
         }
+        val primaryClips = exportClips
+            .filter { it.trackId == "v1" }
+            .ifEmpty { exportClips.filter { !it.trackId.startsWith("a", ignoreCase = true) } }
+            .ifEmpty { exportClips }
         val plan = try {
             ExportRoutePolicy.requireAllowed(route,exportClips.any { it.gradeActive },Build.VERSION.SDK_INT)
-            if(route==ExportRoute.EXPERIMENTAL_GRADED) TimelineRemuxExporter.candidateGradedTimingPlan(exportClips)
-            else TimelineRemuxExporter.makePlan(exportClips)
+            if(route==ExportRoute.EXPERIMENTAL_GRADED) TimelineRemuxExporter.candidateGradedTimingPlan(primaryClips)
+            else TimelineRemuxExporter.makePlan(primaryClips)
         } catch (error: Exception) {
             showError(error)
             showExportFailureDetails("Owncut ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) revision=${BuildConfig.PREVIEW_REVISION}\n" +
@@ -1379,10 +1634,37 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                 val onProgress: (String) -> Unit = { message ->
                     mainHandler.post { if (!isDestroyed) statusText.text = message }
                 }
-                if(route==ExportRoute.EXPERIMENTAL_GRADED)
-                    TimelineRenderExporter.exportGradedCandidate(this@MainActivity,plan,
-                        "explicit-candidate-${System.nanoTime()}",temporary,cancellation,onProgress)
-                else TimelineRenderExporter.export(this@MainActivity,plan,temporary,cancellation,onProgress)
+                val snapEngine = engine
+                val richDoc = snapEngine?.richState() ?: TimelineRichDocument()
+                val allClipsSnapshot = snapEngine?.clips().orEmpty()
+                val trackInfos = snapEngine?.tracks().orEmpty()
+                val useRichPipeline = richDoc.overlays.isNotEmpty() ||
+                    richDoc.subtitles.isNotEmpty() ||
+                    allClipsSnapshot.any { it.trackId != "v1" } ||
+                    plan.clips.any { c ->
+                        val fx = richDoc.fxFor(c.id)
+                        fx.hasVideoTransformOrFx() || fx.hasAudioEnvelope()
+                    }
+                if(route==ExportRoute.EXPERIMENTAL_GRADED) {
+                    if (useRichPipeline) {
+                        TimelineRenderExporter.exportRichGraded(
+                            this@MainActivity, plan, "explicit-candidate-${System.nanoTime()}",
+                            richDoc, allClipsSnapshot, trackInfos, temporary, cancellation, onProgress
+                        )
+                    } else {
+                        TimelineRenderExporter.exportGradedCandidate(this@MainActivity,plan,
+                            "explicit-candidate-${System.nanoTime()}",temporary,cancellation,onProgress)
+                    }
+                } else {
+                    if (useRichPipeline) {
+                        TimelineRenderExporter.exportRich(
+                            this@MainActivity, plan, richDoc, allClipsSnapshot, trackInfos,
+                            temporary, cancellation, onProgress
+                        )
+                    } else {
+                        TimelineRenderExporter.export(this@MainActivity,plan,temporary,cancellation,onProgress)
+                    }
+                }
                 if (destination == null) {
                     failureStage=ExportFailureReport.Stage.PUBLISHING_GALLERY
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -1609,6 +1891,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
 
     private fun launchVideoPicker() {
         if (projectIoBusy) return
+        pendingImportTrackId = null
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = "video/*"
@@ -1620,13 +1903,18 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
     @Deprecated("Uses platform Activity result API to avoid adding an AndroidX runtime dependency in the bootstrap.")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (resultCode != RESULT_OK) return
+        if (resultCode != RESULT_OK) {
+            pendingImportTrackId = null
+            return
+        }
         val resultData = data ?: return
         val uri = resultData.data ?: return
         when (requestCode) {
             REQUEST_VIDEO -> {
+                val targetTrack = pendingImportTrackId
+                pendingImportTrackId = null
                 val takeGrant = resultData.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0
-                readMetadataAndRegister(uri, takeGrant)
+                readMetadataAndRegister(uri, takeGrant, targetTrackId = targetTrack)
             }
             REQUEST_RELINK_MEDIA -> {
                 val takeGrant = resultData.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0
@@ -1643,12 +1931,16 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         takePersistableGrant: Boolean = false,
         existingClipId: String? = null,
         relinkClipId: String? = null,
+        targetTrackId: String? = null,
     ) {
         if (projectIoBusy) return
         val request = ++metadataRequestSequence
         selectedMediaLoading = true
         seekBar.isEnabled = false
         statusText.text = AppLanguage.text(R.string.message_a6dbb03662)
+        val existingTrackIsAudio = existingClipId != null &&
+            engine?.clips()?.firstOrNull { it.id == existingClipId }?.trackId?.startsWith("a", true) == true
+        val allowAudioOnly = (targetTrackId?.startsWith("a", true) == true) || existingTrackIsAudio
         metadataExecutor.execute {
             var duration = 0L
             var displayWidth = 0
@@ -1674,10 +1966,15 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
 
                 val width = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
                 val height = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
-                if (width <= 0 || height <= 0) throw IllegalArgumentException(AppLanguage.text(R.string.message_b7592acd38))
+                if ((width <= 0 || height <= 0) && !allowAudioOnly) throw IllegalArgumentException(AppLanguage.text(R.string.message_b7592acd38))
                 val rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
-                displayWidth = if (rotation == 90 || rotation == 270) height else width
-                displayHeight = if (rotation == 90 || rotation == 270) width else height
+                if (width > 0 && height > 0) {
+                    displayWidth = if (rotation == 90 || rotation == 270) height else width
+                    displayHeight = if (rotation == 90 || rotation == 270) width else height
+                } else {
+                    displayWidth = 1280
+                    displayHeight = 720
+                }
             } catch (error: Exception) {
                 failure = error
             } finally {
@@ -1710,7 +2007,11 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                     val relinkTarget = relinkClipId?.let { id -> session.clips().firstOrNull { it.id == id } }
                     if (relinkClipId != null && relinkTarget == null) throw IllegalStateException(AppLanguage.text(R.string.message_2313bf0ccc))
                     if (relinkTarget != null) session.relinkClipMedia(relinkTarget.id, uri.toString(), duration)
-                    val clipId = relinkTarget?.id ?: existing?.id ?: session.addMediaClip(uri.toString(), duration)
+                    val clipId = relinkTarget?.id ?: existing?.id ?: if (targetTrackId != null) {
+                        session.addMediaClipToTrack(targetTrackId, uri.toString(), duration, timelineFrame)
+                    } else {
+                        session.addMediaClip(uri.toString(), duration)
+                    }
                     val addedNewClip = existing == null && relinkTarget == null
                     selectedClipId = clipId
                     previewStartMs = relinkTarget?.sourceInMs ?: existing?.sourceInMs ?: 0L
@@ -1790,6 +2091,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                                     seekBar.progress = startPosition.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
                                     updateTimelinePlayhead(follow = shouldResume)
                                     playButton.isEnabled = true
+                                    applyClipPlaybackParams(applySpeedNow = shouldResume && !savedGrade)
                                     syncMainGradePreview(shouldResume)
                                     if (shouldResume && !savedGrade) {
                                         playButton.text = AppLanguage.text(R.string.action_pause)
@@ -1911,6 +2213,9 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
             return
         }
         val generation = playerGeneration
+        val activeClip = currentSelectedClip()
+        val fx = activeClip?.let { engine?.clipFx(it.id) }
+        val trackMuted = activeClip != null && engine?.tracks()?.firstOrNull { it.id == activeClip.trackId }?.muted == true
         mediaHandler.post {
             if (generation != playerGeneration || player !== current) return@post
             try {
@@ -1930,6 +2235,16 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                                 seekPreviewTo(previewStartMs, startAfterSeek = true)
                         }
                         return@post
+                    }
+                    val vol = if (fx?.muted == true || trackMuted) 0f else (fx?.volume ?: 1f).coerceIn(0f, 1f)
+                    current.setVolume(vol, vol)
+                    val targetSpeed = fx?.speed?.toFloat()?.coerceIn(0.25f, 4.0f) ?: 1.0f
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && kotlin.math.abs(targetSpeed - 1.0f) > 0.02f) {
+                        runCatching {
+                            val params = current.playbackParams
+                            params.speed = targetSpeed
+                            current.playbackParams = params
+                        }
                     }
                     current.start()
                     mainHandler.post {
