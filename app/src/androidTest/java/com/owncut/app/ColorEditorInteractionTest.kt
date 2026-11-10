@@ -21,17 +21,21 @@ class ColorEditorInteractionTest {
 
     @Test fun closeCallbackFollowsCommitAndAlsoRunsOnCancel() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            val events=mutableListOf<String>() // accessed only on Activity main thread
             scenario.onActivity { activity ->
-                val events=mutableListOf<String>()
                 val applied=ClipColorEditor.show(activity,missing,0,
                     onClosed={ events.add("closed") }) { events.add("committed") }
                 applied.getButton(AlertDialog.BUTTON_POSITIVE).performClick()
+            }
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            scenario.onActivity { activity ->
                 assertEquals(listOf("committed","closed"),events)
                 val cancelled=ClipColorEditor.show(activity,missing,0,
                     onClosed={ events.add("cancelled-close") }) { error("cancel must not commit") }
                 cancelled.dismiss()
-                assertEquals(listOf("committed","closed","cancelled-close"),events)
             }
+            androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+            scenario.onActivity { assertEquals(listOf("committed","closed","cancelled-close"),events) }
         }
     }
 
