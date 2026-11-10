@@ -2,6 +2,7 @@
 #include <jni.h>
 #include "timeline_c_api.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
 #include <vector>

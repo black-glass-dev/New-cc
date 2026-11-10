@@ -4,6 +4,8 @@
 #include "timeline/timeline_model.hpp"
 
 #include <cstdint>
+#include <optional>
+#include <utility>
 #include <vector>
 
 namespace owncut::timeline {

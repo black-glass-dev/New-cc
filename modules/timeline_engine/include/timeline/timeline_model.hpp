@@ -4,10 +4,12 @@
 #include "timeline/media_pool.hpp"
 #include "timeline/rational_time.hpp"
 
+#include <algorithm>
 #include <cstdint>
 #include <map>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace owncut::timeline {

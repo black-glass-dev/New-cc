@@ -9,9 +9,11 @@
 #if defined(__ANDROID__)
 #include <fcntl.h>
 #include <media/NdkMediaCodec.h>
+#include <media/NdkMediaError.h>
 #include <media/NdkMediaExtractor.h>
 #include <media/NdkMediaFormat.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 #endif
 

@@ -5,6 +5,7 @@ option(OWNCUT_TIMELINE_BUILD_TESTS "Build timeline_engine unit and integration t
 option(OWNCUT_TIMELINE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 option(OWNCUT_TIMELINE_ENABLE_FFMPEG "Probe and link FFmpeg libraries if installed" ON)
 option(OWNCUT_TIMELINE_BUNDLE_JNI "Bundle android_jni.cpp inside timeline_engine static library" ON)
+option(OWNCUT_TIMELINE_WARNINGS_AS_ERRORS "Treat warnings as errors (host default; Android NDK may disable)" ON)
 
 find_package(Threads REQUIRED)
 
@@ -78,7 +79,7 @@ if(OWNCUT_HAS_FFMPEG)
 endif()
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
-    target_compile_options(timeline_engine PRIVATE -Wall -Wextra -Wpedantic -Werror)
+    target_compile_options(timeline_engine PRIVATE -Wall -Wextra -Wpedantic $<$<BOOL:${OWNCUT_TIMELINE_WARNINGS_AS_ERRORS}>:-Werror>)
     if(OWNCUT_TIMELINE_SANITIZERS)
         target_compile_options(timeline_engine PUBLIC -fsanitize=address,undefined -fno-omit-frame-pointer)
         target_link_options(timeline_engine PUBLIC -fsanitize=address,undefined)

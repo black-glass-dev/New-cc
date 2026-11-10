@@ -122,7 +122,6 @@ private:
 
     mutable std::mutex mutex_;
     Project project_;
-    uint64_t timeline_id_ = 1;
     Timeline timeline_;
     MagneticSnapEngine snap_engine_;
     MobileGestureController gesture_controller_;
