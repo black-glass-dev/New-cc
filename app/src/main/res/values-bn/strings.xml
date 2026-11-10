@@ -313,6 +313,9 @@
     </string-array>
     <string name="color_source_changed">সম্পাদনার সময়ে ক্লিপ বদলেছে। Color বন্ধ করে আবার খুলুন।</string>
     <string name="color_live_title">লাইভ গ্রেড প্রিভিউ (পরীক্ষামূলক)</string>
+    <string name="color_module_title">কালার মডিউল স্ব-পরীক্ষা (CPU)</string>
+    <string name="color_module_ok">ঠিক আছে</string>
+    <string name="color_module_dialog_title">কালার মডিউল স্ব-পরীক্ষা</string>
     <string name="color_live_loading">সোর্স metadata যাচাই ও graded playback প্রস্তুত হচ্ছে…</string>
     <string name="color_live_notice">ক্লিপের অপরিবর্তনীয় গ্রেড স্ন্যাপশটের পরীক্ষামূলক প্লেব্যাক; এটি সেভ না করা ড্রাফটও হতে পারে। আগে অপশন গ্রেড ছাড়া তুলনা করে। লুপ ক্লিপের ট্রিমের মধ্যেই থাকে। এই প্রিভিউ পরিবর্তন সেভ করে না। সাধারণ টাইমলাইন প্লেব্যাক ও গ্রেডেড এক্সপোর্ট অপরিবর্তিত; Android/ডিভাইসে যাচাই বাকি।</string>
     <string name="color_live_before">আগে (playback চলার সময়ে)</string>

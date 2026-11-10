@@ -527,6 +527,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                 } catch(error: Exception) { showError(error) }
             }
         },matchWrap())
+        colorPanel.addView(colorAction(AppLanguage.text(R.string.color_module_title)) { showColorModuleSelfTest() },matchWrap())
         colorPanel.addView(TextView(this).apply { text=AppLanguage.text(R.string.color_still_notice);setTextColor(StudioUi.muted) })
         root.addView(colorPanel,matchWrap())
         workspacePanels.getOrPut("Color") { mutableListOf() }.add(colorPanel)
@@ -700,6 +701,17 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         ViewGroup.LayoutParams.WRAP_CONTENT,
         ViewGroup.LayoutParams.WRAP_CONTENT,
     ).apply { rightMargin = dp(4) }
+
+    private fun showColorModuleSelfTest() {
+        try {
+            val text = ColorModuleDiagnostics.runSelfTest(64, 64)
+            AlertDialog.Builder(this)
+                .setTitle(AppLanguage.text(R.string.color_module_dialog_title))
+                .setMessage(text)
+                .setPositiveButton(AppLanguage.text(R.string.color_module_ok), null)
+                .show()
+        } catch (error: Exception) { showError(error) }
+    }
 
     private fun showClipColorEditor() {
         if(blockWhileMediaLoads() || colorDialog?.isShowing == true) return
