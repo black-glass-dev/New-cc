@@ -197,3 +197,10 @@ factory opts in. DecoderBufferLease isolates held format epochs and EOS. Do not 
 output while held, clear pending input payload, infer crop, enable tone mapping, or release
 caller-owned Surface. Shipping grade guards remain until real output/device acceptance.
 New backend test source is not a phone success claim. Native/QA worker ownership unchanged.
+
+## Explicit candidate UI (ADR0041)
+
+A SHIPPING active-grade failure can offer EXPERIMENTAL_GRADED via separate positive consent,
+Gallery only/API29+. No automatic retry/quality fallback; normal grade guard remains. Saved
+clip grades only, fresh immutable snapshot after consent, independent gap consent. Candidate
+encoder fallback disabled. Verify both default refusal and explicit candidate route in tests.

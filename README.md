@@ -1,3 +1,10 @@
+## Experimental graded-export phone-test route
+
+On Android10+, an active-grade export refusal offers a separate consented experimental
+export. Real guarded rendering,720p H.264/AAC SDR, automatic Gallery publication after
+container/duration validation; no ungraded fallback/4K/10bit/parity claim. This is not
+production acceptance. See ADR0041; original backend ADR0040.
+
 ## Original decoder implementation checkpoint
 
 Candidate graded export now uses an original public-API surface decoder with held-buffer

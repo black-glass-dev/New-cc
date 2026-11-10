@@ -34,7 +34,7 @@ with tempfile.TemporaryDirectory(prefix='owncut-controls-') as directory:
     jar = Path(directory)/'controls.jar'
     subprocess.run(['bash',str(kotlin_home/'bin/kotlinc'),
         *[str(root/'app/src/main/java/com/owncut/app'/name) for name in
-          ('ColorSliderScale.kt','ColorPreviewFailure.kt','ExportFailureReport.kt','WheelDragSession.kt','WheelPalette.kt')],
+          ('ColorSliderScale.kt','ColorPreviewFailure.kt','ExportFailureReport.kt','ExportRoutePolicy.kt','WheelDragSession.kt','WheelPalette.kt')],
         str(root/'tests/kotlin/ColorControlsTest.kt'),'-Werror','-include-runtime','-d',str(jar)],env=env,check=True)
     subprocess.run([str(java_home/'bin/java'),'-jar',str(jar)],env=env,check=True)
 

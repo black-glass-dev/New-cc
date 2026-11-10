@@ -572,3 +572,13 @@ EOS completion and idempotent release implemented. No GPL/dependency/shipping gu
 Local actual pure Kotlin10000-epoch lease tests PASS; Android real decoder test source added
 (not executed here). Device/GPU/export parity and unsupported device quirks remain unverified;
 full roadmap not complete. Readiness25%/75%. See ADR0040 for scope/limitations.
+
+## ADR0041 — Explicit experimental graded export route
+
+Active-grade shipping refusal now offers a separate Gallery-only experimental action on
+API29+, followed by bilingual quality/risk confirmation. Default shipping guard unchanged;
+only explicit consent chooses candidate timing/real guarded rendering. Gap consent, worker
+cancellation, mux verification and Gallery cleanup retained. Candidate encoder fallback OFF.
+720p H.264/AAC SDR test preset, no4K/10bit/parity promise; export uses saved clip grades.
+Actual pure Kotlin route-policy tests pass; Android/phone acceptance tracked separately.
+This supersedes candidate test-only reachability, not production readiness.25%/75%.

@@ -363,4 +363,7 @@
     <string name="color_grade_short">গ্রেড</string>
     <string name="color_copy_report">রিপোর্ট কপি করুন</string>
     <string name="export_error_details">এক্সপোর্ট ব্যর্থতার বিস্তারিত</string>
+    <string name="export_candidate_title">পরীক্ষামূলক গ্রেডেড এক্সপোর্ট</string>
+    <string name="export_candidate_start">পরীক্ষামূলক এক্সপোর্ট শুরু</string>
+    <string name="export_candidate_warning">নতুন decoder দিয়ে বর্তমান timeline-এর সংরক্ষিত grade-সহ render হবে। পরীক্ষার preset: 720p H.264/AAC SDR—4K বা যাচাইকৃত 10-bit output নয়। ফোন/GPU-তে সঠিক ফল এখনও নিশ্চিত নয়। অসমর্থিত geometry, color বা codec হলে এক্সপোর্ট থামবে; grade বাদ দিয়ে বিকল্প export হবে না। শুধু যাচাইকৃত ফাইল Gallery-তে সেভ হবে। এগোবেন?</string>
 </resources>

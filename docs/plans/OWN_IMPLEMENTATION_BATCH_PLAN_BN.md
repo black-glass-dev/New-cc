@@ -155,3 +155,9 @@ cleanup code এবং10000-epoch pure production regression PASS। Real Androi
 source যোগ হয়েছে; execution বাকি। API29+ explicit capability;26–28 fallback নয়।
 পরবর্তী gate: Android compile/actual decoder drain + real graded output/parity/audio/
 Gallery acceptance। তার আগে production grade guard নয়। B/C কাজ/পুরো roadmap সম্পূর্ণ নয়।
+
+### Candidate phone-test entry (ADR0041)
+API29+ normal grade refusal Details থেকে আলাদা experimental action/confirmation আছে।
+Saved grades নিয়ে720p H.264/AAC SDR real candidate render; container/duration validation
+শেষে Gallery। Pixel parity যাচাই নয়। Encoder fallback disabled, native guard বহাল।
+Shipping guard সরেনি; normal export ও experimental test এক feature-status নয়।

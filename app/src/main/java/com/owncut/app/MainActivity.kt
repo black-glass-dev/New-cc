@@ -1298,17 +1298,23 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         startActivityForResult(intent, REQUEST_EXPORT_VIDEO)
     }
 
-    private fun startTimelineExport(destination: Uri?) {
+    private fun startTimelineExport(destination: Uri?, route: ExportRoute=ExportRoute.SHIPPING) {
         if (projectIoBusy) return
         val exportClips=try { engine?.clips().orEmpty().toList() } catch(error: Exception) {
             showError(error)
             return
         }
-        val plan = try { TimelineRemuxExporter.makePlan(exportClips) } catch (error: Exception) {
+        val plan = try {
+            ExportRoutePolicy.requireAllowed(route,exportClips.any { it.gradeActive },Build.VERSION.SDK_INT)
+            if(route==ExportRoute.EXPERIMENTAL_GRADED) TimelineRemuxExporter.candidateGradedTimingPlan(exportClips)
+            else TimelineRemuxExporter.makePlan(exportClips)
+        } catch (error: Exception) {
             showError(error)
             showExportFailureDetails("Owncut ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) revision=${BuildConfig.PREVIEW_REVISION}\n" +
                 ExportFailureReport.details(error,ExportFailureReport.Stage.PREPARING,exportClips.size,
-                    exportClips.count { it.gradeActive },TimelineRenderExporter.OUTPUT_HEIGHT))
+                    exportClips.count { it.gradeActive },TimelineRenderExporter.OUTPUT_HEIGHT),
+                if(route==ExportRoute.SHIPPING && destination==null && Build.VERSION.SDK_INT>=29 &&
+                    exportClips.any { it.gradeActive }) ({ confirmExperimentalExport() }) else null)
             return
         }
         if (plan.omittedGapFrames > 0L) {
@@ -1318,14 +1324,15 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                 .setMessage(AppLanguage.text(R.string.message_73a9853a46, plan.omittedGapFrames, omittedGapMs))
                 .setNegativeButton(AppLanguage.text(R.string.message_ca21daf138)) { _, _ -> destination?.let { deleteFailedExportDocument(it) } }
                 .setOnCancelListener { destination?.let { deleteFailedExportDocument(it) } }
-                .setPositiveButton(AppLanguage.text(R.string.message_8cee3592bb)) { _, _ -> beginTimelineExport(destination, plan) }
+                .setPositiveButton(AppLanguage.text(R.string.message_8cee3592bb)) { _, _ -> beginTimelineExport(destination, plan, route) }
                 .show()
         } else {
-            beginTimelineExport(destination, plan)
+            beginTimelineExport(destination, plan, route)
         }
     }
 
-    private fun beginTimelineExport(destination: Uri?, plan: TimelineRemuxExporter.Plan) {
+    private fun beginTimelineExport(destination: Uri?, plan: TimelineRemuxExporter.Plan,
+        route: ExportRoute=ExportRoute.SHIPPING) {
         if (projectIoBusy) return
         val cancellation = AtomicBoolean(false)
         exportCancellation = cancellation
@@ -1346,11 +1353,16 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
             var failureReport: String?=null
             var failureStage=ExportFailureReport.Stage.PREPARING
             try {
-                TimelineRenderExporter.requireShippingExportSupported(plan)
+                ExportRoutePolicy.requireAllowed(route,plan.clips.any { it.gradeActive },Build.VERSION.SDK_INT)
+                if(route==ExportRoute.SHIPPING) TimelineRenderExporter.requireShippingExportSupported(plan)
                 failureStage=ExportFailureReport.Stage.RENDERING
-                TimelineRenderExporter.export(this@MainActivity, plan, temporary, cancellation) { message ->
+                val onProgress: (String) -> Unit = { message ->
                     mainHandler.post { if (!isDestroyed) statusText.text = message }
                 }
+                if(route==ExportRoute.EXPERIMENTAL_GRADED)
+                    TimelineRenderExporter.exportGradedCandidate(this@MainActivity,plan,
+                        "explicit-candidate-${System.nanoTime()}",temporary,cancellation,onProgress)
+                else TimelineRenderExporter.export(this@MainActivity,plan,temporary,cancellation,onProgress)
                 if (destination == null) {
                     failureStage=ExportFailureReport.Stage.PUBLISHING_GALLERY
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -1370,7 +1382,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                     else AppLanguage.text(R.string.message_32ba7b117e)
             } catch (error: Exception) {
                 val cleaned = destination == null || deleteFailedExportDocument(destination)
-                failureReport="Owncut ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) revision=${BuildConfig.PREVIEW_REVISION}\n" +
+                failureReport="Owncut ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) revision=${BuildConfig.PREVIEW_REVISION} route=${route.name}\n" +
                     ExportFailureReport.details(error,failureStage,plan.clips.size,
                         plan.clips.count { it.gradeActive },TimelineRenderExporter.OUTPUT_HEIGHT)
                 resultMessage = AppLanguage.text(R.string.message_38516603a3, error.message ?: error.javaClass.simpleName) +
@@ -1393,15 +1405,30 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         }
     }
 
-    private fun showExportFailureDetails(report: String) {
+    private fun confirmExperimentalExport() {
+        if(projectIoBusy || isFinishing || isDestroyed) return
+        AlertDialog.Builder(this)
+            .setTitle(AppLanguage.text(R.string.export_candidate_title))
+            .setMessage(AppLanguage.text(R.string.export_candidate_warning))
+            .setNegativeButton(AppLanguage.text(R.string.message_ca21daf138),null)
+            .setPositiveButton(AppLanguage.text(R.string.export_candidate_start)) { _,_ ->
+                startTimelineExport(null,ExportRoute.EXPERIMENTAL_GRADED)
+            }.show()
+    }
+
+    private fun showExportFailureDetails(report: String, experimentalAction: (() -> Unit)?=null) {
         if(isFinishing || isDestroyed) return
-        val dialog=AlertDialog.Builder(this)
+        val builder=AlertDialog.Builder(this)
             .setTitle(AppLanguage.text(R.string.export_error_details))
             .setMessage(report)
             .setNeutralButton(AppLanguage.text(R.string.color_copy_report)) { _,_ ->
                 PreviewDiagnostics.copy(this,report)
             }
-            .setPositiveButton(AppLanguage.text(R.string.color_details_close),null).show()
+            .setPositiveButton(AppLanguage.text(R.string.color_details_close),null)
+        if(experimentalAction!=null) builder.setNegativeButton(AppLanguage.text(R.string.export_candidate_title)) { _,_ ->
+            experimentalAction()
+        }
+        val dialog=builder.show()
         dialog.findViewById<TextView>(android.R.id.message)?.setTextIsSelectable(true)
     }
 

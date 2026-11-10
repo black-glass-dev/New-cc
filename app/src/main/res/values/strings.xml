@@ -363,4 +363,7 @@
     <string name="color_grade_short">Grade</string>
     <string name="color_copy_report">Copy report</string>
     <string name="export_error_details">Export failure details</string>
+    <string name="export_candidate_title">Experimental graded export</string>
+    <string name="export_candidate_start">Start test export</string>
+    <string name="export_candidate_warning">Render the current timeline with its saved grades using the new decoder. Test preset: 720p H.264/AAC SDR, not 4K or verified 10-bit output. Device/GPU correctness is not yet confirmed. Unsupported geometry, color or codec will stop export; no ungraded fallback. Only a validated file is saved to Gallery. Continue?</string>
 </resources>

@@ -58,6 +58,14 @@ fun main() {
     rejected { ExportFailureReport.details(root,ExportFailureReport.Stage.PREPARING,-1,0,720) }
     rejected { ExportFailureReport.details(root,ExportFailureReport.Stage.PREPARING,1,2,720) }
     rejected { ExportFailureReport.details(root,ExportFailureReport.Stage.PREPARING,1,0,0) }
+    for(sdk in 26..40) {
+        ExportRoutePolicy.requireAllowed(ExportRoute.SHIPPING,false,sdk)
+        ExportRoutePolicy.requireAllowed(ExportRoute.SHIPPING,true,sdk) // shipping composition still owns grade refusal
+        if(sdk>=29) ExportRoutePolicy.requireAllowed(ExportRoute.EXPERIMENTAL_GRADED,true,sdk)
+        else rejected { ExportRoutePolicy.requireAllowed(ExportRoute.EXPERIMENTAL_GRADED,true,sdk) }
+        rejected { ExportRoutePolicy.requireAllowed(ExportRoute.EXPERIMENTAL_GRADED,false,sdk) }
+    }
+    rejected { ExportRoutePolicy.requireAllowed(ExportRoute.SHIPPING,false,25) }
     println("Production export reports: four phases, immutable context, nested/long/cyclic causes and invalid-context refusal passed")
     println("Production color controls: relative no-jump wheel transport, 34017 numeric range steps, saved-range preservation, bounded nested/cyclic diagnostics passed")
 }

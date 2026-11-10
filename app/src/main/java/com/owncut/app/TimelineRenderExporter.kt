@@ -43,7 +43,7 @@ internal object TimelineRenderExporter {
         return buildComposition(plan,null)
     }
 
-    /** Test/candidate route only. No production export/start or UI route calls this.
+    /** Explicit opt-in experimental route only. Shipping composition remains guarded.
      * Same immutable color plan can prepare preview effects via GradedFramePipeline.
      * No output file/codec starts here; does not authorize automatic gap compaction.
      */
@@ -113,7 +113,7 @@ internal object TimelineRenderExporter {
         exportComposition(context,plan,output,cancelled,progress,composition(plan),null)
     }
 
-    /** Explicit developer/test entry: REAL encoder path, not user delivery or parity proof.
+    /** Explicit test/consented experimental entry: REAL encoder path, not parity proof.
      * Does not change shipping export guards. Caller owns scratch output and gap consent.
      */
     internal fun exportGradedCandidate(context: Context, plan: TimelineRemuxExporter.Plan, revision: String,
@@ -156,7 +156,7 @@ internal object TimelineRenderExporter {
             try {
                 if (cancelled.get()) throw CancellationException(AppLanguage.text(R.string.message_1452bfda9c))
                 val platform = DefaultEncoderFactory.Builder(context.applicationContext)
-                    .setEnableFallback(true).build()
+                    .setEnableFallback(candidate==null).build()
                 val alwaysEncode = object : Codec.EncoderFactory by platform {
                     override fun videoNeedsEncoding() = true
                     override fun audioNeedsEncoding() = true
