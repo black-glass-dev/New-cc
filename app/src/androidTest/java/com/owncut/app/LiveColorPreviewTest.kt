@@ -32,6 +32,23 @@ class LiveColorPreviewTest {
         assertThrows(IllegalArgumentException::class.java) { VideoSourceProbe.decoded(malformed) }
     }
 
+    @Test fun media3CodecFormatCannotBeUsedAsRawCropEvidence() {
+        val raw=MediaFormat.createVideoFormat("video/raw",2880,2176)
+        raw.setInteger(MediaFormat.KEY_COLOR_STANDARD,MediaFormat.COLOR_STANDARD_BT709)
+        raw.setInteger(MediaFormat.KEY_COLOR_TRANSFER,MediaFormat.COLOR_TRANSFER_SDR_VIDEO)
+        raw.setInteger(MediaFormat.KEY_COLOR_RANGE,MediaFormat.COLOR_RANGE_LIMITED)
+        raw.setInteger("crop-left",0);raw.setInteger("crop-top",0)
+        raw.setInteger("crop-right",2879);raw.setInteger("crop-bottom",2159)
+        val visible=VideoSourceProbe.decoded(raw)
+        val converted=androidx.media3.common.util.MediaFormatUtil.createFormatFromMediaFormat(raw)
+        // Pinned Media3 1.8.1 conversion retains allocation height, not explicit crop.
+        assertEquals(2176,converted.height)
+        assertEquals(2160,visible.height)
+        assertThrows(IllegalArgumentException::class.java) {
+            ColorEngine.validateDecodedFormat(visible,GuardedDecoderFactory.descriptor(converted))
+        }
+    }
+
     @Test fun rendererRawOutputNeverDefaultsMissingColorTags() {
         val format=MediaFormat.createVideoFormat("video/raw",1920,1080)
         val unknown=VideoSourceProbe.decoded(format)

@@ -49,7 +49,8 @@ static audit, policy/transport, unit tests ও candidate preparation চাল�
 - [x] Render/publish/document-copy phase, immutable clip/grade count ও720p preset report।
 - [x] Nested error chain এবং version/revision-সহ selectable/copyable local report।
 - [x] Active grade pending হলে encode/publication-এর আগে fail-closed preflight।
-- [ ] Decoder output/crop/color transport-এর candidate route audit ও regression।
+- [x] Candidate decoder crop transport audit; pinned Media3 crop-loss regression source যোগ।
+- [ ] Crop evidence-preserving export adapter implementation এবং device acceptance।
 - [ ] Cancellation, audio, mux validation, storage publication/cleanup failure matrix।
 - [ ] Guarded graded candidate-এর actual codec/GPU পরীক্ষা; তারপর production admission।
 Acceptance: কোনো ungraded substitution নয়; explicit error অথবা সত্যিকারের validated file;
@@ -119,3 +120,11 @@ Readiness বাড়বে verified acceptance অনুযায়ী, line-count 
 এই turn-এ A-এর audit, preflight এবং report plumbing বাস্তবায়ন শুরু/সম্পন্ন হয়েছে।
 এটি graded export enable বা ফোন export repair হয়েছে এমন দাবি নয়। Candidate route ও
 পরবর্তী C++/GPU কাজের acceptance পূর্ণ না হলে production guard বজায় থাকবে।
+
+### A: audit follow-up
+Media3 1.8.1 DefaultCodec.convertToFormat → MediaFormatUtil.createFormatFromMediaFormat
+raw width/height বহন করে, explicit crop বহন করে না। Padded synthetic fixture দিয়ে
+Android regression source যোগ হয়েছে; candidate guard blind padding অনুমান করবে না।
+এটি shipping grade guard-এর অতিরিক্ত candidate limitation, ফোনের raw output মাপ নয়।
+পরের বাস্তবায়ন: public API-তে raw crop evidence ধরে রাখার codec adapter/design; reflection
+বা নিজের থেকে2176→2160 অনুমান নয়।

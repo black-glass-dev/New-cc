@@ -26,3 +26,11 @@ Local actual pure Kotlin tests cover all phases, context bounds and nested/long/
 Native6, Python27 and resources345/3themes/17labels pass. Android compile/phone execution
 pending at implementation commit. No new native/JNI algorithm or dependency in this change.
 No graded-export enablement, codec/GPU/10bit/parity claim. Readiness25%/75%.
+
+Candidate audit: pinned Media3 DefaultCodec.convertToFormat delegates to MediaFormatUtil,
+which reads KEY_WIDTH/HEIGHT and does not retain explicit crop. Added Android fixture
+regression for this known transport limitation; not measured phone geometry. Candidate
+guard errors now distinguish input/output, expected/actual and unavailable raw crop;
+no unsafe inference or guard relaxation. Official pinned sources:
+https://github.com/androidx/media/blob/1.8.1/libraries/transformer/src/main/java/androidx/media3/transformer/DefaultCodec.java
+https://github.com/androidx/media/blob/1.8.1/libraries/common/src/main/java/androidx/media3/common/util/MediaFormatUtil.java

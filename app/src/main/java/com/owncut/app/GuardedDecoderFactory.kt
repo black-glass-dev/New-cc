@@ -28,7 +28,10 @@ internal class GuardedDecoderFactory(
             require(!requestSdrToneMapping) { "Tone mapping is not admitted by the SDR color candidate" }
             require(input in admitted) { "Decoder input differs from probed color plan" }
             ColorEngine.validateDecodedFormat(input,input)
-        } catch (error: Exception) { throw unsupported(error) }
+        } catch (error: Exception) { throw unsupported(IllegalArgumentException(
+            "Graded export decoder-input: actual=${input.width}x${input.height} admitted=" +
+                admitted.joinToString { "${it.width}x${it.height}" } +
+                " requested-sdr-tone-map=$requestSdrToneMapping",error)) }
         val codec=platform.createForVideoDecoding(format,outputSurface,false,logSessionId)
         try { return GuardedCodec(codec,input) }
         catch (error: Throwable) {
@@ -37,15 +40,22 @@ internal class GuardedDecoderFactory(
         }
     }
 
-    internal class GuardedCodec(private val codec: Codec, expected: ColorEngine.DecodedVideoFormat) : Codec by codec {
+    internal class GuardedCodec(private val codec: Codec, private val expected: ColorEngine.DecodedVideoFormat) : Codec by codec {
         private val owner=Thread.currentThread()
         private val gate=DecoderColorGate(expected)
         private var released=false
         private fun ownerOnly() { check(Thread.currentThread() === owner) { "Decoder must stay on its owner thread" } }
         private fun verify() {
             ownerOnly()
-            try { gate.beforeRender { codec.outputFormat?.let { descriptor(it) } } }
-            catch (error: Exception) { gate.invalidate();throw unsupported(error) }
+            var actual: ColorEngine.DecodedVideoFormat?=null
+            try { gate.beforeRender { codec.outputFormat?.let { descriptor(it).also { value -> actual=value } } } }
+            catch (error: Exception) {
+                gate.invalidate()
+                throw unsupported(IllegalArgumentException(
+                    "Graded export decoder-output: expected-visible=${expected.width}x${expected.height} " +
+                        "actual-format=${actual?.width}x${actual?.height}; " +
+                        "Media3 Codec.Format does not expose raw crop; no padding inference",error))
+            }
         }
         override fun releaseOutputBuffer(render: Boolean) {
             ownerOnly();check(!released) { "Decoder is released" }
