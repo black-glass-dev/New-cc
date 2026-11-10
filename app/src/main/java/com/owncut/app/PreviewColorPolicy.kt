@@ -2,6 +2,9 @@ package com.owncut.app
 
 /** Explicit preview interpretation only. Never mutates source tags, saved grade or export plan. */
 internal object PreviewColorPolicy {
+    fun hasMissing(c: ColorEngine.VideoColorMetadata)=c.primaries==ColorEngine.VideoPrimaries.UNKNOWN ||
+        c.transfer==ColorEngine.VideoTransfer.UNKNOWN || c.range==ColorEngine.VideoRange.UNKNOWN
+    fun needsInterpretation(c: ColorEngine.VideoColorMetadata)=hasMissing(c) && canInterpret(c)
     fun canInterpret(c: ColorEngine.VideoColorMetadata)=!c.hasHdrStaticMetadata &&
         c.primaries!=ColorEngine.VideoPrimaries.OTHER &&
         c.transfer in listOf(ColorEngine.VideoTransfer.UNKNOWN,ColorEngine.VideoTransfer.SDR_VIDEO)

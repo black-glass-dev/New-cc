@@ -615,3 +615,16 @@ cancellation, mux verification and Gallery cleanup retained. Candidate encoder f
 720p H.264/AAC SDR test preset, no4K/10bit/parity promise; export uses saved clip grades.
 Actual pure Kotlin route-policy tests pass; Android/phone acceptance tracked separately.
 This supersedes candidate test-only reachability, not production readiness.25%/75%.
+
+## ADR0042 — Saved grade main viewer and export entry
+
+User screenshot/report: color live works, main viewer ungraded after Apply, viewer duplicate/
+cut image, known-tag Input warning and export refusal toast. MainGradePreview now bridges
+saved grade to strict guarded live rendering; transport/selection/history/lifecycle wiring
+added without timeline model/view edits. Main source player paused/hidden, no ungraded success
+fallback. Editor closes main-grade decoder and restores saved grade after editor cleanup.
+Reference bitmap removed during live handoff; black clipped viewport/nonopaque texture.
+Input UI offers interpretation only for missing interpretable tags. Duplicate export launcher
+preflight removed so Details/consented candidate is reachable; shipping guards retained.
+New policy and static wiring regressions; actual phone/GPU behavior pending. No APK publication
+unless explicitly requested by user. No dependency/schema/JNI/license change.25%/75%.

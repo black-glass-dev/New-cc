@@ -69,3 +69,11 @@ with tempfile.TemporaryDirectory(prefix='owncut-decoder-lease-') as directory:
         str(root/'app/src/main/java/com/owncut/app/DecoderBufferLease.kt'),
         str(root/'tests/kotlin/DecoderBufferLeaseTest.kt'),'-Werror','-include-runtime','-d',str(jar)],env=env,check=True)
     subprocess.run([str(java_home/'bin/java'),'-jar',str(jar)],env=env,check=True)
+
+with tempfile.TemporaryDirectory(prefix='owncut-color-input-') as directory:
+    jar = Path(directory)/'color-input.jar'
+    subprocess.run(['bash',str(kotlin_home/'bin/kotlinc'),
+        str(root/'app/src/main/java/com/owncut/app/ColorEngine.kt'),
+        str(root/'app/src/main/java/com/owncut/app/PreviewColorPolicy.kt'),
+        str(root/'tests/kotlin/ColorInputPolicyTest.kt'),'-Werror','-include-runtime','-d',str(jar)],env=env,check=True)
+    subprocess.run([str(java_home/'bin/java'),'-jar',str(jar)],env=env,check=True)

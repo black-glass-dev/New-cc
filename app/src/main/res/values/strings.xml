@@ -278,8 +278,8 @@
     <string name="checkpoint_repair_accept">Archive damaged record</string>
     <string name="checkpoint_repaired">Damaged checkpoint record archived. Project and recovery were not changed; saving can be retried.</string>
     <string name="checkpoint_no_repair">No damaged checkpoint record needs repair.</string>
-    <string name="color_grade_export_pending">This project contains color grades. Graded video export is not enabled yet; export was stopped to avoid losing the look.</string>
-    <string name="color_grade_preview_pending">Clip has a color grade. Normal timeline preview shows the ungraded source. Color offers a separate experimental live clip preview; Android validation is pending.</string>
+    <string name="color_grade_export_pending">Standard graded export remains gated to avoid losing your look. On Android 10+, this Details dialog offers a separate experimental graded export with explicit consent.</string>
+    <string name="color_grade_preview_pending">Saved color grade uses the guarded main viewer. A decoder failure is reported instead of displaying an ungraded success.</string>
     <string name="color_editor_title">Clip color grade</string>
     <string name="color_still_notice">Still-frame editor preview only. Normal timeline playback is ungraded; normal graded export is not enabled. Render the draft before Apply. Cancel leaves the saved grade unchanged.</string>
     <string name="color_enabled">Enable saved grade</string>
@@ -325,7 +325,7 @@
     <string name="color_slider_help">Adjust with wheels or drag numeric values; no sliders or typing required. Apply saves settings; normal graded timeline playback and export remain unavailable.</string>
     <string name="color_preview_unavailable">Preview unavailable. You can still save valid settings. Details: %1$s</string>
     <string name="color_auto_preview_ready">Still preview updated. Apply saves these settings. This is not graded timeline playback.</string>
-    <string name="color_saved_notice">Grade saved to the clip. Normal timeline playback and graded export are not yet enabled.</string>
+    <string name="color_saved_notice">Grade saved. The main viewer will load the saved grade; any source or decoder failure will be shown.</string>
     <string name="color_frame_viewer">Clip frame viewer</string>
     <string name="color_frame_loading">Loading clip frame…</string>
     <string name="color_frame_reference">REFERENCE ONLY · not graded</string>
@@ -366,4 +366,7 @@
     <string name="export_candidate_title">Experimental graded export</string>
     <string name="export_candidate_start">Start test export</string>
     <string name="export_candidate_warning">Render the current timeline with its saved grades using the new decoder. Test preset: 720p H.264/AAC SDR, not 4K or verified 10-bit output. Device/GPU correctness is not yet confirmed. Unsupported geometry, color or codec will stop export; no ungraded fallback. Only a validated file is saved to Gallery. Continue?</string>
+    <string name="color_input_detected">Detected source color tags are listed below. No missing-tag interpretation is needed or offered for this input. Unsupported or conflicting tags remain blocked; these tags do not prove 10-bit output.</string>
+    <string name="color_saved_grade_viewer">Saved color grade</string>
+    <string name="color_input_blocked">Some color tags are missing, but known HDR or unsupported color information prevents a safe SDR interpretation. This input cannot be overridden.</string>
 </resources>

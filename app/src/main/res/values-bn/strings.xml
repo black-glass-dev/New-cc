@@ -278,8 +278,8 @@
     <string name="checkpoint_repair_accept">নষ্ট রেকর্ড archive করুন</string>
     <string name="checkpoint_repaired">নষ্ট চেকপয়েন্ট রেকর্ড archive হয়েছে। Project ও recovery বদলায়নি; আবার সেভ করা যাবে।</string>
     <string name="checkpoint_no_repair">মেরামতের প্রয়োজন এমন নষ্ট চেকপয়েন্ট রেকর্ড নেই।</string>
-    <string name="color_grade_export_pending">এই প্রজেক্টে কালার গ্রেড আছে। গ্রেডসহ ভিডিও এক্সপোর্ট এখনো চালু হয়নি; লুক হারানো ঠেকাতে এক্সপোর্ট বন্ধ রাখা হয়েছে।</string>
-    <string name="color_grade_preview_pending">এই ক্লিপে কালার গ্রেড আছে। সাধারণ timeline preview আনগ্রেডেড সোর্স দেখায়। Color-এ আলাদা পরীক্ষামূলক live clip preview আছে; Android validation বাকি।</string>
+    <string name="color_grade_export_pending">লুক হারানো ঠেকাতে সাধারণ graded export এখনও সুরক্ষিত রাখা হয়েছে। Android 10+ হলে এই বিস্তারিত dialog থেকে আলাদা সম্মতিসহ পরীক্ষামূলক graded export বেছে নেওয়া যাবে।</string>
+    <string name="color_grade_preview_pending">সংরক্ষিত গ্রেড guarded main viewer ব্যবহার করে। decoder ব্যর্থ হলে ungraded ছবি সফল ফল হিসেবে না দেখিয়ে সমস্যা জানানো হবে।</string>
     <string name="color_editor_title">ক্লিপের কালার গ্রেড</string>
     <string name="color_still_notice">শুধু স্থির ফ্রেমের editor preview। সাধারণ timeline playback ungraded; সাধারণ graded export এখনো চালু নয়। Apply করার আগে draft render করুন। Cancel করলে সংরক্ষিত grade বদলাবে না।</string>
     <string name="color_enabled">সংরক্ষিত গ্রেড সক্রিয়</string>
@@ -325,7 +325,7 @@
     <string name="color_slider_help">হুইল বা সংখ্যা টেনে মান বদলান; স্লাইডার বা টাইপ করার দরকার নেই। প্রয়োগে সেটিংস সেভ হবে; সাধারণ গ্রেডেড টাইমলাইন প্লেব্যাক ও এক্সপোর্ট এখনো চালু নয়।</string>
     <string name="color_preview_unavailable">প্রিভিউ পাওয়া যায়নি। বৈধ সেটিংস তবুও সেভ করতে পারবেন। বিস্তারিত: %1$s</string>
     <string name="color_auto_preview_ready">স্থির প্রিভিউ আপডেট হয়েছে। প্রয়োগ করলে এই সেটিংস সেভ হবে। এটি গ্রেডসহ টাইমলাইন প্লেব্যাক নয়।</string>
-    <string name="color_saved_notice">ক্লিপে গ্রেড সেভ হয়েছে। সাধারণ টাইমলাইন প্লেব্যাক ও এক্সপোর্টে গ্রেড দেখানো এখনো চালু হয়নি।</string>
+    <string name="color_saved_notice">গ্রেড সেভ হয়েছে। main viewer সংরক্ষিত গ্রেড লোড করবে; source বা decoder ব্যর্থ হলে তা জানানো হবে।</string>
     <string name="color_frame_viewer">ক্লিপ ফ্রেম ভিউয়ার</string>
     <string name="color_frame_loading">ক্লিপের ফ্রেম লোড হচ্ছে…</string>
     <string name="color_frame_reference">শুধু রেফারেন্স · গ্রেড ছাড়া</string>
@@ -366,4 +366,7 @@
     <string name="export_candidate_title">পরীক্ষামূলক গ্রেডেড এক্সপোর্ট</string>
     <string name="export_candidate_start">পরীক্ষামূলক এক্সপোর্ট শুরু</string>
     <string name="export_candidate_warning">নতুন decoder দিয়ে বর্তমান timeline-এর সংরক্ষিত grade-সহ render হবে। পরীক্ষার preset: 720p H.264/AAC SDR—4K বা যাচাইকৃত 10-bit output নয়। ফোন/GPU-তে সঠিক ফল এখনও নিশ্চিত নয়। অসমর্থিত geometry, color বা codec হলে এক্সপোর্ট থামবে; grade বাদ দিয়ে বিকল্প export হবে না। শুধু যাচাইকৃত ফাইল Gallery-তে সেভ হবে। এগোবেন?</string>
+    <string name="color_input_detected">নিচে শনাক্ত করা source color tags দেওয়া আছে। এই input-এ missing-tag interpretation প্রয়োজন নেই, তাই সেই বিকল্প দেখানো হচ্ছে না। অসমর্থিত বা পরস্পরবিরোধী tags এখনও আটকাবে; এই তথ্য 10-bit output-এর প্রমাণ নয়।</string>
+    <string name="color_saved_grade_viewer">সংরক্ষিত কালার গ্রেড</string>
+    <string name="color_input_blocked">কিছু color tag অনুপস্থিত, কিন্তু পরিচিত HDR বা অসমর্থিত color তথ্যের কারণে নিরাপদ SDR interpretation করা যায় না। এই input override করা যাবে না।</string>
 </resources>

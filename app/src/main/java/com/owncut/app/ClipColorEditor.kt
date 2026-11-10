@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 @UnstableApi
 internal object ClipColorEditor {
-    fun show(activity: Activity, clip: ClipSnapshot, positionMs: Long, previewDraft: ((ColorGrade) -> AlertDialog)?=null, referenceFrame: Bitmap?=null, commit: (ColorGrade) -> Unit): AlertDialog {
+    fun show(activity: Activity, clip: ClipSnapshot, positionMs: Long, previewDraft: ((ColorGrade) -> AlertDialog)?=null, referenceFrame: Bitmap?=null, onClosed: () -> Unit = {}, commit: (ColorGrade) -> Unit): AlertDialog {
         require(clip.sourceInMs>=0 && positionMs>=clip.sourceInMs && positionMs<clip.sourceOutMs)
         require(referenceFrame==null || (referenceFrame.width<=PreviewFrameSize.MAX_WIDTH && referenceFrame.height<=PreviewFrameSize.MAX_HEIGHT))
         val main=Handler(Looper.getMainLooper())
@@ -56,9 +56,11 @@ internal object ClipColorEditor {
         root.addView(body,LinearLayout.LayoutParams(-1,0,1f))
         val viewerSide=LinearLayout(activity).apply { orientation=LinearLayout.VERTICAL }
         body.addView(viewerSide,if(landscape) LinearLayout.LayoutParams(0,-1,1f).apply { marginEnd=dp(12) } else LinearLayout.LayoutParams(-1,-2))
-        val viewport=FrameLayout(activity).apply { setBackgroundColor(android.graphics.Color.BLACK) }
+        val viewport=FrameLayout(activity).apply {
+            setBackgroundColor(android.graphics.Color.BLACK);clipChildren=true;clipToPadding=true
+        }
         val preview=ImageView(activity).apply { scaleType=ImageView.ScaleType.FIT_CENTER;contentDescription=AppLanguage.text(R.string.color_frame_viewer) }
-        val videoTexture=AspectRatioTextureView(activity)
+        val videoTexture=AspectRatioTextureView(activity).apply { isOpaque=false }
         viewport.addView(videoTexture,FrameLayout.LayoutParams(-1,-1,android.view.Gravity.CENTER))
         viewport.addView(preview,FrameLayout.LayoutParams(-1,-1))
         val empty=LinearLayout(activity).apply { orientation=LinearLayout.VERTICAL;gravity=android.view.Gravity.CENTER;setPadding(dp(20),dp(12),dp(20),dp(12)) }
@@ -202,11 +204,12 @@ internal object ClipColorEditor {
             .setNegativeButton(AppLanguage.text(R.string.color_cancel),null).create()
         var draftPlayer: AlertDialog?=null
         var hasReference=referenceFrame!=null
+        var referenceBitmap=referenceFrame
         var diagnosticsDialog: AlertDialog?=null
         var lastFailure: String?=null
         if(referenceFrame!=null) { preview.setImageBitmap(referenceFrame);empty.visibility=android.view.View.GONE }
         fun displayReference(frame: Bitmap) {
-            hasReference=true;preview.setImageBitmap(frame);empty.visibility=android.view.View.GONE
+            hasReference=true;referenceBitmap=frame;preview.setImageBitmap(frame);empty.visibility=android.view.View.GONE
             caption.text=AppLanguage.text(R.string.color_frame_reference)
         }
         fun showFailure(error: Exception, previewRelated: Boolean=true) {
@@ -250,14 +253,15 @@ internal object ClipColorEditor {
             inlineSource=metadata;probedSource=metadata
             videoTexture.alpha=0f;preview.visibility=android.view.View.VISIBLE
             caption.text=AppLanguage.text(if(interpretMissing) R.string.color_assumed_frame else R.string.color_frame_loading)
-            inputColor.isEnabled=PreviewColorPolicy.canInterpret(metadata.color)
+            inputColor.isEnabled=true
             statusRow.visibility=android.view.View.VISIBLE
             compare.isEnabled=false
             inline?.close()
             val controller=InlineGradePreview(activity,videoTexture,clip,metadata,positionMs,{ frameBefore,waiting ->
                 if(!closed.get()) {
                     videoTexture.alpha=1f
-                    preview.visibility=android.view.View.INVISIBLE;empty.visibility=android.view.View.GONE
+                    preview.visibility=android.view.View.GONE;preview.setImageDrawable(null)
+                    empty.visibility=android.view.View.GONE
                     compare.isEnabled=true;lastFailure=null;details.visibility=android.view.View.GONE
                     caption.text=if(waiting && !interpretMissing) AppLanguage.text(R.string.color_frame_updating) else videoCaption(frameBefore)
                     status.text=AppLanguage.text(if(waiting) R.string.color_processing else R.string.color_inline_ready)
@@ -269,6 +273,7 @@ internal object ClipColorEditor {
                 inline?.close();inline=null
                 videoTexture.alpha=0f
                 caption.text=AppLanguage.text(if(hasReference) R.string.color_frame_reference else R.string.color_frame_empty)
+                preview.setImageBitmap(referenceBitmap)
                 preview.visibility=android.view.View.VISIBLE;compare.isEnabled=false
                 if(!closed.get()) { showFailure(error);updateButtons() }
             },interpretMissing)
@@ -280,11 +285,18 @@ internal object ClipColorEditor {
         inputColor.setOnClickListener {
             val metadata=probedSource ?: return@setOnClickListener
             diagnosticsDialog?.dismiss()
-            diagnosticsDialog=AlertDialog.Builder(activity).setTitle(AppLanguage.text(R.string.color_input_title))
-                .setMessage(AppLanguage.text(R.string.color_input_warning)+"\n\n"+metadata.color.toString())
-                .setPositiveButton(AppLanguage.text(R.string.color_input_assume)) { _,_ -> interpretMissing=true;startInline(metadata) }
-                .setNeutralButton(AppLanguage.text(R.string.color_input_tagged)) { _,_ -> interpretMissing=false;startInline(metadata) }
-                .setNegativeButton(AppLanguage.text(R.string.color_cancel),null).show()
+            val missing=PreviewColorPolicy.needsInterpretation(metadata.color)
+            val builder=AlertDialog.Builder(activity).setTitle(AppLanguage.text(R.string.color_input_title))
+                .setMessage(AppLanguage.text(if(missing) R.string.color_input_warning
+                    else if(PreviewColorPolicy.hasMissing(metadata.color)) R.string.color_input_blocked
+                    else R.string.color_input_detected)+
+                    "\n\n"+metadata.color.toString())
+                .setNegativeButton(AppLanguage.text(R.string.color_details_close),null)
+            if(missing) {
+                builder.setPositiveButton(AppLanguage.text(R.string.color_input_assume)) { _,_ -> interpretMissing=true;startInline(metadata) }
+                builder.setNeutralButton(AppLanguage.text(R.string.color_input_tagged)) { _,_ -> interpretMissing=false;startInline(metadata) }
+            }
+            diagnosticsDialog=builder.show()
         }
         fun requestRender() {
             if(pulse.request()) main.postDelayed(debounced,if(inline!=null) 66 else 80)
@@ -393,6 +405,7 @@ internal object ClipColorEditor {
             diagnosticsDialog?.dismiss();diagnosticsDialog=null
             inline?.close();inline=null
             worker.shutdownNow();preview.setImageDrawable(null);original=null;graded=null
+            onClosed()
         }
         dialog.setOnShowListener {
             dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
@@ -425,7 +438,7 @@ internal object ClipColorEditor {
                 val metadata=VideoSourceProbe.read(activity.applicationContext,clip.mediaId) { check(!closed.get()) }
                 metadataForVideo=metadata
                 main.post { if(!closed.get()) {
-                    probedSource=metadata;live.isEnabled=true;inputColor.isEnabled=PreviewColorPolicy.canInterpret(metadata.color)
+                    probedSource=metadata;live.isEnabled=true;inputColor.isEnabled=true
                 } }
                 check(!closed.get())
                 val requested=PreviewFrameSize.fit(metadata.width,metadata.height,metadata.rotationDegrees)

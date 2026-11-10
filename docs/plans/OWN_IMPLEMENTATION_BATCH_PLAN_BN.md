@@ -174,3 +174,10 @@ render → validated-container Gallery publication। Saved grade Apply কর�
 A-এর backend/consented test route implementation হয়েছে; A-এর device/GPU/audio/output
 acceptance এখনও অসম্পূর্ণ। Production graded default, B/C curves/LUT/scopes ও release
 কাজ সম্পূর্ণ নয়। এই checkpoint-কে পুরো পরিকল্পনা complete হিসেবে চিহ্নিত করা যাবে না।
+
+## ১১. User screenshot follow-up / assignment correction
+
+ADR0042: Apply→main viewer saved-grade bridge, live/reference handoff, Input eligibility এবং
+export launcher preflight fix। Source/game parity নয়; ফোনে validation বাকি। B timeline, C
+project-library/recovery; পুরোনো native/QA role superseded। Shared integration coordinator।
+User explicitly asks for APK before any next public APK; no automatic fresh-install release।

@@ -21,6 +21,7 @@ internal class InlineGradePreview(
     private val clip: ClipSnapshot, private val source: VideoSourceMetadata,
     positionMs: Long, private val onFrame: (Boolean,Boolean) -> Unit, private val onFailure: (Exception) -> Unit,
     private val interpretMissing: Boolean=false,
+    private val loop: Boolean=true, private val onEnded: () -> Unit = {},
 ) : Application.ActivityLifecycleCallbacks {
     private val main=android.os.Handler(android.os.Looper.getMainLooper())
     private val work=PreviewWorkQueue()
@@ -97,6 +98,11 @@ internal class InlineGradePreview(
             player=p;surfaceReady=false;drawn=false
             p.setAudioAttributes(AudioAttributes.DEFAULT,true)
             p.addListener(object: Player.Listener {
+                override fun onPlaybackStateChanged(state: Int) {
+                    if(player===p && !closed && state==Player.STATE_ENDED && !loop) {
+                        userPlaying=false;onEnded()
+                    }
+                }
                 override fun onPlayerError(error: PlaybackException) { if(player===p) failed(error) }
                 override fun onRenderedFirstFrame() {
                     if(!closed && player===p) {
@@ -112,7 +118,7 @@ internal class InlineGradePreview(
                     if(player===p) texture.setVideoSize((size.width*size.pixelWidthHeightRatio).toInt().coerceAtLeast(1),size.height)
                 }
             })
-            p.setVideoTextureView(texture);p.setVideoEffects(listOf(prepared.effect));p.repeatMode=Player.REPEAT_MODE_ONE
+            p.setVideoTextureView(texture);p.setVideoEffects(listOf(prepared.effect));p.repeatMode=if(loop) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
             p.setMediaItem(MediaItem.Builder().setUri(clip.mediaId).setClippingConfiguration(
                 MediaItem.ClippingConfiguration.Builder().setStartPositionMs(clip.sourceInMs).setEndPositionMs(clip.sourceOutMs).build()).build())
             val revealDeadline=Runnable {
@@ -122,6 +128,16 @@ internal class InlineGradePreview(
             surfaceTimeout=revealDeadline;main.postDelayed(revealDeadline,10000)
             p.seekTo(anchor);p.playWhenReady=userPlaying;p.prepare()
         } catch(error: Exception) { failed(error) }
+    }
+    val sourcePositionMs: Long get()=clip.sourceInMs+(player?.currentPosition ?: anchor)
+    fun seekSource(positionMs: Long) {
+        anchor=PreviewProgress.clipRelative(positionMs,clip.sourceInMs,clip.sourceOutMs)
+        try { player?.seekTo(anchor) } catch(error: Exception) { failed(error) }
+    }
+    fun setPlaying(value: Boolean) {
+        if(closed) return
+        if(player==null) { userPlaying=value;return }
+        if(userPlaying!=value) togglePlaying()
     }
     fun togglePlaying() {
         try { player?.let { p ->

@@ -204,3 +204,14 @@ A SHIPPING active-grade failure can offer EXPERIMENTAL_GRADED via separate posit
 Gallery only/API29+. No automatic retry/quality fallback; normal grade guard remains. Saved
 clip grades only, fresh immutable snapshot after consent, independent gap consent. Candidate
 encoder fallback disabled. Verify both default refusal and explicit candidate route in tests.
+
+## Latest user assignment and APK policy (supersedes ADR0039 worker roles)
+
+Coordinator owns color/render/export and shared MainActivity integration. Worker B owns
+timeline-specific work, worker C project-library/recovery-specific work. They must declare
+exact file ownership and hand off shared MainActivity/build/JNI/schema changes as proposals.
+Do not modify their domain files during color work. No Graden ports. NO public APK/release
+unless the user explicitly asks for an APK; CI compilation is allowed, omit release markers.
+Saved-grade main viewer must not show ungraded source as graded success; source-interpretation
+consent from editor is not export/main metadata proof. Keep export plan guard in common
+entry, not a duplicate launcher guard that swallows the experimental Details action.

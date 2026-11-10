@@ -1,3 +1,11 @@
+## Current color integration checkpoint (ADR0042)
+
+Saved-grade main-viewer/transport wiring, exclusive live/reference layers, known-tag Input
+information and reachable explicit experimental export Details implemented. Phone/GPU
+acceptance pending; no claim of completed export/parity. No APK publication until requested.
+Active work split: coordinator color/render/export; Agent B timeline; Agent C project library/
+recovery. Shared MainActivity/build/JNI/schema remain coordinator-owned.
+
 ## Original decoder / experimental graded-export APK PUBLISHED
 
 [Download latest candidate](https://github.com/black-glass-dev/New-cc/releases/download/fresh-install-42780814613/owncut-fresh-install-debug.apk).

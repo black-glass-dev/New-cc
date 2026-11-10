@@ -53,6 +53,8 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
     private val workspaceTabs = mutableMapOf<String, Button>()
     private val workspacePanels = mutableMapOf<String, MutableList<android.view.View>>()
     private lateinit var preview: AspectRatioTextureView
+    private var gradeViewerParent: FrameLayout?=null
+    private var mainGradePreview: MainGradePreview?=null
     private var previewSurface: Surface? = null
     private lateinit var statusText: TextView
     private lateinit var engineStatusText: TextView
@@ -91,6 +93,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
     @Volatile private var playerGeneration = 0
     private val playbackTicker = object : Runnable {
         override fun run() {
+            if(mainGradePreview!=null) return
             val generation = playerGeneration
             mediaHandler.post {
                 val current = player
@@ -106,7 +109,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                     } else null
                 } catch (_: IllegalStateException) { null }
                 if (tick != null) mainHandler.post {
-                    if (generation == playerGeneration && player === current) {
+                    if (generation == playerGeneration && player === current && mainGradePreview==null) {
                         if (timelineScrubbing || isSeeking || previewSeeking) return@post
                         val (position, reachedClipEnd) = tick
                         if (!isSeeking && !timelineScrubbing && !previewSeeking) {
@@ -580,6 +583,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
             setBackgroundColor(android.graphics.Color.BLACK)
             addView(preview, FrameLayout.LayoutParams(-1,-1,Gravity.CENTER))
         }
+        gradeViewerParent=viewer
         root.addView(viewer, if(compactFallback) LinearLayout.LayoutParams(-1,dp(180)) else LinearLayout.LayoutParams(-1,0,1f))
         // Move Play to the transport; eliminate full-width Play and duplicate Import bars.
         transportRow.addView(playButton, 0, LinearLayout.LayoutParams(dp(52),dp(52)))
@@ -703,16 +707,18 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         try {
             val clip=currentSelectedClip() ?: error(AppLanguage.text(R.string.message_f4e00f9522))
             pauseForTimelineScrub()
+            mainGradePreview?.close();mainGradePreview=null
             val colorPosition=previewPositionMs.coerceIn(clip.sourceInMs,
                 (clip.sourceOutMs-1).coerceAtLeast(clip.sourceInMs))
-            val reference=if(playerPrepared && !previewSeeking && preview.isAvailable &&
+            val reference=if(!clip.gradeActive && playerPrepared && !previewSeeking && preview.isAvailable &&
                 selectedUri?.toString()==clip.mediaId && previewPositionMs==colorPosition && preview.width>0 && preview.height>0) {
                 runCatching {
                     val size=PreviewFrameSize.fit(preview.width,preview.height)
                     preview.getBitmap(size.width,size.height)
                 }.getOrNull()
             } else null
-            colorDialog=ClipColorEditor.show(this,clip,colorPosition,referenceFrame=reference,previewDraft={ grade ->
+            colorDialog=ClipColorEditor.show(this,clip,colorPosition,referenceFrame=reference,
+                onClosed={ colorDialog=null;syncMainGradePreview() },previewDraft={ grade ->
                 check(engine === session && !projectIoBusy && !isDestroyed) { AppLanguage.text(R.string.message_ccdca32722) }
                 check(session.clips().firstOrNull { it.id==clip.id }==clip) { AppLanguage.text(R.string.color_source_changed) }
                 liveColorDialog?.dismiss()
@@ -725,9 +731,10 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                 if(grade != current.grade) {
                     session.setClipGrades(listOf(clip.id),grade)
                     refreshTimeline();scheduleAutosave();engineStatusText.text=session.status()
+                    syncMainGradePreview()
                 }
             }
-        } catch(error: Exception) { showError(error) }
+        } catch(error: Exception) { showError(error);syncMainGradePreview() }
     }
 
     private fun refreshTimeline() {
@@ -784,9 +791,10 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         if (::relinkButton.isInitialized) relinkButton.isEnabled = selected != null && !projectIoBusy && !selectedMediaLoading
         selectedClipText.text = selected?.let {
             AppLanguage.text(R.string.message_5bd8db9fcd, it.id, formatTime(it.sourceInMs), formatTime(it.sourceOutMs)) +
-                if (it.gradeActive) "\n" + AppLanguage.text(R.string.color_grade_preview_pending) else ""
+                if (it.gradeActive) "\n" + AppLanguage.text(R.string.color_saved_grade_viewer) else ""
         } ?: if (clips.isEmpty()) AppLanguage.text(R.string.message_f13c794447) else AppLanguage.text(R.string.message_083723004b, clips.size)
         updateTimelinePlayhead()
+        if(playerPrepared) syncMainGradePreview()
         restoreTimelineScrollX?.let { saved ->
             timelineViewport?.post { timelineViewport?.scrollTo(saved, 0) }
             restoreTimelineScrollX = null
@@ -825,6 +833,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
     }
 
     private fun pauseForTimelineScrub() {
+        mainGradePreview?.pause()
         mainHandler.removeCallbacks(playbackTicker)
         val current = player
         val generation = playerGeneration
@@ -866,6 +875,9 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
     }
 
     private fun seekPreviewTo(sourceMs: Long, resumeIfPlaying: Boolean = false, startAfterSeek: Boolean = false) {
+        mainGradePreview?.let { graded ->
+            graded.seek(sourceMs,startAfterSeek || (resumeIfPlaying && graded.isPlaying));return
+        }
         val current = player ?: return
         if (!playerPrepared || previewSeeking) return
         val target = sourceMs.coerceIn(previewStartMs, (previewEndMs - 1L).coerceAtLeast(previewStartMs))
@@ -1276,12 +1288,8 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
 
     private fun launchExportPicker() {
         if (projectIoBusy || blockWhileMediaLoads()) return
-        try {
-            TimelineRemuxExporter.makePlan(engine?.clips().orEmpty())
-        } catch (error: Exception) {
-            showError(error)
-            return
-        }
+        // Plan/grade validation belongs to startTimelineExport, which also presents the
+        // explicit experimental route. A duplicate guard here made that dialog unreachable.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startTimelineExport(null)
         } else {
@@ -1729,6 +1737,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         }
         releasePlayer()
         val generation = playerGeneration
+        val savedGrade=currentSelectedClip()?.gradeActive==true
         statusText.text = AppLanguage.text(R.string.message_12ef116cca)
         playButton.isEnabled = false
         mediaHandler.post {
@@ -1758,7 +1767,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                         try {
                             ready.setOnSeekCompleteListener(null)
                             previewSeeking = false; playerPrepared = true
-                            if (shouldResume) ready.start()
+                            if (shouldResume && !savedGrade) ready.start()
                             mainHandler.post {
                                 if (generation == playerGeneration && player === ready) {
                                     durationMs = readyDuration.toLong()
@@ -1768,7 +1777,8 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                                     seekBar.progress = startPosition.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
                                     updateTimelinePlayhead(follow = shouldResume)
                                     playButton.isEnabled = true
-                                    if (shouldResume) {
+                                    syncMainGradePreview(shouldResume)
+                                    if (shouldResume && !savedGrade) {
                                         playButton.text = AppLanguage.text(R.string.action_pause)
                                         scheduleFirstFrameDiagnostic(generation, ready)
                                         mainHandler.removeCallbacks(playbackTicker)
@@ -1848,7 +1858,37 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         firstFrameDiagnostic = null
     }
 
+    private fun syncMainGradePreview(startPlaying: Boolean=false) {
+        if(colorDialog?.isShowing==true || isFinishing || isDestroyed) return
+        val parent=gradeViewerParent ?: return
+        val clip=currentSelectedClip()?.takeIf { it.mediaId==selectedUri?.toString() }
+        if(mainGradePreview?.clip==clip && clip?.gradeActive==true) return
+        val previous=mainGradePreview
+        val resume=startPlaying || previous?.isPlaying==true
+        previous?.close();mainGradePreview=null
+        preview.alpha=1f
+        if(clip==null || !clip.gradeActive || !playerPrepared) {
+            if(previous!=null && clip!=null && playerPrepared) seekPreviewTo(previewPositionMs,startAfterSeek=resume)
+            return
+        }
+        pauseForTimelineScrub()
+        preview.alpha=0f // Never show the ungraded source as successful saved-grade playback.
+        mainGradePreview=MainGradePreview(this,parent,clip,previewPositionMs,resume,{ position,playing ->
+            previewPositionMs=position
+            seekBar.progress=position.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+            updateTimelinePlayhead(follow=playing)
+            playButton.text=AppLanguage.text(if(playing) R.string.action_pause else R.string.color_live_short)
+        },{ advanceOrStopTimeline(playerGeneration,player) },{ error ->
+            statusText.text=AppLanguage.text(R.string.color_preview_unavailable,PreviewDiagnostics.report(error))
+        })
+    }
+
     private fun togglePlayback() {
+        mainGradePreview?.let { graded ->
+            graded.toggle()
+            playButton.text=AppLanguage.text(if(graded.isPlaying) R.string.action_pause else R.string.color_live_short)
+            return
+        }
         val current = player
         if (!playerPrepared || current == null || previewSeeking) {
             statusText.text = AppLanguage.text(R.string.message_7833cc82ff)
@@ -1893,6 +1933,8 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
     }
 
     private fun releasePlayer() {
+        mainGradePreview?.close();mainGradePreview=null
+        if(::preview.isInitialized) preview.alpha=1f
         mainHandler.removeCallbacks(playbackTicker)
         clearFirstFrameDiagnostic()
         firstVideoFrameRendered = false
@@ -1956,6 +1998,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
     }
 
     override fun onSurfaceTextureUpdated(texture: SurfaceTexture) {
+        if(mainGradePreview!=null) return
         if (!firstVideoFrameRendered && playerPrepared && player != null) {
             firstVideoFrameRendered = true
             clearFirstFrameDiagnostic()
