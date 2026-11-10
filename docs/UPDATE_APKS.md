@@ -1,3 +1,22 @@
+## Original decoder / experimental graded-export APK PUBLISHED
+
+[Download latest candidate](https://github.com/black-glass-dev/New-cc/releases/download/fresh-install-42780814613/owncut-fresh-install-debug.apk).
+Source14ee1d26242804cfbedf121262de07ce39368943; Android42780814613 and Portable42780814481
+PASS. Assembly, lint, device-test source compilation and APK alignment passed. GitHub release
+API reports8,127,803bytes, SHA256
+`dabe1f02874674f01c0bc0eea3c150c7b414e8f7bd6b352c18adca0bea18d74f`.
+No independent local APK rehash claimed. Native6, actual pure Kotlin (10000-epoch held-buffer
+lease/EOS plus API26..40 route tests), Python27 and348 bilingual/3themes/17labels PASS.
+Instrumentation/emulator/phone drain/GPU/output-parity tests NOT executed.
+
+ADRs0040/0041: original synchronous public-API surface decoder preserves raw crop/color for
+the held buffer; native guards remain. API29+ active-grade shipping failure Details offers
+separate experimental action/confirmation. Export uses saved grades,720p H.264/AAC SDR,
+no encoder quality fallback/ungraded substitute. Gap consent, cancellation, container/duration
+validation and Gallery cleanup remain; those checks are not pixel/parity proof. Shipping
+graded-export acceptance remains pending. No4K/10bit claim. Back up before required uninstall;
+temporary debug signer, no stable update continuity. Full roadmap NOT complete;25%/75%.
+
 ## Buffer-associated live-preview APK PUBLISHED (2026-11-03)
 
 [Download latest preview APK](https://github.com/islamyousuf032-glitch/New-cc/releases/download/fresh-install-41651466328/owncut-fresh-install-debug.apk).

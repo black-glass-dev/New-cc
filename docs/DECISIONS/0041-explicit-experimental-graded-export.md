@@ -25,3 +25,8 @@ This makes a phone-test route reachable, not proven production graded-export sup
 backend drain, GPU/pixel parity, cut/audio/timing and Gallery/lifecycle acceptance remain.
 Only a CI-built candidate may be handed off; no stable signing/update continuity claim.
 No external code/assets/dependency; own UI and transport, native domain unchanged.25%/75%.
+
+Build checkpoint: source14ee1d26242804cfbedf121262de07ce39368943, Android42780814613 /
+Portable42780814481 PASS. New backend/drain and guard test sources compiled, NOT executed.
+Actual pure Kotlin lease/route tests, native6/Python27/resources348 PASS. APK published
+fresh-install-42780814613 with temporary signer. No real device/GPU/export-parity claim.

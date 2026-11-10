@@ -36,3 +36,8 @@ real authored-video Android test source drains with repeated stable held-format 
 drops output, and verifies EOS/idempotent release. This is not rendered GPU/color proof.
 Existing GradedExportParityTest now reaches candidate backend when executed; execution
 and phone output remain required. Full plan, curves/LUT/scopes/release are NOT complete.
+
+Build checkpoint: source14ee1d26242804cfbedf121262de07ce39368943, Android42780814613 /
+Portable42780814481 PASS. New backend/drain and guard test sources compiled, NOT executed.
+Actual pure Kotlin lease/route tests, native6/Python27/resources348 PASS. APK published
+fresh-install-42780814613 with temporary signer. No real device/GPU/export-parity claim.

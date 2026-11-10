@@ -161,3 +161,16 @@ API29+ normal grade refusal Details থেকে আলাদা experimental ac
 Saved grades নিয়ে720p H.264/AAC SDR real candidate render; container/duration validation
 শেষে Gallery। Pixel parity যাচাই নয়। Encoder fallback disabled, native guard বহাল।
 Shipping guard সরেনি; normal export ও experimental test এক feature-status নয়।
+
+## ১০. Backend + explicit test export — verified build checkpoint
+
+Source `14ee1d26242804cfbedf121262de07ce39368943`; Android42780814613 / Portable42780814481
+PASS। Native6, actual pure Kotlin lease/route regressions, Python27 ও348 resources PASS।
+নতুন real decoder test এবং existing graded parity test source compiled, execution হয়নি।
+APK: fresh-install-42780814613। Android29+ active grade normal-export refusal Details থেকে
+experimental action → quality/risk confirmation → optional gap consent → real guarded
+render → validated-container Gallery publication। Saved grade Apply করতে হবে; unsaved draft নয়।
+
+A-এর backend/consented test route implementation হয়েছে; A-এর device/GPU/audio/output
+acceptance এখনও অসম্পূর্ণ। Production graded default, B/C curves/LUT/scopes ও release
+কাজ সম্পূর্ণ নয়। এই checkpoint-কে পুরো পরিকল্পনা complete হিসেবে চিহ্নিত করা যাবে না।

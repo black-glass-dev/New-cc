@@ -147,3 +147,10 @@ Android raw-provider tests source-only: compile/execution যাচাই হয়
 (Resource not accessible by integration)। আগের commit-এর CI PASS নতুন code-এর evidence নয়।
 No new APK; default Codec এখনও raw provider নয়; export unresolved। Runtime QA ছাড়া
 production guard খুলবে না।
+
+### Updated integration baseline
+
+নতুন implementation baseline `14ee1d26242804cfbedf121262de07ce39368943` (আগের9fcfd13-এর
+পরবর্তী)। Original SurfaceVideoDecoder এবং DecoderBufferLease coordinator-owned। নতুন
+consented experimental route/API29+ policy ADR0041 পড়তে হবে। Android42780814613 ও Portable
+42780814481 PASS; compiled device tests NOT executed। B/C ownership unchanged।
