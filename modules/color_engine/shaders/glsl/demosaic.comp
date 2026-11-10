@@ -1,0 +1,13 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#define float3 vec3
+#define RAW_ARG
+#define RAW(x,y) mosaic[(y)*m.stride+(x)]
+#define RP(i) parameters[i]
+layout(local_size_x=64) in;
+layout(std430,binding=0) readonly buffer Source { float mosaic[]; };
+layout(std430,binding=1) writeonly buffer Result { vec4 output_pixels[]; };
+layout(std430,binding=2) readonly buffer Params { float parameters[]; };
+layout(push_constant) uniform Meta { uint width,height,stride,pattern; } m;
+#include "../common/demosaic.inc"
+void main() { uint i=gl_GlobalInvocationID.x;if(i>=m.width*m.height) return;output_pixels[i]=vec4(demosaic(i%m.width,i/m.width,m.width,m.height,m.pattern),1); }
