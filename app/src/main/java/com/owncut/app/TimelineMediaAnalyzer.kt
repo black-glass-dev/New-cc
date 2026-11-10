@@ -139,10 +139,10 @@ internal object TimelineMediaAnalyzer {
         if (extracted < 2) return emptyList()
         val trimmed = if (extracted == steps) rgba else rgba.copyOf(extracted * w * h * 4)
         val cutIndices = session.detectVideoSceneCuts(trimmed, extracted, w, h, threshold)
-        return cutIndices.mapNotNull { idx ->
-            if (idx <= 0 || idx >= extracted) null
-            else clip.sourceInMs + (durMs * idx) / extracted
-        }.distinct()
+        return cutIndices
+            .filter { it in 1 until extracted }
+            .map { idx -> clip.sourceInMs + (durMs * idx) / extracted }
+            .distinct()
     }
 
     private fun extractThumbnails(context: Context, clip: ClipSnapshot, count: Int): List<Bitmap> {
