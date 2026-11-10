@@ -1300,7 +1300,10 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
 
     private fun startTimelineExport(destination: Uri?) {
         if (projectIoBusy) return
-        val exportClips=engine?.clips().orEmpty().toList()
+        val exportClips=try { engine?.clips().orEmpty().toList() } catch(error: Exception) {
+            showError(error)
+            return
+        }
         val plan = try { TimelineRemuxExporter.makePlan(exportClips) } catch (error: Exception) {
             showError(error)
             showExportFailureDetails("Owncut ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) revision=${BuildConfig.PREVIEW_REVISION}\n" +
@@ -1349,8 +1352,8 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                     mainHandler.post { if (!isDestroyed) statusText.text = message }
                 }
                 if (destination == null) {
+                    failureStage=ExportFailureReport.Stage.PUBLISHING_GALLERY
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        failureStage=ExportFailureReport.Stage.PUBLISHING_GALLERY
                         publishExportToGallery(temporary, cancellation)
                     } else {
                         error(AppLanguage.text(R.string.message_ebab316ada))
