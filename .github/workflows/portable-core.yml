@@ -1,0 +1,43 @@
+name: Portable C++ core
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  host-tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Verify bilingual resources and UI palette
+        run: |
+          python3 tests/check_ui_resources.py
+          python3 tests/test_patch_metadata.py
+          python3 tests/test_fresh_install.py
+          python3 tests/test_signing_preflight.py
+          python3 tests/test_install_over_guard.py
+          python3 scripts/progress.py
+      - name: Install CMake and Ninja
+        run: sudo apt-get update && sudo apt-get install --yes cmake ninja-build
+      - name: Install host software GLES (not Android/device validation)
+        run: sudo apt-get install --yes libegl1 libegl-mesa0 libgles2 libgl1-mesa-dri
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+      - name: Build
+        run: cmake --build build --parallel 2
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Production shader vs native reference on host software GLES
+        env:
+          EGL_PLATFORM: surfaceless
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        run: |
+          set +e
+          python3 tests/run_host_gpu.py /usr/lib/x86_64-linux-gnu/libEGL.so.1 /usr/lib/x86_64-linux-gnu/libGLESv2.so.2 > "$RUNNER_TEMP/host-gles.log" 2>&1
+          code=$?
+          cat "$RUNNER_TEMP/host-gles.log"
+          if (( code != 0 )); then
+            python3 -c 'import sys; from pathlib import Path; text=Path(sys.argv[1]).read_text(errors="replace")[-12000:]; print("::error title=Host GLES diagnostic::"+text.replace("%","%25").replace("\n","%0A").replace("\r","%0D"))' "$RUNNER_TEMP/host-gles.log"
+            exit "$code"
+          fi

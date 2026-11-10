@@ -1,0 +1,274 @@
+name: Android app and JNI
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: 'Build host: GitHub-hosted, or a trusted dedicated Linux x64 runner (no hosted-minute dependency)'
+        type: choice
+        options:
+          - github-hosted
+          - self-hosted
+        default: github-hosted
+      run_device_tests:
+        description: 'Optional emulator/render/install-over checks (phone testing is owned by the user)'
+        type: boolean
+        default: false
+concurrency:
+  group: android-patches-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: write
+jobs:
+  android-debug:
+    # Never route pull-request/push code to a machine holding signing credentials.
+    # Self-hosted is explicit manual dispatch on the tracked branch only.
+    if: github.event_name != 'workflow_dispatch' || inputs.runner != 'self-hosted' || github.ref == 'refs/heads/arena/6e511b63-new-cc'
+    runs-on: ${{ github.event_name == 'workflow_dispatch' && inputs.runner == 'self-hosted' && fromJSON('["self-hosted","linux","x64","owncut-build"]') || fromJSON('["ubuntu-24.04"]') }}
+    env:
+      OWNCUT_KEYSTORE_PASSWORD: ${{ secrets.OWNCUT_KEYSTORE_PASSWORD }}
+      OWNCUT_KEY_ALIAS: ${{ secrets.OWNCUT_KEY_ALIAS }}
+      OWNCUT_KEY_PASSWORD: ${{ secrets.OWNCUT_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Verify bilingual resources and UI palette
+        run: |
+          python3 tests/check_ui_resources.py
+          python3 tests/test_patch_metadata.py
+          python3 tests/test_fresh_install.py
+          python3 tests/test_signing_preflight.py
+          python3 tests/test_install_over_guard.py
+          python3 scripts/progress.py
+      - name: Portable engine regression before packaging
+        run: make test
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4.0.4
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Prepare update version and optional stable signing
+        id: signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.OWNCUT_KEYSTORE_BASE64 }}
+          CERT_SHA256: ${{ vars.OWNCUT_SIGNING_CERT_SHA256 }}
+        run: |
+          echo "OWNCUT_VERSION_CODE=$((1000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
+          if [[ -n "$KEYSTORE_BASE64" ]]; then
+            test -n "$OWNCUT_KEYSTORE_PASSWORD" && test -n "$OWNCUT_KEY_ALIAS" && test -n "$OWNCUT_KEY_PASSWORD" && test -n "$CERT_SHA256"
+            python3 - <<'PYKEY'
+          import os, base64
+          from pathlib import Path
+          path = Path(os.environ['RUNNER_TEMP']) / 'owncut-patch.jks'
+          path.write_bytes(base64.b64decode(os.environ['KEYSTORE_BASE64'], validate=True))
+          path.chmod(0o600)
+          with open(os.environ['GITHUB_ENV'], 'a') as f: f.write('OWNCUT_KEYSTORE_PATH=' + str(path) + '\n')
+          PYKEY
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'ready=false' >> "$GITHUB_OUTPUT"
+            echo '::warning::Stable signing is not configured. No update-compatible patch will be published; explicitly requested fresh-install candidates use a separate route.'
+          fi
+      - name: Install pinned Android SDK components
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;28.2.13676358" "cmake;3.22.1"
+      - name: Check original signing identity before building a candidate
+        if: steps.signing.outputs.ready == 'true'
+        env:
+          CERT_SHA256: ${{ vars.OWNCUT_SIGNING_CERT_SHA256 }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/upgrade-reference"
+          gh release download phone-test-39777165014 --repo "$GITHUB_REPOSITORY" --pattern app-debug.apk --dir "$RUNNER_TEMP/upgrade-reference"
+          python3 scripts/verify_signing_identity.py "$RUNNER_TEMP/upgrade-reference/app-debug.apk" "$ANDROID_HOME/build-tools/36.0.0/apksigner" "$CERT_SHA256" "$OWNCUT_VERSION_CODE"
+      - name: Install optional device-test image
+        if: github.event_name == 'workflow_dispatch' && inputs.run_device_tests == true
+        run: sdkmanager "platforms;android-35" "system-images;android-35;google_apis;x86_64"
+      - name: Record phone-test handoff
+        if: github.event_name != 'workflow_dispatch' || inputs.run_device_tests != true
+        run: echo 'Build/static checks only. Emulator/render/install-over not executed; phone testing is owned by the user.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Build APK, lint and compile device tests
+        run: |
+          mkdir -p app/build/diagnostics
+          set -o pipefail
+          ./gradlew --no-daemon --stacktrace :app:assembleDebug :app:lintDebug :app:compileDebugAndroidTestKotlin 2>&1 | tee app/build/diagnostics/gradle-build.log
+      - name: Surface Gradle failure details in check annotations
+        if: failure()
+        run: |
+          if [ -f app/build/diagnostics/gradle-build.log ]; then
+            grep -E '^(FAILURE:|\* What went wrong:|Execution failed for task|e: |Could not resolve|Could not find|> Task .* FAILED|Caused by:)' app/build/diagnostics/gradle-build.log | tail -n 30 | while IFS= read -r line; do echo "::error::$line"; done
+          fi
+      - name: Verify APK zip alignment
+        run: |
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 -v 4 app/build/outputs/apk/debug/app-debug.apk
+      - name: Check KVM availability for the emulator
+        if: github.event_name == 'workflow_dispatch' && inputs.run_device_tests == true
+        id: kvm
+        run: |
+          if [[ -e /dev/kvm ]]; then
+            echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+            sudo udevadm control --reload-rules
+            sudo udevadm trigger --name-match=kvm || true
+            sudo chmod a+rw /dev/kvm
+          fi
+          if [[ -r /dev/kvm && -w /dev/kvm ]]; then
+            echo 'available=true' >> "$GITHUB_OUTPUT"
+            echo 'KVM is available; emulator instrumentation will run.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'available=false' >> "$GITHUB_OUTPUT"
+            echo '::error::KVM unavailable: explicitly requested device checks cannot proceed.'
+            echo 'KVM unavailable; requested checks failed; no candidate will be published from this run.' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+      - name: Boot emulator with captured diagnostics and run render/JNI tests
+        id: device_suite
+        if: steps.kvm.outputs.available == 'true'
+        timeout-minutes: 15
+        run: |
+          set -euo pipefail
+          # Hosted runners contain unrelated toolchains; reserve room for the guest data image.
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost
+          df -h "$HOME"
+          # Pinned stable SDK emulator; the rolling 37.2.12 process exited before guest boot.
+          curl -fL --retry 3 https://dl.google.com/android/repository/emulator-linux_x64-14788078.zip -o "$RUNNER_TEMP/emulator.zip"
+          echo "85eab2a52517e8cac33dcd7fe3bed43a19472c9c2f17badf1f2616327d71488f  $RUNNER_TEMP/emulator.zip" | sha256sum -c -
+          if [[ -d "$ANDROID_HOME/emulator" ]]; then mv "$ANDROID_HOME/emulator" "$ANDROID_HOME/emulator-original"; fi
+          unzip -q "$RUNNER_TEMP/emulator.zip" -d "$ANDROID_HOME"
+          sudo apt-get update -qq
+          sudo apt-get install -y libpulse0 libnss3 libgbm1 libxkbcommon0 libasound2t64
+          export QT_QPA_PLATFORM=offscreen
+          export ANDROID_USER_HOME="$HOME/.android"
+          export ANDROID_EMULATOR_HOME="$ANDROID_USER_HOME"
+          export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo no | avdmanager create avd --force --name owncut --path "$ANDROID_AVD_HOME/owncut.avd" --package "system-images;android-35;google_apis;x86_64" --device "pixel_2"
+          sed -i '/^disk.dataPartition.size=/d' "$ANDROID_AVD_HOME/owncut.avd/config.ini"
+          echo 'disk.dataPartition.size=2G' >> "$ANDROID_AVD_HOME/owncut.avd/config.ini"
+          printf 'avd.ini.encoding=UTF-8\npath=%s\ntarget=android-35\n' "$ANDROID_AVD_HOME/owncut.avd" > "$ANDROID_AVD_HOME/owncut.ini"
+          "$ANDROID_HOME/emulator/emulator" -list-avds
+          "$ANDROID_HOME/emulator/emulator" -accel-check || true
+          ldd "$ANDROID_HOME/emulator/qemu/linux-x86_64/qemu-system-x86_64" | tee app/build/diagnostics/emulator-libraries.log
+          mkdir -p app/build/diagnostics
+          "$ANDROID_HOME/emulator/emulator" -avd owncut -verbose -show-kernel -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -feature -Vulkan -no-snapshot -memory 2048 -cores 2 -partition-size 2048 -accel on > app/build/diagnostics/emulator.log 2>&1 &
+          emulator_pid=$!
+          booted=false
+          for attempt in $(seq 1 90); do
+            if ! kill -0 "$emulator_pid" 2>/dev/null; then wait "$emulator_pid" || echo "::warning::Emulator process exit code $?"; break; fi
+            if [[ "$(timeout 5 adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)" == "1" ]]; then booted=true; break; fi
+            sleep 3
+          done
+          if [[ "$booted" != true ]]; then
+            python3 -c 'from pathlib import Path; text=Path("app/build/diagnostics/emulator.log").read_text(errors="replace")[-24000:]; print("::warning::"+text.replace("%","%25").replace("\n","%0A").replace("\r","%0D"))'
+            echo '::error::Emulator did not boot; real codec tests were not executed.'
+            exit 1
+          fi
+          adb shell settings put global window_animation_scale 0
+          adb shell settings put global transition_animation_scale 0
+          adb shell settings put global animator_duration_scale 0
+          ./gradlew --no-daemon :app:connectedDebugAndroidTest
+      - name: Surface instrumentation failures in annotations
+        if: failure()
+        run: |
+          python3 - <<'PYTEST'
+          import glob, xml.etree.ElementTree as ET
+          for path in glob.glob('app/build/outputs/androidTest-results/connected/**/*.xml', recursive=True):
+              try:
+                  root = ET.parse(path).getroot()
+              except ET.ParseError:
+                  continue
+              for case in root.iter('testcase'):
+                  for failure in list(case.findall('failure')) + list(case.findall('error')):
+                      text = (case.get('name', '') + ': ' + (failure.text or failure.get('message', '')))[:6000]
+                      print('::error::' + text.replace('%', '%25').replace('\n', '%0A').replace('\r', '%0D'))
+          PYTEST
+      - name: Verify higher-version install-over retains project and settings
+        id: install_over
+        if: github.event_name == 'workflow_dispatch' && inputs.run_device_tests == true
+        run: |
+          set +e
+          bash scripts/verify_install_over.sh 2>&1 | tee "$RUNNER_TEMP/update-check.log"
+          code=${PIPESTATUS[0]}
+          set -e
+          if (( code != 0 )); then
+            python3 -c 'import sys; from pathlib import Path; text=Path(sys.argv[1]).read_text(errors="replace")[-14000:]; print("::error title=Install-over verification::"+text.replace("%","%25").replace("\n","%0A").replace("\r","%0D"))' "$RUNNER_TEMP/update-check.log"
+            exit "$code"
+          fi
+      - name: Verify pinned signing certificate and assemble release patch
+        if: steps.signing.outputs.ready == 'true'
+        env:
+          CERT_SHA256: ${{ vars.OWNCUT_SIGNING_CERT_SHA256 }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ./gradlew --no-daemon :app:assembleRelease -PrequireStableSigning=true
+          python3 scripts/verify_patch.py app/build/outputs/apk/release/app-release.apk "$ANDROID_HOME/build-tools/36.0.0/apksigner" "$CERT_SHA256" "$OWNCUT_VERSION_CODE" "$RUNNER_TEMP/upgrade-reference/app-debug.apk"
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 4 app/build/outputs/apk/release/app-release.apk
+      - name: Verify release install-over on requested emulator
+        id: release_install
+        if: github.event_name == 'workflow_dispatch' && inputs.run_device_tests == true && steps.signing.outputs.ready == 'true'
+        run: |
+          adb install -r app/build/outputs/apk/release/app-release.apk
+          adb shell am instrument -w -e owncutUpgradeStage verify -e class com.owncut.app.UpdatePersistenceTest#verify com.owncut.app.test/androidx.test.runner.AndroidJUnitRunner | tee "$RUNNER_TEMP/release-verify.txt"
+          grep -q 'OK (1 test)' "$RUNNER_TEMP/release-verify.txt"
+      - name: Publish signed phone-test candidate
+        if: success() && steps.signing.outputs.ready == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/arena/6e511b63-new-cc'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEVICE_CHECKS_PASSED: ${{ steps.device_suite.outcome == 'success' && steps.install_over.outcome == 'success' && steps.release_install.outcome == 'success' }}
+        run: |
+          # Serialize this branch and reject reruns older than its last published patch.
+          previous=$(gh release list --limit 1000 --json tagName,createdAt --jq '[.[] | select(.tagName | startswith("app-patch-"))] | sort_by(.createdAt) | last | .tagName // empty')
+          if [[ -n "$previous" ]]; then
+            mkdir -p "$RUNNER_TEMP/previous-patch"
+            gh release download "$previous" --pattern update-metadata.json --dir "$RUNNER_TEMP/previous-patch"
+            python3 -c 'import json,sys; old=json.load(open(sys.argv[1])); new=int(sys.argv[2]); sys.exit(0 if new > old["versionCode"] else "Refusing non-increasing published patch version")' "$RUNNER_TEMP/previous-patch/update-metadata.json" "$OWNCUT_VERSION_CODE"
+          fi
+          python3 - <<'PYVALIDATION'
+          import json,os
+          from pathlib import Path
+          file=Path('app/build/outputs/apk/release/update-metadata.json')
+          value=json.loads(file.read_text())
+          value['deviceValidation']='ci-emulator' if os.environ['DEVICE_CHECKS_PASSED']=='true' else 'not-run'
+          value['phoneValidation']='owned-by-user; not asserted by CI'
+          file.write_text(json.dumps(value,indent=2)+'\n')
+          PYVALIDATION
+          apk=app/build/outputs/apk/release/app-release.apk
+          sha256sum "$apk" > "$apk.sha256"
+          tag="app-patch-${GITHUB_RUN_ID}"
+          gh release create "$tag" "$apk" "$apk.sha256" app/build/outputs/apk/release/update-metadata.json \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "Owncut app patch ${OWNCUT_VERSION_CODE}" \
+            --notes "Signed full update APK, versionCode ${OWNCUT_VERSION_CODE}. Approved previous APK signer/package verified. Device checks passed: ${DEVICE_CHECKS_PASSED}. Phone testing is owned by the user; no phone result is claimed. Built from ${GITHUB_SHA}."
+          echo "APK release: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${tag}" >> "$GITHUB_STEP_SUMMARY"
+      # Explicit one-batch owner consent; never a PR artifact or an implicit patch fallback.
+      - name: Publish explicitly requested fresh-install debug APK
+        if: success() && steps.signing.outputs.ready == 'false' && github.event_name == 'push' && github.ref == 'refs/heads/arena/6e511b63-new-cc' && contains(github.event.head_commit.message, '[fresh-install-apk]')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          apk=app/build/outputs/apk/debug/owncut-fresh-install-debug.apk
+          cp app/build/outputs/apk/debug/app-debug.apk "$apk"
+          python3 scripts/verify_fresh_install.py "$apk" "$ANDROID_HOME/build-tools/36.0.0/apksigner" "$OWNCUT_VERSION_CODE" "$GITHUB_SHA"
+          (cd app/build/outputs/apk/debug && sha256sum owncut-fresh-install-debug.apk > owncut-fresh-install-debug.apk.sha256)
+          tag="fresh-install-${GITHUB_RUN_ID}"
+          gh release create "$tag" "$apk" "$apk.sha256" app/build/outputs/apk/debug/fresh-install-metadata.json \
+            --target "$GITHUB_SHA" --prerelease \
+            --title "Owncut fresh-install TEST APK ${OWNCUT_VERSION_CODE}" \
+            --notes "User-authorized fresh install, NOT an update-compatible patch. Back up projects before uninstalling: app-local data/settings may be deleted. Debug signed with a temporary runner key; future update compatibility is not guaranteed. Phone/device tests not run; testing belongs to the user. Built from ${GITHUB_SHA}. Normal graded-export guards remain."
+          echo "Fresh-install test APK: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${tag}" >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove temporary signing material
+        if: always()
+        run: rm -f "$RUNNER_TEMP/owncut-patch.jks"
+      - name: Upload build and optional device-test reports
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v5
+        with:
+          name: owncut-debug-android-test
+          path: |
+            app/build/reports/lint-results-debug.html
+            app/build/outputs/androidTest-results/connected/**
+            app/build/diagnostics/gradle-build.log
+            app/build/diagnostics/emulator.log
+          if-no-files-found: warn
+          retention-days: 14
