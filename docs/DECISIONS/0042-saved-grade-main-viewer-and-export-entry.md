@@ -11,7 +11,7 @@ validation; normal plan/composition guards stay, explicit candidate consent rema
 No automatic candidate/ungraded fallback or quality claims. Error text now describes route.
 
 MainGradePreview is a separate Android viewer adapter for saved selected clips: strict source
-probe off-main, bounded cancellation/close, guarded InlineGradePreview and black overlay. Main
+probe off-main, cancellation/stale-result suppression and close, guarded InlineGradePreview and black overlay. Main
 MediaPlayer is paused beneath it; never show original as successful graded video. Route Play,
 pause, source seek, position tick and completion through saved-grade player. Clip completion
 reuses existing timeline advance; no timeline model/view/edit semantics changes. Release on
@@ -38,3 +38,9 @@ Tests: new actual pure Kotlin policy regression; source-wiring tests explicitly 
 Android behavior proof. Device needs Apply/main play/seek/cut/reset/history, repeated open/close,
 viewer letterboxing, export consent/failure/output and lifecycle validation. No APK requested,
 so no fresh-install marker/publication. No Graden code/dependency/schema/JNI changes.25%/75%.
+
+Follow-up: suppress underlying source while saved-grade load is pending; main grade ticks
+do not overwrite active slider/timeline scrubbing. Disable Play on grade failure. Probe
+executor shuts down after its single request; underlying provider I/O cancellation is not
+guaranteed to interrupt a vendor/provider stall. Android close-callback source regression
+checks commit→cleanup callback order and cancel-without-commit; actual UI execution pending.

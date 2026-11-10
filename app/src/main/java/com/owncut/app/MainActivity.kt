@@ -1738,6 +1738,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         releasePlayer()
         val generation = playerGeneration
         val savedGrade=currentSelectedClip()?.gradeActive==true
+        preview.alpha=if(savedGrade) 0f else 1f
         statusText.text = AppLanguage.text(R.string.message_12ef116cca)
         playButton.isEnabled = false
         mediaHandler.post {
@@ -1874,11 +1875,14 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         pauseForTimelineScrub()
         preview.alpha=0f // Never show the ungraded source as successful saved-grade playback.
         mainGradePreview=MainGradePreview(this,parent,clip,previewPositionMs,resume,{ position,playing ->
-            previewPositionMs=position
-            seekBar.progress=position.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
-            updateTimelinePlayhead(follow=playing)
+            if(!isSeeking && !timelineScrubbing) {
+                previewPositionMs=position
+                seekBar.progress=position.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+                updateTimelinePlayhead(follow=playing)
+            }
             playButton.text=AppLanguage.text(if(playing) R.string.action_pause else R.string.color_live_short)
         },{ advanceOrStopTimeline(playerGeneration,player) },{ error ->
+            playButton.isEnabled=false
             statusText.text=AppLanguage.text(R.string.color_preview_unavailable,PreviewDiagnostics.report(error))
         })
     }

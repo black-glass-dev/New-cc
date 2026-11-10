@@ -19,6 +19,22 @@ class ColorEditorInteractionTest {
         (0 until view.childCount).flatMap { children(view.getChildAt(it)) } else emptyList()
     private val missing=ClipSnapshot("test","v1","file:///owncut-nonexistent-test-source.mp4",0,30,0,1000)
 
+    @Test fun closeCallbackFollowsCommitAndAlsoRunsOnCancel() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                val events=mutableListOf<String>()
+                val applied=ClipColorEditor.show(activity,missing,0,
+                    onClosed={ events.add("closed") }) { events.add("committed") }
+                applied.getButton(AlertDialog.BUTTON_POSITIVE).performClick()
+                assertEquals(listOf("committed","closed"),events)
+                val cancelled=ClipColorEditor.show(activity,missing,0,
+                    onClosed={ events.add("cancelled-close") }) { error("cancel must not commit") }
+                cancelled.dismiss()
+                assertEquals(listOf("committed","closed","cancelled-close"),events)
+            }
+        }
+    }
+
     @Test fun dragControlsAndApplyDoNotRequireAWorkingStillDecoder() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             scenario.onActivity { activity ->

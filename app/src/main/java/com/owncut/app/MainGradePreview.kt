@@ -65,6 +65,7 @@ internal class MainGradePreview(
                     }
                 }
             } catch(error: Exception) { main.post { if(!closed.get()) fail(error) } }
+            finally { worker.shutdown() }
         }
     }
     private fun fail(error: Exception) {
