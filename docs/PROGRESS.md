@@ -1131,3 +1131,12 @@ document-copy, version/revision and clip/grade/preset context. Explicit clipboar
 no telemetry. Nested error messages may contain platform paths. Existing cancellation/
 cleanup and gap-consent remain. Local native6 / actual pure Kotlin report tests / Python27 /
 345 bilingual3themes17labels PASS; Android and phone export pending.25%/75% unchanged.
+
+### ADR0038 first-batch CI evidence
+
+Source a82d563a669a987807ff9b59e1bc633d9a7f28a7: Android42772350310 and Portable42772350391
+PASS. Assembly/lint/device-test source compilation/alignment verified; instrumentation,
+emulator and phone export NOT executed. Local native6/pure Kotlin reports/Python27 and
+345 bilingual resources PASS. No public fresh-install APK for this diagnostics checkpoint.
+Graded shipping export remains blocked. See docs/plans/OWN_IMPLEMENTATION_BATCH_PLAN_BN.md
+for own-code execution plan and remaining adapter/output acceptance.25%/75% unchanged.

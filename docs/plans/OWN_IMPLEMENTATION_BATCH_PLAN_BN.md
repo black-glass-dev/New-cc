@@ -128,3 +128,14 @@ Android regression source যোগ হয়েছে; candidate guard blind paddi
 এটি shipping grade guard-এর অতিরিক্ত candidate limitation, ফোনের raw output মাপ নয়।
 পরের বাস্তবায়ন: public API-তে raw crop evidence ধরে রাখার codec adapter/design; reflection
 বা নিজের থেকে2176→2160 অনুমান নয়।
+
+## ৭. যাচাইকৃত প্রথম checkpoint
+
+Implementation source: `a82d563a669a987807ff9b59e1bc633d9a7f28a7`।
+Android CI `42772350310`: assemble/lint/instrumentation-source compilation/APK alignment PASS।
+Portable CI `42772350391`: PASS। Local native6, actual production pure Kotlin export-report
+regressions, Python27,345 bilingual/3themes/17labels ও diff checks PASS।
+Instrumentation/emulator/phone export execution হয়নি; crop regression source compiled,
+not executed। Public fresh-install APK publish করা হয়নি—diagnostics-only ছোট APK নয়।
+Shipping graded export এখনও blocked। Next: crop-evidence-preserving candidate adapter +
+real output verification; তারপর reviewed production admission, never blind guard removal।

@@ -34,3 +34,12 @@ guard errors now distinguish input/output, expected/actual and unavailable raw c
 no unsafe inference or guard relaxation. Official pinned sources:
 https://github.com/androidx/media/blob/1.8.1/libraries/transformer/src/main/java/androidx/media3/transformer/DefaultCodec.java
 https://github.com/androidx/media/blob/1.8.1/libraries/common/src/main/java/androidx/media3/common/util/MediaFormatUtil.java
+
+### ADR0038 first-batch CI evidence
+
+Source a82d563a669a987807ff9b59e1bc633d9a7f28a7: Android42772350310 and Portable42772350391
+PASS. Assembly/lint/device-test source compilation/alignment verified; instrumentation,
+emulator and phone export NOT executed. Local native6/pure Kotlin reports/Python27 and
+345 bilingual resources PASS. No public fresh-install APK for this diagnostics checkpoint.
+Graded shipping export remains blocked. See docs/plans/OWN_IMPLEMENTATION_BATCH_PLAN_BN.md
+for own-code execution plan and remaining adapter/output acceptance.25%/75% unchanged.
