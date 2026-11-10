@@ -139,3 +139,10 @@ Instrumentation/emulator/phone export execution হয়নি; crop regression so
 not executed। Public fresh-install APK publish করা হয়নি—diagnostics-only ছোট APK নয়।
 Shipping graded export এখনও blocked। Next: crop-evidence-preserving candidate adapter +
 real output verification; তারপর reviewed production admission, never blind guard removal।
+
+## ৮. তিন এজেন্টে execution
+
+[দায়িত্ব, file ownership ও copy/paste prompts](THREE_AGENT_WORK_PLAN_BN.md)। A: export/
+Android/integration; B: নতুন native curves; C: independent export QA। B/C এখনও চালু হয়নি।
+A-এর পরের sub-checkpoint: optional raw-current-buffer capability guard-এ যুক্ত; default
+Media3 backend এটি দেয় না। Real crop-preserving codec adapter ও device acceptance বাকি।

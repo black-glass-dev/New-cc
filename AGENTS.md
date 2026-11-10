@@ -180,3 +180,12 @@ export unverified/failing. Keep shipping grade guards until real candidate accep
 makePlan also rejects active grade before worker, so report preparation failures too.
 Own coherent batches; do not ask routine implementation questions. No fake frame/10bit/
 export success, grading sliders, silent content changes or destructive migration.
+
+## Three-agent file ownership (ADR0039)
+
+Read docs/plans/THREE_AGENT_WORK_PLAN_BN.md before parallel work. Coordinator owns Android
+export/preview and shared build/JNI/schema/root docs. Native worker owns only new curve
+header/source/unit test and docs/workstreams/native-grading.md. QA worker owns new tests/qa,
+new androidTest/.../qa files and docs/workstreams/export-qa.md. Separate sessions/workspaces
+and assigned branches; never concurrent git/index writes or force-push. PR/patch handoff;
+coordinator reviews/integrates. Workers not launched by this session. No GPL ports.

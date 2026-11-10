@@ -876,3 +876,14 @@ emulator and phone export NOT executed. Local native6/pure Kotlin reports/Python
 345 bilingual resources PASS. No public fresh-install APK for this diagnostics checkpoint.
 Graded shipping export remains blocked. See docs/plans/OWN_IMPLEMENTATION_BATCH_PLAN_BN.md
 for own-code execution plan and remaining adapter/output acceptance.25%/75% unchanged.
+
+## ADR0039 — Parallel ownership / raw export capability
+
+Three-agent plan: docs/plans/THREE_AGENT_WORK_PLAN_BN.md (A Android/export/integration,
+B new native curves, C independent QA). Workers not started here; independent workspaces/
+assigned branches, restricted file ownership, PR/patch review before integration. No new
+dependency/license change. Optional RawVideoOutputFormatProvider now feeds current-buffer
+raw crop/color into native validation in GuardedCodec. Missing/malformed/provider failure
+never falls back to lossy Format; non-provider backend keeps strict behavior. Synthetic
+regressions added; actual raw-preserving MediaCodec backend still unimplemented, shipping
+graded export blocked. User-confirmed live preview retained.25%/75%, no new phone proof.

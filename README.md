@@ -1,3 +1,10 @@
+## Parallel execution
+
+[তিন এজেন্টের দায়িত্ব ও starter prompts](docs/plans/THREE_AGENT_WORK_PLAN_BN.md)।
+Coordinator: export/integration; native worker: new curves; QA worker: independent tests.
+Separate sessions/workspaces, restricted file ownership and reviewed PR/patch handoff.
+Optional raw export evidence seam added; backend/device acceptance still pending.
+
 ## Current execution plan — own implementation
 
 [বাংলা বড়-ব্যাচ পরিকল্পনা](docs/plans/OWN_IMPLEMENTATION_BATCH_PLAN_BN.md) ·

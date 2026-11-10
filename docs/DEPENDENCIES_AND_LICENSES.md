@@ -380,3 +380,14 @@ document-copy, version/revision and clip/grade/preset context. Explicit clipboar
 no telemetry. Nested error messages may contain platform paths. Existing cancellation/
 cleanup and gap-consent remain. Local native6 / actual pure Kotlin report tests / Python27 /
 345 bilingual3themes17labels PASS; Android and phone export pending.25%/75% unchanged.
+
+## ADR0039 — Parallel ownership / raw export capability
+
+Three-agent plan: docs/plans/THREE_AGENT_WORK_PLAN_BN.md (A Android/export/integration,
+B new native curves, C independent QA). Workers not started here; independent workspaces/
+assigned branches, restricted file ownership, PR/patch review before integration. No new
+dependency/license change. Optional RawVideoOutputFormatProvider now feeds current-buffer
+raw crop/color into native validation in GuardedCodec. Missing/malformed/provider failure
+never falls back to lossy Format; non-provider backend keeps strict behavior. Synthetic
+regressions added; actual raw-preserving MediaCodec backend still unimplemented, shipping
+graded export blocked. User-confirmed live preview retained.25%/75%, no new phone proof.

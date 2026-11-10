@@ -1,5 +1,6 @@
 package com.owncut.app
 
+import android.media.MediaFormat
 import androidx.media3.common.C
 import androidx.media3.common.ColorInfo
 import androidx.media3.common.Format
@@ -23,15 +24,20 @@ class GuardedDecoderTest {
     private fun format()=Format.Builder().setSampleMimeType(MimeTypes.VIDEO_H264).setWidth(1920).setHeight(1080)
         .setColorInfo(ColorInfo.Builder().setColorSpace(C.COLOR_SPACE_BT709).setColorTransfer(C.COLOR_TRANSFER_SDR)
             .setColorRange(C.COLOR_RANGE_LIMITED).build()).build()
-    private class Fake {
+    private class Fake(private val rawCapable: Boolean=false) {
+        var raw: MediaFormat?=null
+        var rawReads=0
+        var formatReads=0
         var output: Format?=null
         var queryFails=false
         var releaseFails=false
         var closes=0
         val renders=mutableListOf<Any>()
-        val codec=Proxy.newProxyInstance(Codec::class.java.classLoader,arrayOf(Codec::class.java)) { proxy,method,args ->
+        val codec=Proxy.newProxyInstance(Codec::class.java.classLoader,if(rawCapable) arrayOf(Codec::class.java,RawVideoOutputFormatProvider::class.java)
+            else arrayOf(Codec::class.java)) { proxy,method,args ->
             when(method.name) {
-                "getOutputFormat" -> { check(!queryFails) { "synthetic output query failure" };output }
+                "getOutputFormat" -> { formatReads++;check(!queryFails) { "synthetic output query failure" };output }
+                "rawOutputFormatForCurrentBuffer" -> { rawReads++;check(!queryFails) { "synthetic raw query failure" };raw }
                 "releaseOutputBuffer" -> { check(!releaseFails) { "synthetic release failure" };renders.add(args!![0]);null }
                 "release" -> { closes++;null }
                 "toString" -> "Synthetic decoder"
@@ -40,6 +46,50 @@ class GuardedDecoderTest {
                 else -> error("Unexpected synthetic Codec call: ${method.name}")
             }
         } as Codec
+    }
+    private fun padded(): MediaFormat = MediaFormat.createVideoFormat("video/raw",1920,1088).apply {
+        setInteger("crop-left",0);setInteger("crop-top",0)
+        setInteger("crop-right",1919);setInteger("crop-bottom",1079)
+        setInteger(MediaFormat.KEY_COLOR_STANDARD,MediaFormat.COLOR_STANDARD_BT709)
+        setInteger(MediaFormat.KEY_COLOR_TRANSFER,MediaFormat.COLOR_TRANSFER_SDR_VIDEO)
+        setInteger(MediaFormat.KEY_COLOR_RANGE,MediaFormat.COLOR_RANGE_LIMITED)
+    }
+    @Test fun rawEvidenceNormalizesCropForEachReleaseWithoutReadingLossyFormat() {
+        val fake=Fake(true).apply { raw=padded();output=format().buildUpon().setHeight(1088).build() }
+        val codec=GuardedDecoderFactory.GuardedCodec(fake.codec,expected)
+        try {
+            codec.releaseOutputBuffer(false)
+            assertEquals(0,fake.rawReads)
+            codec.releaseOutputBuffer(true);codec.releaseOutputBuffer(321L)
+            assertEquals(2,fake.rawReads);assertEquals(0,fake.formatReads)
+            fake.raw!!.setInteger("crop-bottom",1080)
+            assertThrows(ExportException::class.java) { codec.releaseOutputBuffer(true) }
+            fake.raw=padded()
+            assertThrows(ExportException::class.java) { codec.releaseOutputBuffer(true) }
+            assertEquals(listOf(false,true,321L),fake.renders)
+        } finally { codec.release() }
+    }
+    @Test fun declaredRawCapabilityNeverFallsBackWhenEvidenceIsMissingMalformedOrThrows() {
+        for(kind in listOf("missing","partial","query","hdr","color")) {
+            val fake=Fake(true).apply {
+                output=format() // valid lossy Format must not rescue invalid raw evidence
+                raw=when(kind) {
+                    "missing" -> null
+                    "partial" -> MediaFormat.createVideoFormat("video/raw",1920,1088).apply { setInteger("crop-right",1919) }
+                    else -> padded()
+                }
+                queryFails=kind=="query"
+                if(kind=="hdr") raw!!.setInteger(MediaFormat.KEY_COLOR_TRANSFER,MediaFormat.COLOR_TRANSFER_ST2084)
+                if(kind=="color") raw=MediaFormat.createVideoFormat("video/raw",1920,1080)
+            }
+            val codec=GuardedDecoderFactory.GuardedCodec(fake.codec,expected)
+            try {
+                assertThrows(ExportException::class.java) { codec.releaseOutputBuffer(true) }
+                fake.queryFails=false;fake.raw=padded()
+                assertThrows(ExportException::class.java) { codec.releaseOutputBuffer(100L) }
+                assertEquals(0,fake.formatReads);assertTrue(fake.renders.isEmpty())
+            } finally { codec.release() }
+        }
     }
     @Test fun bothRenderedOverloadsValidateEveryTimeAndFailureIsTerminal() {
         val fake=Fake()

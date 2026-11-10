@@ -30,7 +30,7 @@ internal class GuardedDecoderFactory(
             ColorEngine.validateDecodedFormat(input,input)
         } catch (error: Exception) { throw unsupported(IllegalArgumentException(
             "Graded export decoder-input: actual=${input.width}x${input.height} admitted=" +
-                admitted.joinToString { "${it.width}x${it.height}" } +
+                admitted.take(8).joinToString { "${it.width}x${it.height}" } + " (formats=${admitted.size})" +
                 " requested-sdr-tone-map=$requestSdrToneMapping",error)) }
         val codec=platform.createForVideoDecoding(format,outputSurface,false,logSessionId)
         try { return GuardedCodec(codec,input) }
@@ -48,13 +48,22 @@ internal class GuardedDecoderFactory(
         private fun verify() {
             ownerOnly()
             var actual: ColorEngine.DecodedVideoFormat?=null
-            try { gate.beforeRender { codec.outputFormat?.let { descriptor(it).also { value -> actual=value } } } }
+            var evidence="Media3 Codec.Format does not expose raw crop; no padding inference"
+            try { gate.beforeRender {
+                val next=if(codec is RawVideoOutputFormatProvider) {
+                    // Read exactly once. A declared provider must not silently fall back to
+                    // Format if raw evidence is missing/malformed or its query fails.
+                    val raw=codec.rawOutputFormatForCurrentBuffer()
+                    evidence="raw-current-buffer={${VideoSourceProbe.geometryDescription(raw)}}"
+                    raw?.let { VideoSourceProbe.decoded(it) }
+                } else codec.outputFormat?.let { descriptor(it) }
+                next.also { actual=it }
+            } }
             catch (error: Exception) {
                 gate.invalidate()
                 throw unsupported(IllegalArgumentException(
                     "Graded export decoder-output: expected-visible=${expected.width}x${expected.height} " +
-                        "actual-format=${actual?.width}x${actual?.height}; " +
-                        "Media3 Codec.Format does not expose raw crop; no padding inference",error))
+                        "actual-format=${actual?.width}x${actual?.height}; $evidence",error))
             }
         }
         override fun releaseOutputBuffer(render: Boolean) {
