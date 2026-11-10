@@ -574,3 +574,21 @@ revision/SDK and explicit bilingual Copy report. No telemetry, guessed geometry,
 or export relaxation. Real Kotlin/JNI sequence regressions and344 bilingual/3theme/17label
 checks PASS; Android/phone pending. No measured phone root cause or10-bit output proof.
 Dependencies unchanged; domain C++ and narrow JNI retained. Readiness25%/75%.
+
+## Original implementation / large-batch execution (ADR0038)
+
+User confirms live video preview works well on their phone; export still fails. Work now
+follows [the retained Bengali batch plan](plans/OWN_IMPLEMENTATION_BATCH_PLAN_BN.md):
+export reliability → shared preview/export grade → primaries → curves/LUT → scopes →
+color management/advanced tools → lifecycle/editing → paid-release hardening. No Graden
+code/assets or GPL integration. Android/Media3 licenses still apply; no dependency added.
+C++ domain and narrow JNI retained; no grading sliders. Agent owns routine implementation
+decisions; user input only for consequential scope/license/data risk or essential device evidence.
+
+Audit confirms makePlan/composition reject active grades in shipping export; candidate is
+not wired to normal export. Guards remain: no silent ungraded substitute. First batch adds
+preflight and bounded selectable/copyable failure reports for preparation/render/gallery/
+document-copy, version/revision and clip/grade/preset context. Explicit clipboard only;
+no telemetry. Nested error messages may contain platform paths. Existing cancellation/
+cleanup and gap-consent remain. Local native6 / actual pure Kotlin report tests / Python27 /
+345 bilingual3themes17labels PASS; Android and phone export pending.25%/75% unchanged.

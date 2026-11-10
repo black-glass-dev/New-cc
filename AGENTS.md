@@ -171,3 +171,12 @@ revision/SDK and explicit bilingual Copy report. No telemetry, guessed geometry,
 or export relaxation. Real Kotlin/JNI sequence regressions and344 bilingual/3theme/17label
 checks PASS; Android/phone pending. No measured phone root cause or10-bit output proof.
 Dependencies unchanged; domain C++ and narrow JNI retained. Readiness25%/75%.
+
+## Current original-code batch contract (ADR0038)
+
+Follow docs/plans/OWN_IMPLEMENTATION_BATCH_PLAN_BN.md. No Graden code/shader/assets ports
+or GPL integration. Preserve third-party notices. User confirms live preview success;
+export unverified/failing. Keep shipping grade guards until real candidate acceptance;
+makePlan also rejects active grade before worker, so report preparation failures too.
+Own coherent batches; do not ask routine implementation questions. No fake frame/10bit/
+export success, grading sliders, silent content changes or destructive migration.

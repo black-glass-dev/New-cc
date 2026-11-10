@@ -1,0 +1,28 @@
+# ADR0038 — Original implementation, batch execution and export diagnosis
+
+2026-10-18 (session date). Accepted.
+
+User chose our own implementation, not GPL integration, after discussing later private
+repository / paid Play release. Do not copy/port Graden's shaders, algorithms or assets.
+Android/Media3 remain third-party dependencies with their notices; ownership is not a claim
+that every dependency is original. User asks for a chat plan, retained Markdown and larger
+coherent autonomous work batches. Plan: docs/plans/OWN_IMPLEMENTATION_BATCH_PLAN_BN.md.
+
+User now confirms live video preview works well on their phone; export fails. This supersedes
+prior phone-preview pending status for their tested clip/build only. Export failure is not
+measured independently. Static audit finds two shipping grade guards: makePlan and composition;
+production graded export is intentionally not wired. A candidate exists. Do not remove these
+guards or silently export an ungraded file to claim completion.
+
+Batch A starts with immutable export snapshot capture, reusable shipping preflight, and full
+bounded cause-chain reports for preparation/render/gallery/document-copy errors. Reports
+include app version/revision, clip/active-grade count and720p preset; explicit local Copy.
+Preparation failure happens BEFORE worker startup and needs the same report. Cancellation
+keeps its distinct route; cleanup behavior and content/timing/gap policy remain unchanged.
+Exception messages may contain provider/platform paths; no telemetry, automatic upload or
+extra URI/filename collection. Dialog is selectable and refuses destroyed/finishing activity.
+
+Local actual pure Kotlin tests cover all phases, context bounds and nested/long/cyclic causes.
+Native6, Python27 and resources345/3themes/17labels pass. Android compile/phone execution
+pending at implementation commit. No new native/JNI algorithm or dependency in this change.
+No graded-export enablement, codec/GPU/10bit/parity claim. Readiness25%/75%.

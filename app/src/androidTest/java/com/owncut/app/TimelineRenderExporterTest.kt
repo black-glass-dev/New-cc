@@ -55,6 +55,7 @@ class TimelineRenderExporterTest {
             }
             assertFalse(output.exists())
             assertFalse(Thread.getAllStackTraces().keys.any { it.isAlive && it.name=="OwncutRender" })
+            assertThrows(IllegalArgumentException::class.java) { TimelineRenderExporter.requireShippingExportSupported(plan) }
             assertThrows(IllegalArgumentException::class.java) { TimelineRenderExporter.composition(plan) }
         } finally { output.delete() }
     }

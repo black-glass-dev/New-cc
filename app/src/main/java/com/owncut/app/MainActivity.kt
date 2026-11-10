@@ -1300,8 +1300,12 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
 
     private fun startTimelineExport(destination: Uri?) {
         if (projectIoBusy) return
-        val plan = try { TimelineRemuxExporter.makePlan(engine?.clips().orEmpty()) } catch (error: Exception) {
+        val exportClips=engine?.clips().orEmpty().toList()
+        val plan = try { TimelineRemuxExporter.makePlan(exportClips) } catch (error: Exception) {
             showError(error)
+            showExportFailureDetails("Owncut ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) revision=${BuildConfig.PREVIEW_REVISION}\n" +
+                ExportFailureReport.details(error,ExportFailureReport.Stage.PREPARING,exportClips.size,
+                    exportClips.count { it.gradeActive },TimelineRenderExporter.OUTPUT_HEIGHT))
             return
         }
         if (plan.omittedGapFrames > 0L) {
@@ -1336,18 +1340,26 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                 if (destination == null) AppLanguage.text(R.string.message_48a2f4125e)
                 else AppLanguage.text(R.string.message_f5a66453bc)
             }
+            var failureReport: String?=null
+            var failureStage=ExportFailureReport.Stage.PREPARING
             try {
+                TimelineRenderExporter.requireShippingExportSupported(plan)
+                failureStage=ExportFailureReport.Stage.RENDERING
                 TimelineRenderExporter.export(this@MainActivity, plan, temporary, cancellation) { message ->
                     mainHandler.post { if (!isDestroyed) statusText.text = message }
                 }
                 if (destination == null) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        failureStage=ExportFailureReport.Stage.PUBLISHING_GALLERY
                         publishExportToGallery(temporary, cancellation)
                     } else {
                         error(AppLanguage.text(R.string.message_ebab316ada))
                     }
                 }
-                else copyExportToDocument(temporary, destination, cancellation)
+                else {
+                    failureStage=ExportFailureReport.Stage.COPYING_DOCUMENT
+                    copyExportToDocument(temporary, destination, cancellation)
+                }
             } catch (cancel: CancellationException) {
                 val cleaned = destination == null || deleteFailedExportDocument(destination)
                 resultMessage = if (destination == null) (cancel.message ?: AppLanguage.text(R.string.message_df54d9e4da))
@@ -1355,6 +1367,9 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                     else AppLanguage.text(R.string.message_32ba7b117e)
             } catch (error: Exception) {
                 val cleaned = destination == null || deleteFailedExportDocument(destination)
+                failureReport="Owncut ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) revision=${BuildConfig.PREVIEW_REVISION}\n" +
+                    ExportFailureReport.details(error,failureStage,plan.clips.size,
+                        plan.clips.count { it.gradeActive },TimelineRenderExporter.OUTPUT_HEIGHT)
                 resultMessage = AppLanguage.text(R.string.message_38516603a3, error.message ?: error.javaClass.simpleName) +
                     if (cleaned) "" else AppLanguage.text(R.string.message_360e86bda3)
             } finally {
@@ -1368,10 +1383,23 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                         timelineView?.isEnabled = true
                         cancelExportButton.text = AppLanguage.text(R.string.message_90f2b63925)
                         statusText.text = resultMessage
+                        failureReport?.let { showExportFailureDetails(it) }
                     }
                 }
             }
         }
+    }
+
+    private fun showExportFailureDetails(report: String) {
+        if(isFinishing || isDestroyed) return
+        val dialog=AlertDialog.Builder(this)
+            .setTitle(AppLanguage.text(R.string.export_error_details))
+            .setMessage(report)
+            .setNeutralButton(AppLanguage.text(R.string.color_copy_report)) { _,_ ->
+                PreviewDiagnostics.copy(this,report)
+            }
+            .setPositiveButton(AppLanguage.text(R.string.color_details_close),null).show()
+        dialog.findViewById<TextView>(android.R.id.message)?.setTextIsSelectable(true)
     }
 
     /** Publish only a validated MP4; keep the Gallery row hidden until the copy closes. */

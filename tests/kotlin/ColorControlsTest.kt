@@ -48,5 +48,16 @@ fun main() {
     check(ColorPreviewFailure.details(long).length<=1200)
     val a=RuntimeException("A");val b=RuntimeException("B",a);a.initCause(b)
     check(ColorPreviewFailure.describe(a).length<100)
+    for(stage in ExportFailureReport.Stage.entries) {
+        val report=ExportFailureReport.details(wrapped,stage,3,2,720)
+        check(report.contains("stage=${stage.name}") && report.contains("graded-clips=2"))
+        check(report.contains("raw decoder color missing"))
+    }
+    check(ExportFailureReport.details(long,ExportFailureReport.Stage.RENDERING,1,0,720).length<1400)
+    check(ExportFailureReport.details(a,ExportFailureReport.Stage.PREPARING,1,1,720).length<300)
+    rejected { ExportFailureReport.details(root,ExportFailureReport.Stage.PREPARING,-1,0,720) }
+    rejected { ExportFailureReport.details(root,ExportFailureReport.Stage.PREPARING,1,2,720) }
+    rejected { ExportFailureReport.details(root,ExportFailureReport.Stage.PREPARING,1,0,0) }
+    println("Production export reports: four phases, immutable context, nested/long/cyclic causes and invalid-context refusal passed")
     println("Production color controls: relative no-jump wheel transport, 34017 numeric range steps, saved-range preservation, bounded nested/cyclic diagnostics passed")
 }

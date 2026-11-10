@@ -35,8 +35,11 @@ internal object TimelineRenderExporter {
     // A conservative first output preset for mid-range phones. Never silently fall back to remux.
     const val OUTPUT_HEIGHT = 720
 
-    internal fun composition(plan: TimelineRemuxExporter.Plan): Composition {
+    internal fun requireShippingExportSupported(plan: TimelineRemuxExporter.Plan) {
         require(plan.clips.none { it.gradeActive }) { AppLanguage.text(R.string.color_grade_export_pending) }
+    }
+    internal fun composition(plan: TimelineRemuxExporter.Plan): Composition {
+        requireShippingExportSupported(plan)
         return buildComposition(plan,null)
     }
 

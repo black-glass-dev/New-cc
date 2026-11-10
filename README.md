@@ -1,3 +1,11 @@
+## Current execution plan — own implementation
+
+[বাংলা বড়-ব্যাচ পরিকল্পনা](docs/plans/OWN_IMPLEMENTATION_BATCH_PLAN_BN.md) ·
+[Decision ADR0038](docs/DECISIONS/0038-own-implementation-batched-export.md).
+User confirms live preview works. Graded shipping export remains blocked; batch A starts
+with route/preflight audit and full failure reports, not an export-success claim. No Graden
+code/assets integrated; native ownership and dependency notices retained.25%/75%.
+
 ## Buffer-associated live-preview APK PUBLISHED (2026-11-03)
 
 [Download latest preview APK](https://github.com/islamyousuf032-glitch/New-cc/releases/download/fresh-install-41651466328/owncut-fresh-install-debug.apk).
