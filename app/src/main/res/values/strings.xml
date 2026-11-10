@@ -313,6 +313,9 @@
     </string-array>
     <string name="color_source_changed">Clip changed while editing. Close and reopen Color.</string>
     <string name="color_live_title">Live grade preview (experimental)</string>
+    <string name="color_module_title">Color module self-test (CPU)</string>
+    <string name="color_module_ok">OK</string>
+    <string name="color_module_dialog_title">Color module self-test</string>
     <string name="color_live_loading">Checking source metadata and preparing graded playback…</string>
     <string name="color_live_notice">Experimental playback of an immutable clip-grade snapshot, which may be an unsaved draft. Before compares without the grade. Loop stays inside clip trims. This preview does not save changes. Normal timeline playback and graded export remain unchanged; Android/device validation is pending.</string>
     <string name="color_live_before">Before (during playback)</string>

@@ -39,7 +39,8 @@ endif()
 if(ANDROID)
     set(OWNCUT_ANDROID_SOURCES
         platform/android/jni/editor_jni.cpp
-        platform/android/jni/color_jni.cpp)
+        platform/android/jni/color_jni.cpp
+        platform/android/jni/color_module_jni.cpp)
     if(OWNCUT_ENABLE_TIMELINE_ENGINE)
         list(APPEND OWNCUT_ANDROID_SOURCES modules/timeline_engine/bridge/android_jni.cpp)
     endif()
@@ -48,6 +49,12 @@ if(ANDROID)
     if(OWNCUT_ENABLE_TIMELINE_ENGINE)
         target_link_libraries(owncut_android PRIVATE timeline_engine::timeline_engine)
     endif()
+    # Standalone color reference module, Android APK only (CPU path). Host CI does not build it.
+    set(COLOR_BUILD_TESTS OFF)
+    set(COLOR_BUILD_VULKAN OFF)
+    set(COLOR_WARNINGS_AS_ERRORS OFF)
+    add_subdirectory(modules/color_engine)
+    target_link_libraries(owncut_android PRIVATE color::engine)
     target_compile_features(owncut_android PRIVATE cxx_std_20)
 endif()
 

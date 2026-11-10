@@ -1,0 +1,36 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#define float2 vec2
+#define float3 vec3
+#define float4 vec4
+#define PARAM_ARG
+#define PARAM_PASS
+#define TABLE_ARG
+#define TABLE_PASS
+#define P(i) parameters[i]
+#define SAMPLE(i) samples[i]
+#define AS_UINT(x) floatBitsToUint(x)
+layout(local_size_x=64) in;
+layout(std430,binding=0) readonly buffer Input { vec4 pixels[]; };
+layout(std430,binding=1) writeonly buffer Output { vec4 output_pixels[]; };
+layout(std430,binding=2) readonly buffer Params { float parameters[]; };
+layout(std430,binding=3) readonly buffer Samples { vec4 samples[]; };
+layout(push_constant) uniform Meta { uint count,width,op,frame,edge,curve_n,input_count,reserved;float key_input,key_output,node_mix;uint invert; } meta;
+#include "../common/math.inc"
+#include "../common/grade.inc"
+void main() {
+ uint i=gl_GlobalInvocationID.x;if(i>=meta.count) return;uint x=i%meta.width,y=i/meta.width,height=(meta.count+meta.width-1u)/meta.width;
+ vec4 base=pixels[i],result=base;
+ if((meta.op<=10u||meta.op==16u||meta.op==17u||meta.op==22u)) result=grade(base,meta.op,meta.frame,meta.edge,meta.curve_n,x,y,(float(x)+.5)/float(meta.width),(float(y)+.5)/float(height));
+ else if(meta.op==11u) { result=vec4(0);for(uint j=0u;j<meta.input_count;++j) result+=pixels[i+j*meta.count];result/=float(meta.input_count); }
+ else if(meta.op==12u) for(uint j=1u;j<meta.input_count;++j) result=source_over(result,pixels[i+j*meta.count]);
+ else if(meta.op==13u) result=mix(base,pixels[i+2u*meta.count],1.0-unit(pixels[i+meta.count].a));
+ else if(meta.op==14u) result=vec4(vec3(base[uint(P(0))]),base.a);
+ else if(meta.op==15u) result=vec4(base.r,pixels[i+meta.count].g,pixels[i+2u*meta.count].b,base.a);
+ else if(meta.op==21u) result=pixels[i+meta.count];
+ else if(meta.op==18u) result.a=max(base.a,pixels[i+meta.count].a);
+ else if(meta.op==19u) result.a=min(base.a,pixels[i+meta.count].a);
+ else if(meta.op==20u) result.a=max(0.0f,base.a-pixels[i+meta.count].a);
+ float key=meta.key_input*meta.key_output;if(meta.invert!=0u) key=1.0-key;
+ output_pixels[i]=mix(base,result,meta.node_mix*key);
+}
