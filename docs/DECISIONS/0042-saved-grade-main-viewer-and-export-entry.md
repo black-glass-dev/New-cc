@@ -44,3 +44,14 @@ do not overwrite active slider/timeline scrubbing. Disable Play on grade failure
 executor shuts down after its single request; underlying provider I/O cancellation is not
 guaranteed to interrupt a vendor/provider stall. Android close-callback source regression
 checks commit→cleanup callback order and cancel-without-commit; actual UI execution pending.
+
+### ADR0042 final source/CI checkpoint
+
+Source `36bff99d963de7a70636ee76dfd28f94c8359ad8`: Android42784818539 and Portable42784818966
+PASS. Android assembly/lint/instrumentation-source compilation/alignment passed; release
+publication skipped as requested. Local native6, actual production pure Kotlin Input-policy/
+existing transport suites, Python30 (including3 source-wiring tests),351 bilingual/3themes/
+17labels and diff checks PASS. Static wiring is not UI proof. No device/emulator execution;
+Apply/main playback/seek/cuts/reset/history, viewer ghosting and rendered export output
+remain phone-unverified. New dialog cleanup UI source compiled but NOT executed. No new
+APK handoff/publication.25%/75% unchanged.

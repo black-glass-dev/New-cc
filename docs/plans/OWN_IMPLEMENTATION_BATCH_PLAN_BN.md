@@ -181,3 +181,14 @@ ADR0042: Apply→main viewer saved-grade bridge, live/reference handoff, Input e
 export launcher preflight fix। Source/game parity নয়; ফোনে validation বাকি। B timeline, C
 project-library/recovery; পুরোনো native/QA role superseded। Shared integration coordinator।
 User explicitly asks for APK before any next public APK; no automatic fresh-install release।
+
+### ADR0042 final source/CI checkpoint
+
+Source `36bff99d963de7a70636ee76dfd28f94c8359ad8`: Android42784818539 and Portable42784818966
+PASS. Android assembly/lint/instrumentation-source compilation/alignment passed; release
+publication skipped as requested. Local native6, actual production pure Kotlin Input-policy/
+existing transport suites, Python30 (including3 source-wiring tests),351 bilingual/3themes/
+17labels and diff checks PASS. Static wiring is not UI proof. No device/emulator execution;
+Apply/main playback/seek/cuts/reset/history, viewer ghosting and rendered export output
+remain phone-unverified. New dialog cleanup UI source compiled but NOT executed. No new
+APK handoff/publication.25%/75% unchanged.

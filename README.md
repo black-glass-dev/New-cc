@@ -1,3 +1,10 @@
+## Latest verification — saved-grade integration
+
+Source36bff99: Android42784818539 and Portable42784818966 PASS (build/lint/test-source
+compile/alignment). Local native6/pure Kotlin policy/Python30/resources351 PASS. Device
+Apply/main viewer, ghosting and graded output acceptance pending. No new APK publication
+or handoff; user will request one when needed. See ADR0042.
+
 ## Current color integration checkpoint (ADR0042)
 
 Saved-grade main-viewer/transport wiring, exclusive live/reference layers, known-tag Input
