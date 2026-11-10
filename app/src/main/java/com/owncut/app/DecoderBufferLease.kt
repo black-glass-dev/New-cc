@@ -17,6 +17,7 @@ internal class DecoderBufferLease {
     }
     fun acquire(index: Int, eos: Boolean) {
         checkOpen();check(!ended && heldIndex<0 && epoch>0);require(index>=0)
+        check(!eos || inputEnded) { "Unexpected output EOS before input EOS" }
         heldIndex=index;heldEos=eos
     }
     fun requireHeld(): Int { checkOpen();check(heldIndex>=0);return heldIndex }
@@ -25,7 +26,7 @@ internal class DecoderBufferLease {
         if(heldEos) ended=true
         heldEos=false
     }
-    fun emptyEnd() { checkOpen();check(heldIndex<0);ended=true }
+    fun emptyEnd() { checkOpen();check(heldIndex<0 && !ended && inputEnded);ended=true }
     fun inputQueued(eos: Boolean) { checkOpen();check(!inputEnded);inputEnded=eos }
     fun fail() { terminal=true }
     fun close() { terminal=true;heldIndex=-1 }

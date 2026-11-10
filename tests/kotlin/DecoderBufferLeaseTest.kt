@@ -21,7 +21,11 @@ fun main() {
     val failed=DecoderBufferLease();failed.formatChanged();failed.fail()
     rejected { failed.acquire(0,false) };rejected { failed.formatChanged() }
     failed.close()
-    val empty=DecoderBufferLease();empty.emptyEnd();check(empty.ended)
+    val empty=DecoderBufferLease()
+    rejected { empty.emptyEnd() }
+    empty.formatChanged();rejected { empty.acquire(0,true) }
+    empty.inputQueued(true);empty.emptyEnd();check(empty.ended)
+    rejected { empty.emptyEnd() }
     rejected { empty.acquire(0,false) }
     println("Production decoder lease: 10000 epochs, held-buffer isolation, input/output EOS and terminal fail/close PASS")
 }
