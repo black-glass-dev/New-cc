@@ -189,3 +189,11 @@ header/source/unit test and docs/workstreams/native-grading.md. QA worker owns n
 new androidTest/.../qa files and docs/workstreams/export-qa.md. Separate sessions/workspaces
 and assigned branches; never concurrent git/index writes or force-push. PR/patch handoff;
 coordinator reviews/integrates. Workers not launched by this session. No GPL ports.
+
+## Candidate backend (ADR0040)
+
+SurfaceVideoDecoder is an original synchronous public-API backend, API29+; candidate
+factory opts in. DecoderBufferLease isolates held format epochs and EOS. Do not advance
+output while held, clear pending input payload, infer crop, enable tone mapping, or release
+caller-owned Surface. Shipping grade guards remain until real output/device acceptance.
+New backend test source is not a phone success claim. Native/QA worker ownership unchanged.

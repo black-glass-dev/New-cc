@@ -146,3 +146,12 @@ real output verification; তারপর reviewed production admission, never b
 Android/integration; B: নতুন native curves; C: independent export QA। B/C এখনও চালু হয়নি।
 A-এর পরের sub-checkpoint: optional raw-current-buffer capability guard-এ যুক্ত; default
 Media3 backend এটি দেয় না। Real crop-preserving codec adapter ও device acceptance বাকি।
+
+## ৯. Original backend implementation checkpoint
+
+SurfaceVideoDecoder ও DecoderBufferLease বাস্তবায়িত; candidate factory raw-preserving
+backend বেছে নেয়। Native normalization + guard বহাল। Input/output/EOS/owner thread ও
+cleanup code এবং10000-epoch pure production regression PASS। Real Android drain test
+source যোগ হয়েছে; execution বাকি। API29+ explicit capability;26–28 fallback নয়।
+পরবর্তী gate: Android compile/actual decoder drain + real graded output/parity/audio/
+Gallery acceptance। তার আগে production grade guard নয়। B/C কাজ/পুরো roadmap সম্পূর্ণ নয়।

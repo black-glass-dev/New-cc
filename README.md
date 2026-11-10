@@ -1,3 +1,10 @@
+## Original decoder implementation checkpoint
+
+Candidate graded export now uses an original public-API surface decoder with held-buffer
+raw crop/color evidence (ADR0040).10000-epoch pure transport tests passed; real Android
+decoder regression source added, execution pending. This is not shipping graded-export
+completion or phone proof. Plain export/live preview unchanged;25%/75%.
+
 ## Parallel execution
 
 [তিন এজেন্টের দায়িত্ব ও starter prompts](docs/plans/THREE_AGENT_WORK_PLAN_BN.md)।

@@ -61,3 +61,11 @@ if len(sys.argv) == 4:
             str(root/'tests/kotlin/ColorRenderPlanTest.kt'),'-Werror','-include-runtime','-d',str(jar)],env=env,check=True)
         subprocess.run([str(java_home/'bin/java'),'-Xcheck:jni','--enable-native-access=ALL-UNNAMED',
             '-Djava.library.path='+directory,'-jar',str(jar)],env=env,check=True)
+
+# Actual codec buffer/format transport state; no Android stubs or fake JNI.
+with tempfile.TemporaryDirectory(prefix='owncut-decoder-lease-') as directory:
+    jar = Path(directory)/'decoder-lease.jar'
+    subprocess.run(['bash',str(kotlin_home/'bin/kotlinc'),
+        str(root/'app/src/main/java/com/owncut/app/DecoderBufferLease.kt'),
+        str(root/'tests/kotlin/DecoderBufferLeaseTest.kt'),'-Werror','-include-runtime','-d',str(jar)],env=env,check=True)
+    subprocess.run([str(java_home/'bin/java'),'-jar',str(jar)],env=env,check=True)

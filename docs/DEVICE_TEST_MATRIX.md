@@ -836,3 +836,15 @@ source has NOT been compiled/executed. No automatic run/check observed for this 
 manual Android workflow dispatch returned HTTP403 integration permission denied. Prior
 source CI is not proof for this change. No APK/export success/device claim. Three-agent
 plan includes exact baseline, per-file ownership and B/C prompts; workers not started.
+
+## ADR0040 — Original surface decoder candidate backend
+
+Own synchronous SurfaceVideoDecoder implements public Media3 Codec plus raw-current-buffer
+evidence, with pure DecoderBufferLease epoch/EOS/terminal state. Candidate configure now
+selects this backend; default audio/plain shipping export unchanged. API29+ lossless surface
+backpressure, no raw evidence polling while held, native inclusive crop normalization and
+strict native color/geometry gate. Input ownership, bounded event polling, checked timestamps,
+EOS completion and idempotent release implemented. No GPL/dependency/shipping guard change.
+Local actual pure Kotlin10000-epoch lease tests PASS; Android real decoder test source added
+(not executed here). Device/GPU/export parity and unsupported device quirks remain unverified;
+full roadmap not complete. Readiness25%/75%. See ADR0040 for scope/limitations.

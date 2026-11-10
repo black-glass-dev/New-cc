@@ -52,7 +52,7 @@ internal object TimelineRenderExporter {
         fun configure(context: Context, builder: Transformer.Builder): Transformer.Builder = builder
             .setVideoFrameProcessorFactory(factory)
             .setAssetLoaderFactory(DefaultAssetLoaderFactory(context.applicationContext,
-                GuardedDecoderFactory(DefaultDecoderFactory.Builder(context.applicationContext).build(),colors),
+                GuardedDecoderFactory(DefaultDecoderFactory.Builder(context.applicationContext).build(),colors,preserveRawOutput=true),
                 Clock.DEFAULT,null))
     }
     internal fun probeCandidate(context: Context, plan: TimelineRemuxExporter.Plan,

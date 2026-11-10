@@ -16,6 +16,7 @@ import androidx.media3.transformer.ExportException
 internal class GuardedDecoderFactory(
     private val platform: Codec.DecoderFactory,
     plan: ColorRenderPlan,
+    private val preserveRawOutput: Boolean=false,
 ) : Codec.DecoderFactory by platform {
     private val admitted=plan.clips.map {
         ColorEngine.DecodedVideoFormat(it.source.width,it.source.height,it.source.color)
@@ -32,7 +33,8 @@ internal class GuardedDecoderFactory(
             "Graded export decoder-input: actual=${input.width}x${input.height} admitted=" +
                 admitted.take(8).joinToString { "${it.width}x${it.height}" } + " (formats=${admitted.size})" +
                 " requested-sdr-tone-map=$requestSdrToneMapping",error)) }
-        val codec=platform.createForVideoDecoding(format,outputSurface,false,logSessionId)
+        val codec=if(preserveRawOutput) SurfaceVideoDecoder.create(format,outputSurface)
+            else platform.createForVideoDecoding(format,outputSurface,false,logSessionId)
         try { return GuardedCodec(codec,input) }
         catch (error: Throwable) {
             runCatching { codec.release() }.exceptionOrNull()?.let { error.addSuppressed(it) }
