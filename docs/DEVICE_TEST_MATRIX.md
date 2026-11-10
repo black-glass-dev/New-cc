@@ -827,3 +827,12 @@ raw crop/color into native validation in GuardedCodec. Missing/malformed/provide
 never falls back to lossy Format; non-provider backend keeps strict behavior. Synthetic
 regressions added; actual raw-preserving MediaCodec backend still unimplemented, shipping
 graded export blocked. User-confirmed live preview retained.25%/75%, no new phone proof.
+
+### ADR0039 checkpoint evidence
+
+Source9fcfd13b22a70291a1c31ec5634abb5777881b18 pushed. Native6/Python27/resources345
+(3themes/17labels) and whitespace PASS. New raw-provider synthetic Android regression
+source has NOT been compiled/executed. No automatic run/check observed for this source;
+manual Android workflow dispatch returned HTTP403 integration permission denied. Prior
+source CI is not proof for this change. No APK/export success/device claim. Three-agent
+plan includes exact baseline, per-file ownership and B/C prompts; workers not started.

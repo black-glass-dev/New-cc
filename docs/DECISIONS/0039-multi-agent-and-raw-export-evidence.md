@@ -27,3 +27,12 @@ Synthetic Android regression source covers padded crop, two release overloads, c
 missing/partial/raw query failure, HDR/unknown color and terminal no-fallback. These are not
 actual codec/surface/export evidence. Record compile and execution outcomes separately.
 Readiness25%/75%; user-phone live preview success retained, export unresolved.
+
+### ADR0039 checkpoint evidence
+
+Source9fcfd13b22a70291a1c31ec5634abb5777881b18 pushed. Native6/Python27/resources345
+(3themes/17labels) and whitespace PASS. New raw-provider synthetic Android regression
+source has NOT been compiled/executed. No automatic run/check observed for this source;
+manual Android workflow dispatch returned HTTP403 integration permission denied. Prior
+source CI is not proof for this change. No APK/export success/device claim. Three-agent
+plan includes exact baseline, per-file ownership and B/C prompts; workers not started.

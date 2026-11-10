@@ -131,3 +131,19 @@ Next bounded task:
 
 এই মুহূর্তে B/C session চালু হয়েছে বা PR পাওয়া গেছে—এমন evidence নেই। User session
 খুলবেন; coordinator একটি review checkpoint-এ handoff গ্রহণ করবে। Weighted readiness25%/75%।
+
+## ৮. Starter baseline ও এই checkpoint-এর evidence
+
+Implementation baseline: `9fcfd13b22a70291a1c31ec5634abb5777881b18` on coordinator branch
+`arena/6e511b63-new-cc`। নতুন session পুরোনো main থেকে খুললে এই plan/source নাও থাকতে পারে।
+প্রথমে baseline ancestry/content যাচাই করতে হবে; নয়তো implementation না লিখে coordinator-কে
+base mismatch জানাবে। Source branch নির্বাচন supported হলে coordinator source থেকে session
+খুলুন; না হলে latest baseline-সহ reviewed common base প্রস্তুত করে তবেই parallel edits।
+কোনো agent নিজের assigned branch ত্যাগ/rename করবে না।
+
+Local native6, Python27,345 bilingual/3themes/17labels ও diff check PASS। নতুন synthetic
+Android raw-provider tests source-only: compile/execution যাচাই হয়নি। এই source revision-এর
+জন্য automatic CI run/check API-তে দেখা যায়নি; manual Android workflow dispatch HTTP403
+(Resource not accessible by integration)। আগের commit-এর CI PASS নতুন code-এর evidence নয়।
+No new APK; default Codec এখনও raw provider নয়; export unresolved। Runtime QA ছাড়া
+production guard খুলবে না।
