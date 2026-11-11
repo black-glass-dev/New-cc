@@ -280,8 +280,8 @@ internal object TimelineRenderExporter {
         tracks: List<TimelineTrackInfo>,
         output: File,
         cancelled: AtomicBoolean,
-        progress: (String) -> Unit,
         interpretMissing: Boolean = false,
+        progress: (String) -> Unit,
     ) {
         check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper())
         val captured = plan.copy(clips = plan.clips.toList())
@@ -299,7 +299,7 @@ internal object TimelineRenderExporter {
      * Does not change shipping export guards. Caller owns scratch output and gap consent.
      */
     internal fun exportGradedCandidate(context: Context, plan: TimelineRemuxExporter.Plan, revision: String,
-        output: File, cancelled: AtomicBoolean, progress: (String) -> Unit, interpretMissing: Boolean=false) {
+        output: File, cancelled: AtomicBoolean, interpretMissing: Boolean=false, progress: (String) -> Unit) {
         check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper())
         val captured=plan.copy(clips=plan.clips.toList())
         val candidate=probeCandidate(context,captured,revision,cancelled,interpretMissing)

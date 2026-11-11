@@ -1654,11 +1654,11 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                     if (useRichPipeline) {
                         TimelineRenderExporter.exportRichGraded(
                             this@MainActivity, plan, "explicit-candidate-${System.nanoTime()}",
-                            richDoc, allClipsSnapshot, trackInfos, temporary, cancellation, onProgress, interpretMissing
+                            richDoc, allClipsSnapshot, trackInfos, temporary, cancellation, interpretMissing, onProgress
                         )
                     } else {
                         TimelineRenderExporter.exportGradedCandidate(this@MainActivity,plan,
-                            "explicit-candidate-${System.nanoTime()}",temporary,cancellation,onProgress,interpretMissing)
+                            "explicit-candidate-${System.nanoTime()}",temporary,cancellation,interpretMissing,onProgress)
                     }
                 } else {
                     if (useRichPipeline) {
