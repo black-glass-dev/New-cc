@@ -1611,7 +1611,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
     }
 
     private fun beginTimelineExport(destination: Uri?, plan: TimelineRemuxExporter.Plan,
-        route: ExportRoute=ExportRoute.SHIPPING) {
+        route: ExportRoute=ExportRoute.SHIPPING, interpretMissing: Boolean=false) {
         if (projectIoBusy) return
         val cancellation = AtomicBoolean(false)
         exportCancellation = cancellation
@@ -1630,6 +1630,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                 else AppLanguage.text(R.string.message_f5a66453bc)
             }
             var failureReport: String?=null
+            var needsInterpretation=false
             var failureStage=ExportFailureReport.Stage.PREPARING
             try {
                 ExportRoutePolicy.requireAllowed(route,plan.clips.any { it.gradeActive },Build.VERSION.SDK_INT)
@@ -1653,11 +1654,11 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                     if (useRichPipeline) {
                         TimelineRenderExporter.exportRichGraded(
                             this@MainActivity, plan, "explicit-candidate-${System.nanoTime()}",
-                            richDoc, allClipsSnapshot, trackInfos, temporary, cancellation, onProgress
+                            richDoc, allClipsSnapshot, trackInfos, temporary, cancellation, onProgress, interpretMissing
                         )
                     } else {
                         TimelineRenderExporter.exportGradedCandidate(this@MainActivity,plan,
-                            "explicit-candidate-${System.nanoTime()}",temporary,cancellation,onProgress)
+                            "explicit-candidate-${System.nanoTime()}",temporary,cancellation,onProgress,interpretMissing)
                     }
                 } else {
                     if (useRichPipeline) {
@@ -1686,6 +1687,10 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                 resultMessage = if (destination == null) (cancel.message ?: AppLanguage.text(R.string.message_df54d9e4da))
                     else if (cleaned) AppLanguage.text(R.string.message_51d6ad5eff)
                     else AppLanguage.text(R.string.message_32ba7b117e)
+            } catch (error: ColorTagsInterpretationRequired) {
+                if (destination != null) deleteFailedExportDocument(destination)
+                needsInterpretation = true
+                resultMessage = AppLanguage.text(R.string.color_export_interpret_needed)
             } catch (error: Exception) {
                 val cleaned = destination == null || deleteFailedExportDocument(destination)
                 failureReport="Owncut ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) revision=${BuildConfig.PREVIEW_REVISION} route=${route.name}\n" +
@@ -1705,10 +1710,23 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                         cancelExportButton.text = AppLanguage.text(R.string.message_90f2b63925)
                         statusText.text = resultMessage
                         failureReport?.let { showExportFailureDetails(it) }
+                        if (needsInterpretation) confirmInterpretMissingExport(destination, plan, route)
                     }
                 }
             }
         }
+    }
+
+    /** Explicit per-export consent for interpreting missing color tags; cancel keeps the export blocked. */
+    private fun confirmInterpretMissingExport(destination: Uri?, plan: TimelineRemuxExporter.Plan, route: ExportRoute) {
+        if (projectIoBusy || isFinishing || isDestroyed) return
+        AlertDialog.Builder(this)
+            .setTitle(AppLanguage.text(R.string.color_input_title))
+            .setMessage(AppLanguage.text(R.string.color_input_warning))
+            .setNegativeButton(AppLanguage.text(R.string.message_ca21daf138), null)
+            .setPositiveButton(AppLanguage.text(R.string.color_input_assume)) { _, _ ->
+                beginTimelineExport(destination, plan, route, interpretMissing = true)
+            }.show()
     }
 
     private fun confirmExperimentalExport() {

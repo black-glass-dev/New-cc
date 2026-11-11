@@ -58,12 +58,10 @@ internal object TimelineRenderExporter {
                 Clock.DEFAULT,null))
     }
     internal fun probeCandidate(context: Context, plan: TimelineRemuxExporter.Plan,
-        revision: String, cancelled: AtomicBoolean): Candidate {
+        revision: String, cancelled: AtomicBoolean, interpretMissing: Boolean=false): Candidate {
         check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper())
         val checkCancelled={ if (cancelled.get()) throw CancellationException("Color preparation cancelled") }
-        return candidateComposition(plan,revision,checkCancelled) { uri ->
-            VideoSourceProbe.read(context,uri,checkCancelled)
-        }
+        return candidateComposition(plan,revision,checkCancelled,sourceReader(context,checkCancelled,interpretMissing))
     }
     internal fun candidateComposition(plan: TimelineRemuxExporter.Plan, revision: String,
         checkCancelled: () -> Unit, readSource: (String) -> VideoSourceMetadata): Candidate {
@@ -252,6 +250,16 @@ internal object TimelineRenderExporter {
         exportComposition(context, plan, output, cancelled, progress, comp, null)
     }
 
+    /** Missing tags are interpreted only with explicit consent; otherwise the export stops before encoding. */
+    internal fun sourceReader(context: Context, checkCancelled: () -> Unit, interpretMissing: Boolean): (String) -> VideoSourceMetadata =
+        { uri ->
+            val source = VideoSourceProbe.read(context, uri, checkCancelled)
+            if (PreviewColorPolicy.needsInterpretation(source.color)) {
+                if (!interpretMissing) throw ColorTagsInterpretationRequired()
+                source.copy(color = PreviewColorPolicy.resolve(source.color, true))
+            } else source
+        }
+
     /** Graded export accepts only SDR Rec.709 sources with known range and no HDR static metadata. */
     internal fun requireSdrRec709Sources(colors: ColorRenderPlan) {
         for (prepared in colors.clips) {
@@ -273,13 +281,13 @@ internal object TimelineRenderExporter {
         output: File,
         cancelled: AtomicBoolean,
         progress: (String) -> Unit,
+        interpretMissing: Boolean = false,
     ) {
         check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper())
         val captured = plan.copy(clips = plan.clips.toList())
         val checkCancelled = { if (cancelled.get()) throw CancellationException("Color preparation cancelled") }
-        val colors = ColorRenderPlan.prepare(revision, captured.clips, checkCancelled) { uri ->
-            VideoSourceProbe.read(context, uri, checkCancelled)
-        }
+        val colors = ColorRenderPlan.prepare(revision, captured.clips, checkCancelled,
+            sourceReader(context, checkCancelled, interpretMissing))
         requireSdrRec709Sources(colors)
         val prepared = GradedFramePipeline.prepare(colors, checkCancelled)
         val comp = richComposition(captured, richDoc, allClips, tracks, prepared.effects, checkCancelled)
@@ -291,10 +299,10 @@ internal object TimelineRenderExporter {
      * Does not change shipping export guards. Caller owns scratch output and gap consent.
      */
     internal fun exportGradedCandidate(context: Context, plan: TimelineRemuxExporter.Plan, revision: String,
-        output: File, cancelled: AtomicBoolean, progress: (String) -> Unit) {
+        output: File, cancelled: AtomicBoolean, progress: (String) -> Unit, interpretMissing: Boolean=false) {
         check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper())
         val captured=plan.copy(clips=plan.clips.toList())
-        val candidate=probeCandidate(context,captured,revision,cancelled)
+        val candidate=probeCandidate(context,captured,revision,cancelled,interpretMissing)
         requireSdrRec709Sources(candidate.colors)
         exportComposition(context,captured,output,cancelled,progress,candidate.composition,candidate)
     }
