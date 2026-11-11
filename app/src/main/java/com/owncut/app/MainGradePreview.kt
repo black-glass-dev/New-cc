@@ -18,9 +18,12 @@ import java.util.concurrent.atomic.AtomicBoolean
 @UnstableApi
 internal class MainGradePreview(
     private val activity: Activity, private val parent: FrameLayout, val clip: ClipSnapshot,
+    private val interpretMissing: Boolean,
     position: Long, playing: Boolean, private val onPosition: (Long,Boolean) -> Unit,
-    private val onEnded: () -> Unit, private val onFailure: (Exception) -> Unit,
+    private val onEnded: () -> Unit, private val onFailure: (Exception, Boolean) -> Unit,
 ) {
+    // Set by the probe worker. True only when missing tags could be explicitly interpreted by the user.
+    @Volatile private var probedInterpretable=false
     private val closed=AtomicBoolean(false)
     private val main=Handler(Looper.getMainLooper())
     private val worker=Executors.newSingleThreadExecutor()
@@ -52,11 +55,12 @@ internal class MainGradePreview(
                 val source=VideoSourceProbe.read(activity.applicationContext,clip.mediaId) {
                     check(!closed.get() && !Thread.currentThread().isInterrupted) { "Saved-grade probe cancelled" }
                 }
+                probedInterpretable=PreviewColorPolicy.needsInterpretation(source.color)
                 main.post {
                     if(!closed.get()) {
                         val video=InlineGradePreview(activity,texture,clip,source,anchor,{ _,_ ->
                             if(!closed.get()) { message.visibility=View.GONE;main.removeCallbacks(tick);main.post(tick) }
-                        },{ fail(it) },loop=false,onEnded={
+                        },{ fail(it) },loop=false,interpretMissing=interpretMissing,onEnded={
                             if(!closed.get()) { desiredPlaying=false;main.removeCallbacks(tick)
                                 anchor=clip.sourceOutMs;onPosition(anchor,false);onEnded() }
                         })
@@ -73,7 +77,7 @@ internal class MainGradePreview(
         desiredPlaying=false;main.removeCallbacks(tick)
         controller?.close();controller=null
         message.text=AppLanguage.text(R.string.color_preview_unavailable,PreviewDiagnostics.report(error))
-        message.visibility=View.VISIBLE;onFailure(error)
+        message.visibility=View.VISIBLE;onFailure(error,probedInterpretable && !interpretMissing)
     }
     fun pause() {
         desiredPlaying=false;controller?.let { video ->

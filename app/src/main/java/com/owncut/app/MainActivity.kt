@@ -56,6 +56,8 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
     private var pendingImportTrackId: String? = null
     private var gradeViewerParent: FrameLayout?=null
     private var mainGradePreview: MainGradePreview?=null
+    // Clip the user explicitly allowed to interpret missing color tags for main-viewer preview only.
+    private var mainAssumedClipId: String?=null
     private var previewSurface: Surface? = null
     private lateinit var statusText: TextView
     private lateinit var engineStatusText: TextView
@@ -2188,17 +2190,33 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         }
         pauseForTimelineScrub()
         preview.alpha=0f // Never show the ungraded source as successful saved-grade playback.
-        mainGradePreview=MainGradePreview(this,parent,clip,previewPositionMs,resume,{ position,playing ->
+        mainGradePreview=MainGradePreview(this,parent,clip,mainAssumedClipId==clip.id,previewPositionMs,resume,{ position,playing ->
             if(!isSeeking && !timelineScrubbing) {
                 previewPositionMs=position
                 seekBar.progress=position.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
                 updateTimelinePlayhead(follow=playing)
             }
             playButton.text=AppLanguage.text(if(playing) R.string.action_pause else R.string.color_live_short)
-        },{ advanceOrStopTimeline(playerGeneration,player) },{ error ->
+        },{ advanceOrStopTimeline(playerGeneration,player) },{ error,canAssume ->
             playButton.isEnabled=false
             statusText.text=AppLanguage.text(R.string.color_preview_unavailable,PreviewDiagnostics.report(error))
+            if(canAssume) offerMainInterpretMissing(clip)
         })
+    }
+
+    /** Explicit, per-clip consent only. Never automatic; cancel keeps the strict fail-closed behavior. */
+    private fun offerMainInterpretMissing(clip: ClipSnapshot) {
+        if(isFinishing || isDestroyed || colorDialog?.isShowing==true) return
+        AlertDialog.Builder(this)
+            .setTitle(AppLanguage.text(R.string.color_input_title))
+            .setMessage(AppLanguage.text(R.string.color_input_warning))
+            .setPositiveButton(AppLanguage.text(R.string.color_input_assume)) { _,_ ->
+                mainAssumedClipId=clip.id
+                mainGradePreview?.close();mainGradePreview=null
+                syncMainGradePreview()
+            }
+            .setNegativeButton(AppLanguage.text(R.string.color_details_close),null)
+            .show()
     }
 
     private fun togglePlayback() {
