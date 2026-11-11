@@ -230,6 +230,8 @@ internal object ClipColorEditor {
         var inlineSource: VideoSourceMetadata?=null
         var probedSource: VideoSourceMetadata?=null
         var interpretMissing=false
+        // True once the user has chosen how to treat missing tags for this editor session.
+        var interpretDecided=false
         fun videoCaption(before: Boolean)=AppLanguage.text(if(before && interpretMissing) R.string.color_assumed_before else if(before) R.string.color_frame_before else if(interpretMissing) R.string.color_assumed_frame else R.string.color_inline_frame)
         var original: Bitmap?=null
         var graded: Bitmap?=null
@@ -293,8 +295,8 @@ internal object ClipColorEditor {
                     "\n\n"+metadata.color.toString())
                 .setNegativeButton(AppLanguage.text(R.string.color_details_close),null)
             if(missing) {
-                builder.setPositiveButton(AppLanguage.text(R.string.color_input_assume)) { _,_ -> interpretMissing=true;startInline(metadata) }
-                builder.setNeutralButton(AppLanguage.text(R.string.color_input_tagged)) { _,_ -> interpretMissing=false;startInline(metadata) }
+                builder.setPositiveButton(AppLanguage.text(R.string.color_input_assume)) { _,_ -> interpretDecided=true;interpretMissing=true;startInline(metadata) }
+                builder.setNeutralButton(AppLanguage.text(R.string.color_input_tagged)) { _,_ -> interpretDecided=true;interpretMissing=false;startInline(metadata) }
             }
             diagnosticsDialog=builder.show()
         }
@@ -394,7 +396,19 @@ internal object ClipColorEditor {
                     live.text=AppLanguage.text(if(video.isPlaying) R.string.action_pause else R.string.color_live_short)
                 } else {
                     val metadata=probedSource
-                    if(metadata!=null) { startInline(metadata);inline?.togglePlaying() }
+                    if(metadata!=null && PreviewColorPolicy.needsInterpretation(metadata.color) && !interpretDecided) {
+                        // Missing tags never start live playback silently; the user must choose first.
+                        AlertDialog.Builder(activity).setTitle(AppLanguage.text(R.string.color_input_title))
+                            .setMessage(AppLanguage.text(R.string.color_input_warning))
+                            .setPositiveButton(AppLanguage.text(R.string.color_input_assume)) { _,_ ->
+                                interpretDecided=true;interpretMissing=true;startInline(metadata);inline?.togglePlaying()
+                            }
+                            .setNeutralButton(AppLanguage.text(R.string.color_input_tagged)) { _,_ ->
+                                interpretDecided=true;interpretMissing=false;startInline(metadata);inline?.togglePlaying()
+                            }
+                            .setNegativeButton(AppLanguage.text(R.string.color_details_close),null)
+                            .show()
+                    } else if(metadata!=null) { startInline(metadata);inline?.togglePlaying() }
                     else { draftPlayer?.dismiss();draftPlayer=previewDraft?.invoke(validatedDraft()) }
                 }
             }
