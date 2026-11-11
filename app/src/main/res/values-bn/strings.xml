@@ -278,6 +278,7 @@
     <string name="checkpoint_repair_accept">নষ্ট রেকর্ড archive করুন</string>
     <string name="checkpoint_repaired">নষ্ট চেকপয়েন্ট রেকর্ড archive হয়েছে। Project ও recovery বদলায়নি; আবার সেভ করা যাবে।</string>
     <string name="checkpoint_no_repair">মেরামতের প্রয়োজন এমন নষ্ট চেকপয়েন্ট রেকর্ড নেই।</string>
+    <string name="color_graded_sdr_only">graded export এখন শুধু SDR Rec.709 উৎসের জন্য। HDR, PQ/HLG, অজানা বা পরস্পরবিরোধী রঙের উৎস বন্ধ থাকবে।</string>
     <string name="color_grade_export_pending">লুক হারানো ঠেকাতে সাধারণ graded export এখনও সুরক্ষিত রাখা হয়েছে। Android 10+ হলে এই বিস্তারিত dialog থেকে আলাদা সম্মতিসহ পরীক্ষামূলক graded export বেছে নেওয়া যাবে।</string>
     <string name="color_grade_preview_pending">সংরক্ষিত গ্রেড guarded main viewer ব্যবহার করে। decoder ব্যর্থ হলে ungraded ছবি সফল ফল হিসেবে না দেখিয়ে সমস্যা জানানো হবে।</string>
     <string name="color_editor_title">ক্লিপের কালার গ্রেড</string>

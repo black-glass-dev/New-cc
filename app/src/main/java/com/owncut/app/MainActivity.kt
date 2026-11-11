@@ -1571,7 +1571,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         startActivityForResult(intent, REQUEST_EXPORT_VIDEO)
     }
 
-    private fun startTimelineExport(destination: Uri?, route: ExportRoute=ExportRoute.SHIPPING) {
+    private fun startTimelineExport(destination: Uri?, requestedRoute: ExportRoute=ExportRoute.SHIPPING) {
         if (projectIoBusy) return
         val exportClips=try { engine?.clips().orEmpty().toList() } catch(error: Exception) {
             showError(error)
@@ -1581,9 +1581,11 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
             .filter { it.trackId == "v1" }
             .ifEmpty { exportClips.filter { !it.trackId.startsWith("a", ignoreCase = true) } }
             .ifEmpty { exportClips }
+        // Normal export of a graded timeline uses the SDR MP4 graded route instead of a blocked shipping route.
+        val route = if(requestedRoute==ExportRoute.SHIPPING && exportClips.any { it.gradeActive }) ExportRoute.GRADED_SDR_MP4 else requestedRoute
         val plan = try {
             ExportRoutePolicy.requireAllowed(route,exportClips.any { it.gradeActive },Build.VERSION.SDK_INT)
-            if(route==ExportRoute.EXPERIMENTAL_GRADED) TimelineRemuxExporter.candidateGradedTimingPlan(primaryClips)
+            if(route!=ExportRoute.SHIPPING) TimelineRemuxExporter.candidateGradedTimingPlan(primaryClips)
             else TimelineRemuxExporter.makePlan(primaryClips)
         } catch (error: Exception) {
             showError(error)
@@ -1647,7 +1649,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                         val fx = richDoc.fxFor(c.id)
                         fx.hasVideoTransformOrFx() || fx.hasAudioEnvelope()
                     }
-                if(route==ExportRoute.EXPERIMENTAL_GRADED) {
+                if(route!=ExportRoute.SHIPPING) {
                     if (useRichPipeline) {
                         TimelineRenderExporter.exportRichGraded(
                             this@MainActivity, plan, "explicit-candidate-${System.nanoTime()}",

@@ -252,6 +252,17 @@ internal object TimelineRenderExporter {
         exportComposition(context, plan, output, cancelled, progress, comp, null)
     }
 
+    /** Graded export accepts only SDR Rec.709 sources with known range and no HDR static metadata. */
+    internal fun requireSdrRec709Sources(colors: ColorRenderPlan) {
+        for (prepared in colors.clips) {
+            val color = prepared.source.color
+            require(color.primaries == ColorEngine.VideoPrimaries.REC709 &&
+                color.transfer == ColorEngine.VideoTransfer.SDR_VIDEO &&
+                color.range != ColorEngine.VideoRange.UNKNOWN &&
+                !color.hasHdrStaticMetadata) { AppLanguage.text(R.string.color_graded_sdr_only) }
+        }
+    }
+
     internal fun exportRichGraded(
         context: Context,
         plan: TimelineRemuxExporter.Plan,
@@ -269,6 +280,7 @@ internal object TimelineRenderExporter {
         val colors = ColorRenderPlan.prepare(revision, captured.clips, checkCancelled) { uri ->
             VideoSourceProbe.read(context, uri, checkCancelled)
         }
+        requireSdrRec709Sources(colors)
         val prepared = GradedFramePipeline.prepare(colors, checkCancelled)
         val comp = richComposition(captured, richDoc, allClips, tracks, prepared.effects, checkCancelled)
         val candidate = Candidate(colors, comp, prepared.factory)
@@ -283,6 +295,7 @@ internal object TimelineRenderExporter {
         check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper())
         val captured=plan.copy(clips=plan.clips.toList())
         val candidate=probeCandidate(context,captured,revision,cancelled)
+        requireSdrRec709Sources(candidate.colors)
         exportComposition(context,captured,output,cancelled,progress,candidate.composition,candidate)
     }
 
