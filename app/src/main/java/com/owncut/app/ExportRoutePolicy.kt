@@ -5,6 +5,12 @@ package com.owncut.app
 /** Raised by the export worker when a graded source needs an explicit user choice for missing color tags. */
 internal class ColorTagsInterpretationRequired : IllegalStateException("Missing color tags need explicit interpretation")
 
+/** Video encoders available through the platform Transformer. Other containers/codecs are not offered yet. */
+internal object ExportVideoFormat {
+    const val H264 = "video/avc"
+    const val HEVC = "video/hevc"
+}
+
 internal enum class ExportRoute { SHIPPING, GRADED_SDR_MP4, EXPERIMENTAL_GRADED }
 internal object ExportRoutePolicy {
     fun requireAllowed(route: ExportRoute, hasActiveGrades: Boolean, sdk: Int) {

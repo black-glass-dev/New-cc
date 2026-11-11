@@ -279,6 +279,9 @@
     <string name="checkpoint_repaired">Damaged checkpoint record archived. Project and recovery were not changed; saving can be retried.</string>
     <string name="checkpoint_no_repair">No damaged checkpoint record needs repair.</string>
     <string name="color_export_interpret_needed">Some graded sources are missing color tags. Export stopped before encoding; choose whether to interpret them.</string>
+    <string name="export_format_title">Export format (MP4 only for now)</string>
+    <string name="export_format_h264">MP4 · H.264</string>
+    <string name="export_format_hevc">MP4 · HEVC (device encoder required)</string>
     <string name="color_graded_sdr_only">Graded export currently supports SDR Rec.709 sources only. HDR, PQ/HLG, unknown or conflicting color sources are blocked.</string>
     <string name="color_grade_export_pending">Standard graded export remains gated to avoid losing your look. On Android 10+, this Details dialog offers a separate experimental graded export with explicit consent.</string>
     <string name="color_grade_preview_pending">Saved color grade uses the guarded main viewer. A decoder failure is reported instead of displaying an ungraded success.</string>

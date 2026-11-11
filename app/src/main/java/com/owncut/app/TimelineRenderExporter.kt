@@ -226,10 +226,11 @@ internal object TimelineRenderExporter {
         plan: TimelineRemuxExporter.Plan,
         output: File,
         cancelled: AtomicBoolean,
+        videoMime: String = MimeTypes.VIDEO_H264,
         progress: (String) -> Unit,
     ) {
         check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper())
-        exportComposition(context,plan,output,cancelled,progress,composition(plan),null)
+        exportComposition(context,plan,output,cancelled,progress,composition(plan),null,videoMime)
     }
 
     fun exportRich(
@@ -240,6 +241,7 @@ internal object TimelineRenderExporter {
         tracks: List<TimelineTrackInfo>,
         output: File,
         cancelled: AtomicBoolean,
+        videoMime: String = MimeTypes.VIDEO_H264,
         progress: (String) -> Unit,
     ) {
         check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper())
@@ -247,7 +249,7 @@ internal object TimelineRenderExporter {
         val comp = richComposition(plan, richDoc, allClips, tracks, null) {
             if (cancelled.get()) throw CancellationException("Export cancelled")
         }
-        exportComposition(context, plan, output, cancelled, progress, comp, null)
+        exportComposition(context, plan, output, cancelled, progress, comp, null, videoMime)
     }
 
     /** Missing tags are interpreted only with explicit consent; otherwise the export stops before encoding. */
@@ -281,6 +283,7 @@ internal object TimelineRenderExporter {
         output: File,
         cancelled: AtomicBoolean,
         interpretMissing: Boolean = false,
+        videoMime: String = MimeTypes.VIDEO_H264,
         progress: (String) -> Unit,
     ) {
         check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper())
@@ -292,23 +295,25 @@ internal object TimelineRenderExporter {
         val prepared = GradedFramePipeline.prepare(colors, checkCancelled)
         val comp = richComposition(captured, richDoc, allClips, tracks, prepared.effects, checkCancelled)
         val candidate = Candidate(colors, comp, prepared.factory)
-        exportComposition(context, captured, output, cancelled, progress, comp, candidate)
+        exportComposition(context, captured, output, cancelled, progress, comp, candidate, videoMime)
     }
 
     /** Explicit test/consented experimental entry: REAL encoder path, not parity proof.
      * Does not change shipping export guards. Caller owns scratch output and gap consent.
      */
     internal fun exportGradedCandidate(context: Context, plan: TimelineRemuxExporter.Plan, revision: String,
-        output: File, cancelled: AtomicBoolean, interpretMissing: Boolean=false, progress: (String) -> Unit) {
+        output: File, cancelled: AtomicBoolean, interpretMissing: Boolean=false, videoMime: String=MimeTypes.VIDEO_H264,
+        progress: (String) -> Unit) {
         check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper())
         val captured=plan.copy(clips=plan.clips.toList())
         val candidate=probeCandidate(context,captured,revision,cancelled,interpretMissing)
         requireSdrRec709Sources(candidate.colors)
-        exportComposition(context,captured,output,cancelled,progress,candidate.composition,candidate)
+        exportComposition(context,captured,output,cancelled,progress,candidate.composition,candidate,videoMime)
     }
 
     private fun exportComposition(context: Context, plan: TimelineRemuxExporter.Plan, output: File,
-        cancelled: AtomicBoolean, progress: (String) -> Unit, composition: Composition, candidate: Candidate?) {
+        cancelled: AtomicBoolean, progress: (String) -> Unit, composition: Composition, candidate: Candidate?,
+        videoMime: String) {
         val thread = HandlerThread("OwncutRender").apply { start() }
         val handler = Handler(thread.looper)
         val finished = CountDownLatch(1)
@@ -348,7 +353,7 @@ internal object TimelineRenderExporter {
                     .setLooper(thread.looper)
                     .apply { candidate?.configure(context,this) }
                     .setEncoderFactory(alwaysEncode)
-                    .setVideoMimeType(MimeTypes.VIDEO_H264)
+                    .setVideoMimeType(videoMime)
                     .setAudioMimeType(MimeTypes.AUDIO_AAC)
                     .addListener(object : Transformer.Listener {
                         override fun onCompleted(composition: Composition, exportResult: ExportResult) {

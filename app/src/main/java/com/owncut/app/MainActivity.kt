@@ -1571,8 +1571,12 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         startActivityForResult(intent, REQUEST_EXPORT_VIDEO)
     }
 
-    private fun startTimelineExport(destination: Uri?, requestedRoute: ExportRoute=ExportRoute.SHIPPING) {
+    private fun startTimelineExport(destination: Uri?, requestedRoute: ExportRoute=ExportRoute.SHIPPING, chosenMime: String?=null) {
         if (projectIoBusy) return
+        if (chosenMime == null) {
+            askExportFormat { mime -> startTimelineExport(destination, requestedRoute, mime) }
+            return
+        }
         val exportClips=try { engine?.clips().orEmpty().toList() } catch(error: Exception) {
             showError(error)
             return
@@ -1603,15 +1607,15 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                 .setMessage(AppLanguage.text(R.string.message_73a9853a46, plan.omittedGapFrames, omittedGapMs))
                 .setNegativeButton(AppLanguage.text(R.string.message_ca21daf138)) { _, _ -> destination?.let { deleteFailedExportDocument(it) } }
                 .setOnCancelListener { destination?.let { deleteFailedExportDocument(it) } }
-                .setPositiveButton(AppLanguage.text(R.string.message_8cee3592bb)) { _, _ -> beginTimelineExport(destination, plan, route) }
+                .setPositiveButton(AppLanguage.text(R.string.message_8cee3592bb)) { _, _ -> beginTimelineExport(destination, plan, route, videoMime = chosenMime) }
                 .show()
         } else {
-            beginTimelineExport(destination, plan, route)
+            beginTimelineExport(destination, plan, route, videoMime = chosenMime)
         }
     }
 
     private fun beginTimelineExport(destination: Uri?, plan: TimelineRemuxExporter.Plan,
-        route: ExportRoute=ExportRoute.SHIPPING, interpretMissing: Boolean=false) {
+        route: ExportRoute=ExportRoute.SHIPPING, interpretMissing: Boolean=false, videoMime: String=ExportVideoFormat.H264) {
         if (projectIoBusy) return
         val cancellation = AtomicBoolean(false)
         exportCancellation = cancellation
@@ -1654,20 +1658,20 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                     if (useRichPipeline) {
                         TimelineRenderExporter.exportRichGraded(
                             this@MainActivity, plan, "explicit-candidate-${System.nanoTime()}",
-                            richDoc, allClipsSnapshot, trackInfos, temporary, cancellation, interpretMissing, onProgress
+                            richDoc, allClipsSnapshot, trackInfos, temporary, cancellation, interpretMissing, videoMime, onProgress
                         )
                     } else {
                         TimelineRenderExporter.exportGradedCandidate(this@MainActivity,plan,
-                            "explicit-candidate-${System.nanoTime()}",temporary,cancellation,interpretMissing,onProgress)
+                            "explicit-candidate-${System.nanoTime()}",temporary,cancellation,interpretMissing,videoMime,onProgress)
                     }
                 } else {
                     if (useRichPipeline) {
                         TimelineRenderExporter.exportRich(
                             this@MainActivity, plan, richDoc, allClipsSnapshot, trackInfos,
-                            temporary, cancellation, onProgress
+                            temporary, cancellation, videoMime, onProgress
                         )
                     } else {
-                        TimelineRenderExporter.export(this@MainActivity,plan,temporary,cancellation,onProgress)
+                        TimelineRenderExporter.export(this@MainActivity,plan,temporary,cancellation,videoMime,onProgress)
                     }
                 }
                 if (destination == null) {
@@ -1710,22 +1714,33 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                         cancelExportButton.text = AppLanguage.text(R.string.message_90f2b63925)
                         statusText.text = resultMessage
                         failureReport?.let { showExportFailureDetails(it) }
-                        if (needsInterpretation) confirmInterpretMissingExport(destination, plan, route)
+                        if (needsInterpretation) confirmInterpretMissingExport(destination, plan, route, videoMime)
                     }
                 }
             }
         }
     }
 
+    /** Only MP4 with H.264 or HEVC is offered; other containers and codecs stay unavailable until implemented. */
+    private fun askExportFormat(onChosen: (String) -> Unit) {
+        if (isFinishing || isDestroyed) return
+        val labels = arrayOf<CharSequence>(AppLanguage.text(R.string.export_format_h264), AppLanguage.text(R.string.export_format_hevc))
+        AlertDialog.Builder(this)
+            .setTitle(AppLanguage.text(R.string.export_format_title))
+            .setItems(labels) { _, which -> onChosen(if (which == 0) ExportVideoFormat.H264 else ExportVideoFormat.HEVC) }
+            .setNegativeButton(AppLanguage.text(R.string.message_ca21daf138), null)
+            .show()
+    }
+
     /** Explicit per-export consent for interpreting missing color tags; cancel keeps the export blocked. */
-    private fun confirmInterpretMissingExport(destination: Uri?, plan: TimelineRemuxExporter.Plan, route: ExportRoute) {
+    private fun confirmInterpretMissingExport(destination: Uri?, plan: TimelineRemuxExporter.Plan, route: ExportRoute, videoMime: String) {
         if (projectIoBusy || isFinishing || isDestroyed) return
         AlertDialog.Builder(this)
             .setTitle(AppLanguage.text(R.string.color_input_title))
             .setMessage(AppLanguage.text(R.string.color_input_warning))
             .setNegativeButton(AppLanguage.text(R.string.message_ca21daf138), null)
             .setPositiveButton(AppLanguage.text(R.string.color_input_assume)) { _, _ ->
-                beginTimelineExport(destination, plan, route, interpretMissing = true)
+                beginTimelineExport(destination, plan, route, interpretMissing = true, videoMime = videoMime)
             }.show()
     }
 
