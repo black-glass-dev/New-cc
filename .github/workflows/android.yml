@@ -72,6 +72,17 @@ jobs:
           fi
       - name: Install pinned Android SDK components
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "ndk;28.2.13676358" "cmake;3.22.1"
+      - name: Cache LGPL FFmpeg build for Android
+        id: ffmpeg-cache
+        uses: actions/cache@v4
+        with:
+          path: build_ffmpeg
+          key: ffmpeg-n8.1.3-android-${{ hashFiles('scripts/build_ffmpeg_android.sh') }}
+      - name: Build LGPL FFmpeg for Android (cache miss)
+        if: steps.ffmpeg-cache.outputs.cache-hit != 'true'
+        run: scripts/build_ffmpeg_android.sh "$ANDROID_HOME/ndk/28.2.13676358" "$GITHUB_WORKSPACE/build_ffmpeg" arm64-v8a x86_64
+      - name: Point Gradle at the FFmpeg build
+        run: echo "OWNCUT_FFMPEG_ROOT=$GITHUB_WORKSPACE/build_ffmpeg" >> "$GITHUB_ENV"
       - name: Check original signing identity before building a candidate
         if: steps.signing.outputs.ready == 'true'
         env:

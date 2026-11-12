@@ -279,9 +279,6 @@
     <string name="checkpoint_repaired">নষ্ট চেকপয়েন্ট রেকর্ড archive হয়েছে। Project ও recovery বদলায়নি; আবার সেভ করা যাবে।</string>
     <string name="checkpoint_no_repair">মেরামতের প্রয়োজন এমন নষ্ট চেকপয়েন্ট রেকর্ড নেই।</string>
     <string name="color_export_interpret_needed">কিছু graded উৎসে রঙের ট্যাগ নেই। এনকোড শুরুর আগেই export থেমেছে; ব্যাখ্যা করবেন কি না আপনি ঠিক করুন।</string>
-    <string name="export_format_title">Export format (এখন শুধু MP4)</string>
-    <string name="export_format_h264">MP4 · H.264</string>
-    <string name="export_format_hevc">MP4 · HEVC (ডিভাইসের encoder লাগবে)</string>
     <string name="color_graded_sdr_only">graded export এখন শুধু SDR Rec.709 উৎসের জন্য। HDR, PQ/HLG, অজানা বা পরস্পরবিরোধী রঙের উৎস বন্ধ থাকবে।</string>
     <string name="color_grade_export_pending">লুক হারানো ঠেকাতে সাধারণ graded export এখনও সুরক্ষিত রাখা হয়েছে। Android 10+ হলে এই বিস্তারিত dialog থেকে আলাদা সম্মতিসহ পরীক্ষামূলক graded export বেছে নেওয়া যাবে।</string>
     <string name="color_grade_preview_pending">সংরক্ষিত গ্রেড guarded main viewer ব্যবহার করে। decoder ব্যর্থ হলে ungraded ছবি সফল ফল হিসেবে না দেখিয়ে সমস্যা জানানো হবে।</string>
@@ -446,4 +443,11 @@
     <string name="pro_reset">রিসেট</string>
     <string name="pro_close">বন্ধ করুন</string>
     <string name="pro_select_clip_first">প্রথমে টাইমলাইনে একটি ক্লিপ নির্বাচন করুন।</string>
+    <string name="export_format_title">Export format (Container)</string>
+    <string name="export_format_mp4_h264">MP4 · H.264</string>
+    <string name="export_format_mp4_hevc">MP4 · HEVC (ডিভাইসের encoder লাগবে)</string>
+    <string name="export_format_mov_h264">MOV · H.264 (remux, পুনরায় encode নয়)</string>
+    <string name="export_format_mov_hevc">MOV · HEVC (remux, ডিভাইসের encoder লাগবে)</string>
+    <string name="export_format_mkv_h264">MKV · H.264 (remux, পুনরায় encode নয়)</string>
+    <string name="export_format_mkv_hevc">MKV · HEVC (remux, ডিভাইসের encoder লাগবে)</string>
 </resources>

@@ -1558,23 +1558,27 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             startTimelineExport(null)
         } else {
-            launchExportDocumentPicker()
+            // Choose the container first so the save dialog offers the matching MIME type and extension.
+            askExportFormat { format -> launchExportDocumentPicker(format) }
         }
     }
 
-    private fun launchExportDocumentPicker() {
+    private var pendingExportFormat: String? = null
+
+    private fun launchExportDocumentPicker(format: String) {
+        pendingExportFormat = format
         val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
-            type = "video/mp4"
-            putExtra(Intent.EXTRA_TITLE, "Owncut-edited.mp4")
+            type = ExportVideoFormat.publishMime(format)
+            putExtra(Intent.EXTRA_TITLE, "Owncut-edited.${ExportVideoFormat.container(format)}")
         }
         startActivityForResult(intent, REQUEST_EXPORT_VIDEO)
     }
 
-    private fun startTimelineExport(destination: Uri?, requestedRoute: ExportRoute=ExportRoute.SHIPPING, chosenMime: String?=null) {
+    private fun startTimelineExport(destination: Uri?, requestedRoute: ExportRoute=ExportRoute.SHIPPING, chosenFormat: String?=null) {
         if (projectIoBusy) return
-        if (chosenMime == null) {
-            askExportFormat { mime -> startTimelineExport(destination, requestedRoute, mime) }
+        if (chosenFormat == null) {
+            askExportFormat { format -> startTimelineExport(destination, requestedRoute, format) }
             return
         }
         val exportClips=try { engine?.clips().orEmpty().toList() } catch(error: Exception) {
@@ -1607,15 +1611,15 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                 .setMessage(AppLanguage.text(R.string.message_73a9853a46, plan.omittedGapFrames, omittedGapMs))
                 .setNegativeButton(AppLanguage.text(R.string.message_ca21daf138)) { _, _ -> destination?.let { deleteFailedExportDocument(it) } }
                 .setOnCancelListener { destination?.let { deleteFailedExportDocument(it) } }
-                .setPositiveButton(AppLanguage.text(R.string.message_8cee3592bb)) { _, _ -> beginTimelineExport(destination, plan, route, videoMime = chosenMime) }
+                .setPositiveButton(AppLanguage.text(R.string.message_8cee3592bb)) { _, _ -> beginTimelineExport(destination, plan, route, videoFormat = chosenFormat) }
                 .show()
         } else {
-            beginTimelineExport(destination, plan, route, videoMime = chosenMime)
+            beginTimelineExport(destination, plan, route, videoFormat = chosenFormat)
         }
     }
 
     private fun beginTimelineExport(destination: Uri?, plan: TimelineRemuxExporter.Plan,
-        route: ExportRoute=ExportRoute.SHIPPING, interpretMissing: Boolean=false, videoMime: String=ExportVideoFormat.H264) {
+        route: ExportRoute=ExportRoute.SHIPPING, interpretMissing: Boolean=false, videoFormat: String=ExportVideoFormat.MP4_H264) {
         if (projectIoBusy) return
         val cancellation = AtomicBoolean(false)
         exportCancellation = cancellation
@@ -1625,8 +1629,9 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         cancelExportButton.text = AppLanguage.text(R.string.message_90f2b63925)
         cancelExportButton.isEnabled = true
         statusText.text = AppLanguage.text(R.string.message_d7e376c6eb)
+        val codecMime = ExportVideoFormat.codecMime(videoFormat)
         exportExecutor.execute {
-            val temporary = File(cacheDir, "owncut-export-${System.nanoTime()}.mp4")
+            var temporary = File(cacheDir, "owncut-export-${System.nanoTime()}.mp4")
             var resultMessage = if (plan.omittedGapFrames > 0L) {
                 AppLanguage.text(R.string.message_21bed82a7e)
             } else {
@@ -1658,26 +1663,34 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                     if (useRichPipeline) {
                         TimelineRenderExporter.exportRichGraded(
                             this@MainActivity, plan, "explicit-candidate-${System.nanoTime()}",
-                            richDoc, allClipsSnapshot, trackInfos, temporary, cancellation, interpretMissing, videoMime, onProgress
+                            richDoc, allClipsSnapshot, trackInfos, temporary, cancellation, interpretMissing, codecMime, onProgress
                         )
                     } else {
                         TimelineRenderExporter.exportGradedCandidate(this@MainActivity,plan,
-                            "explicit-candidate-${System.nanoTime()}",temporary,cancellation,interpretMissing,videoMime,onProgress)
+                            "explicit-candidate-${System.nanoTime()}",temporary,cancellation,interpretMissing,codecMime,onProgress)
                     }
                 } else {
                     if (useRichPipeline) {
                         TimelineRenderExporter.exportRich(
                             this@MainActivity, plan, richDoc, allClipsSnapshot, trackInfos,
-                            temporary, cancellation, videoMime, onProgress
+                            temporary, cancellation, codecMime, onProgress
                         )
                     } else {
-                        TimelineRenderExporter.export(this@MainActivity,plan,temporary,cancellation,videoMime,onProgress)
+                        TimelineRenderExporter.export(this@MainActivity,plan,temporary,cancellation,codecMime,onProgress)
                     }
+                }
+                val container = ExportVideoFormat.container(videoFormat)
+                if (container != "mp4") {
+                    // Stream copy of the finished MP4 into MOV or Matroska; no re-encode.
+                    val remuxed = File(cacheDir, "owncut-remux-${System.nanoTime()}.$container")
+                    FfmpegRemux.remux(temporary, remuxed, container)
+                    temporary.delete()
+                    temporary = remuxed
                 }
                 if (destination == null) {
                     failureStage=ExportFailureReport.Stage.PUBLISHING_GALLERY
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        publishExportToGallery(temporary, cancellation)
+                        publishExportToGallery(temporary, cancellation, videoFormat)
                     } else {
                         error(AppLanguage.text(R.string.message_ebab316ada))
                     }
@@ -1714,33 +1727,43 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                         cancelExportButton.text = AppLanguage.text(R.string.message_90f2b63925)
                         statusText.text = resultMessage
                         failureReport?.let { showExportFailureDetails(it) }
-                        if (needsInterpretation) confirmInterpretMissingExport(destination, plan, route, videoMime)
+                        if (needsInterpretation) confirmInterpretMissingExport(destination, plan, route, videoFormat)
                     }
                 }
             }
         }
     }
 
-    /** Only MP4 with H.264 or HEVC is offered; other containers and codecs stay unavailable until implemented. */
+    /** MP4, MOV and MKV with H.264 or HEVC. Gallery publishing still needs Android 10+ (unchanged). */
     private fun askExportFormat(onChosen: (String) -> Unit) {
         if (isFinishing || isDestroyed) return
-        val labels = arrayOf<CharSequence>(AppLanguage.text(R.string.export_format_h264), AppLanguage.text(R.string.export_format_hevc))
+        val offered = ExportVideoFormat.ALL
+        val labels = offered.map { AppLanguage.text(formatLabel(it)) }.toTypedArray<CharSequence>()
         AlertDialog.Builder(this)
             .setTitle(AppLanguage.text(R.string.export_format_title))
-            .setItems(labels) { _, which -> onChosen(if (which == 0) ExportVideoFormat.H264 else ExportVideoFormat.HEVC) }
+            .setItems(labels) { _, which -> onChosen(offered[which]) }
             .setNegativeButton(AppLanguage.text(R.string.message_ca21daf138), null)
             .show()
     }
 
+    private fun formatLabel(format: String): Int = when (format) {
+        ExportVideoFormat.MP4_H264 -> R.string.export_format_mp4_h264
+        ExportVideoFormat.MP4_HEVC -> R.string.export_format_mp4_hevc
+        ExportVideoFormat.MOV_H264 -> R.string.export_format_mov_h264
+        ExportVideoFormat.MOV_HEVC -> R.string.export_format_mov_hevc
+        ExportVideoFormat.MKV_H264 -> R.string.export_format_mkv_h264
+        else -> R.string.export_format_mkv_hevc
+    }
+
     /** Explicit per-export consent for interpreting missing color tags; cancel keeps the export blocked. */
-    private fun confirmInterpretMissingExport(destination: Uri?, plan: TimelineRemuxExporter.Plan, route: ExportRoute, videoMime: String) {
+    private fun confirmInterpretMissingExport(destination: Uri?, plan: TimelineRemuxExporter.Plan, route: ExportRoute, videoFormat: String) {
         if (projectIoBusy || isFinishing || isDestroyed) return
         AlertDialog.Builder(this)
             .setTitle(AppLanguage.text(R.string.color_input_title))
             .setMessage(AppLanguage.text(R.string.color_input_warning))
             .setNegativeButton(AppLanguage.text(R.string.message_ca21daf138), null)
             .setPositiveButton(AppLanguage.text(R.string.color_input_assume)) { _, _ ->
-                beginTimelineExport(destination, plan, route, interpretMissing = true, videoMime = videoMime)
+                beginTimelineExport(destination, plan, route, interpretMissing = true, videoFormat = videoFormat)
             }.show()
     }
 
@@ -1773,8 +1796,10 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
 
     /** Publish only a validated MP4; keep the Gallery row hidden until the copy closes. */
     @android.annotation.TargetApi(Build.VERSION_CODES.Q)
-    private fun publishExportToGallery(file: File, cancellation: AtomicBoolean) {
-        ExportPublication.publish(file, cancellation) { GalleryPendingOutput.create(this) }
+    private fun publishExportToGallery(file: File, cancellation: AtomicBoolean, videoFormat: String) {
+        ExportPublication.publish(file, cancellation) {
+            GalleryPendingOutput.create(this, ExportVideoFormat.container(videoFormat), ExportVideoFormat.publishMime(videoFormat))
+        }
     }
 
     private fun deleteFailedExportDocument(destination: Uri): Boolean = try {
@@ -1959,7 +1984,11 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
             }
             REQUEST_PROJECT_SAVE -> saveProjectToDocument(uri)
             REQUEST_PROJECT_OPEN -> confirmOpenProjectDocument(uri)
-            REQUEST_EXPORT_VIDEO -> startTimelineExport(uri)
+            REQUEST_EXPORT_VIDEO -> {
+                val format = pendingExportFormat
+                pendingExportFormat = null
+                startTimelineExport(uri, ExportRoute.SHIPPING, format)
+            }
         }
     }
 

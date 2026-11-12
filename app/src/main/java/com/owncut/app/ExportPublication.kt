@@ -87,11 +87,11 @@ internal class GalleryPendingOutput private constructor(
     override fun discard(): Boolean = context.contentResolver.delete(uri, null, null) == 1
 
     companion object {
-        fun create(context: Context): GalleryPendingOutput {
+        fun create(context: Context, extension: String = "mp4", mime: String = "video/mp4"): GalleryPendingOutput {
             val app = context.applicationContext
             val values = ContentValues().apply {
-                put(MediaStore.Video.Media.DISPLAY_NAME, "Owncut-edited-${System.currentTimeMillis()}.mp4")
-                put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
+                put(MediaStore.Video.Media.DISPLAY_NAME, "Owncut-edited-${System.currentTimeMillis()}.$extension")
+                put(MediaStore.Video.Media.MIME_TYPE, mime)
                 put(MediaStore.Video.Media.RELATIVE_PATH, "${Environment.DIRECTORY_MOVIES}/Owncut")
                 put(MediaStore.Video.Media.IS_PENDING, 1)
             }

@@ -5,10 +5,23 @@ package com.owncut.app
 /** Raised by the export worker when a graded source needs an explicit user choice for missing color tags. */
 internal class ColorTagsInterpretationRequired : IllegalStateException("Missing color tags need explicit interpretation")
 
-/** Video encoders available through the platform Transformer. Other containers/codecs are not offered yet. */
+/** Format ids are "container:codecMime". MOV and MKV are stream-copy remuxes of the MP4 export (LGPL FFmpeg).
+ * ProRes, DNxHR, AV1 and 10-bit are not offered yet. */
 internal object ExportVideoFormat {
-    const val H264 = "video/avc"
-    const val HEVC = "video/hevc"
+    const val MP4_H264 = "mp4:video/avc"
+    const val MP4_HEVC = "mp4:video/hevc"
+    const val MOV_H264 = "mov:video/avc"
+    const val MOV_HEVC = "mov:video/hevc"
+    const val MKV_H264 = "mkv:video/avc"
+    const val MKV_HEVC = "mkv:video/hevc"
+    val ALL = listOf(MP4_H264, MP4_HEVC, MOV_H264, MOV_HEVC, MKV_H264, MKV_HEVC)
+    fun container(format: String) = format.substringBefore(':')
+    fun codecMime(format: String) = format.substringAfter(':')
+    fun publishMime(format: String) = when (container(format)) {
+        "mov" -> "video/quicktime"
+        "mkv" -> "video/x-matroska"
+        else -> "video/mp4"
+    }
 }
 
 internal enum class ExportRoute { SHIPPING, GRADED_SDR_MP4, EXPERIMENTAL_GRADED }
