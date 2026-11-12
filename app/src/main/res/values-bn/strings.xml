@@ -450,4 +450,5 @@
     <string name="export_format_mov_hevc">MOV · HEVC (remux, ডিভাইসের encoder লাগবে)</string>
     <string name="export_format_mkv_h264">MKV · H.264 (remux, পুনরায় encode নয়)</string>
     <string name="export_format_mkv_hevc">MKV · HEVC (remux, ডিভাইসের encoder লাগবে)</string>
+    <string name="export_format_mxf_h264">MXF · H.264 (remux, audio 48 kHz PCM, শুধু ফাইলে সেভ)</string>
 </resources>

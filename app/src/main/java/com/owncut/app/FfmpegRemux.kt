@@ -6,9 +6,9 @@ import java.io.File
 internal object FfmpegRemux {
     init { System.loadLibrary("owncut_android") }
 
-    /** container: "mov" or "mkv". Throws IllegalStateException with the native reason on failure. */
+    /** container: "mov", "mkv" or "mxf". Throws IllegalStateException with the native reason on failure. */
     fun remux(input: File, output: File, container: String) {
-        require(container == "mov" || container == "mkv") { "unsupported container: $container" }
+        require(container == "mov" || container == "mkv" || container == "mxf") { "unsupported container: $container" }
         val error = nativeRemux(input.absolutePath, output.absolutePath, container)
         if (error != null) {
             output.delete()

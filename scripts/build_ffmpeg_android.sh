@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Builds a minimal LGPL-only FFmpeg for Android. No --enable-gpl, no external codec libraries.
-# Enabled: file protocol, mov/matroska/mp4 muxers, mov/matroska demuxers, h264/hevc parsers.
-# Used for stream-copy remux of the platform-encoded MP4 into MOV or Matroska.
+# Enabled: file protocol, mov/matroska/mxf/mp4 muxers, mov/matroska demuxers, h264/hevc parsers,
+# AAC decoder, libswresample and the h264_mp4toannexb bitstream filter.
+# Used for stream-copy remux of the platform-encoded MP4 into MOV, Matroska or MXF
+# (MXF audio is AAC decoded and resampled to 48 kHz PCM).
 #
 # Usage: scripts/build_ffmpeg_android.sh <ndk-dir> <out-dir> [abi ...]
 # Output: <out-dir>/<abi>/{include,lib}  (static libraries, PIC, linked into owncut_android)
@@ -96,7 +98,7 @@ for ABI in "${ABIS[@]}"; do
       --disable-avdevice \
       --disable-avfilter \
       --disable-swscale \
-      --disable-swresample \
+      --enable-swresample \
       --disable-shared \
       --enable-static \
       --enable-pic \
@@ -105,8 +107,10 @@ for ABI in "${ABIS[@]}"; do
       --enable-avutil \
       --enable-protocol=file \
       --enable-demuxer=mov,matroska \
-      --enable-muxer=mov,matroska,mp4 \
+      --enable-muxer=mov,matroska,mp4,mxf \
       --enable-parser=h264,hevc \
+      --enable-decoder=aac \
+      --enable-bsf=h264_mp4toannexb \
       "${EXTRA[@]}" > configure.log 2>&1 || { tail -n 80 configure.log; false; }
     make -j"$(nproc)" > build.log 2>&1 || { tail -n 80 build.log; false; }
     make install > install.log 2>&1
@@ -115,6 +119,7 @@ for ABI in "${ABIS[@]}"; do
   test -f "$PREFIX/lib/libavformat.a"
   test -f "$PREFIX/lib/libavcodec.a"
   test -f "$PREFIX/lib/libavutil.a"
+  test -f "$PREFIX/lib/libswresample.a"
   printf '%s %s\n' "$FFMPEG_TAG" "$FFMPEG_SHA256" > "$PREFIX/FFMPEG_VERSION"
   echo "built FFmpeg ${FFMPEG_TAG} for ${ABI} -> ${PREFIX}"
 done

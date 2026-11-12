@@ -1,27 +1,40 @@
 # Export containers and codecs: verified status
 
 Media3 1.8.1 (`androidx/media` tag 1.8.1, `libraries/transformer`) only muxes MP4
-(`FrameworkMuxer` uses `MUXER_OUTPUT_MPEG_4`). MOV and MKV therefore cannot come from Transformer.
+(`FrameworkMuxer` uses `MUXER_OUTPUT_MPEG_4`). MOV, MKV and MXF therefore come from a
+native FFmpeg remux of the finished MP4 export (`FfmpegRemux`, `ffmpeg_remux_jni.cpp`).
 
-| Format | Status | How it is produced |
-| --- | --- | --- |
-| MP4 + H.264 | Offered | Transformer, `setVideoMimeType(VIDEO_H264)` |
-| MP4 + HEVC | Offered; needs a device HEVC encoder, no silent fallback | Transformer, `VIDEO_H265` |
-| MOV + H.264 / HEVC | Offered (implementation added; device not tested) | Transformer MP4 export, then a stream-copy remux with the LGPL FFmpeg `mov` muxer (`FfmpegRemux`, `ffmpeg_remux_jni.cpp`). No re-encode. |
-| MKV + H.264 / HEVC | Offered (implementation added; device not tested) | Same as MOV, using the FFmpeg `matroska` muxer |
-| MXF, WEBM | Not offered | Not built. Muxers exist in FFmpeg n8.1.3 but are not enabled in `scripts/build_ffmpeg_android.sh` |
-| ProRes, DNxHR | Not offered | FFmpeg has `prores_ks` but it is not enabled. Needs an encoder configuration and device tests |
-| AV1 | Not offered | No encoder enabled |
-| 10-bit HEVC | Not offered | Needs a 10-bit encoder configuration and device tests |
+| Format | Status | How it is produced | Host test |
+| --- | --- | --- | --- |
+| MP4 + H.264 | Offered | Transformer, `VIDEO_H264` | n/a |
+| MP4 + HEVC | Offered; needs a device HEVC encoder, no silent fallback | Transformer, `VIDEO_H265` | n/a |
+| MOV + H.264 / HEVC | Offered | Stream copy of all streams, `mov` muxer, brand `qt` | H.264 and HEVC decode, frames identical to source |
+| MKV + H.264 / HEVC | Offered | Stream copy, `matroska` muxer | H.264 frames identical to source; first pts starts one frame later |
+| MXF + H.264 | Offered, file save only | Video stream copy; AAC decoded and resampled to 48 kHz 16-bit PCM | Decodes; audio level matches source; refused for B-frame H.264 |
+| MXF + HEVC | Not offered | The FFmpeg MXF muxer has no HEVC essence mapping | - |
+| WEBM | Not offered | VP8/VP9/AV1 only. Needs a VP9/AV1 encoder, which this build does not have | - |
+| ProRes, DNxHR | Not offered | `prores_ks` and `dnxhd` exist in FFmpeg but are not enabled. Needs decode and encode of graded frames | - |
+| AV1 | Not offered | No AV1 encoder enabled | - |
+| 10-bit HEVC | Not offered | Needs 10-bit encoder configuration and device tests | - |
+
+"Host test" means the same C++ as the app, compiled with a host FFmpeg of the same configuration,
+run against a generated MP4 (H.264 + AAC, or H.264 without B-frames). The device path is not tested.
 
 ## FFmpeg build
 - Version `n8.1.3`, sha256 `09f990289327d3ebfedf4fc15cae3f884a65dab7a5aac7bbb5b01ff83900efd9`.
 - LGPL v2.1+. No `--enable-gpl`, no external codec libraries.
 - Built by `scripts/build_ffmpeg_android.sh` for `arm64-v8a` and `x86_64` into `build_ffmpeg/`
   (git-ignored). CI caches it and sets `OWNCUT_FFMPEG_ROOT`. The CMake Android build fails without it.
+- Enabled: `mov`, `matroska`, `mxf`, `mp4` muxers; `mov`, `matroska` demuxers; `h264`, `hevc` parsers;
+  `aac` decoder; `swresample`; `h264_mp4toannexb` bitstream filter; `file` protocol.
 - Adds size to the APK. The exact size is not measured here.
 
-## Limits
-- The remux copies streams as they are, so the MP4 must already hold the chosen codec.
+## Limits found by host tests
+- The MXF muxer in FFmpeg 8.1 drops the final frame when the H.264 has B-frames (the CLI does the same).
+  The app refuses such input with a message instead of shortening the video.
+- The MXF muxer accepts only 48 kHz PCM, so the audio is resampled.
+- The MP4 demuxer leaves the video pixel format unset. MXF needs it, so `yuv420p` is declared
+  for MXF output (the export encoder produces 8-bit 4:2:0).
+- MXF is not published to the gallery. The save dialog is used.
 - Cancellation is not checked during the remux. It is a fast stream copy, but a long file is not interruptible.
-- Device output, playback in other apps, and the color result of the remuxed file are not verified here.
+- Device playback, MediaStore publishing, and colour in the remuxed files are not verified.

@@ -1556,7 +1556,11 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         // Plan/grade validation belongs to startTimelineExport, which also presents the
         // explicit experimental route. A duplicate guard here made that dialog unreachable.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startTimelineExport(null)
+            askExportFormat { format ->
+                // MXF is not published to the gallery in this build; it is saved through the file picker.
+                if (ExportVideoFormat.container(format) == "mxf") launchExportDocumentPicker(format)
+                else startTimelineExport(null, ExportRoute.SHIPPING, format)
+            }
         } else {
             // Choose the container first so the save dialog offers the matching MIME type and extension.
             askExportFormat { format -> launchExportDocumentPicker(format) }
@@ -1752,6 +1756,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         ExportVideoFormat.MOV_H264 -> R.string.export_format_mov_h264
         ExportVideoFormat.MOV_HEVC -> R.string.export_format_mov_hevc
         ExportVideoFormat.MKV_H264 -> R.string.export_format_mkv_h264
+        ExportVideoFormat.MXF_H264 -> R.string.export_format_mxf_h264
         else -> R.string.export_format_mkv_hevc
     }
 
