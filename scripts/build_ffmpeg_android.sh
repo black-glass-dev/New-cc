@@ -123,7 +123,7 @@ for ABI in "${ABIS[@]}"; do
       --nm="$TOOLCHAIN/bin/llvm-nm" \
       --sysroot="$SYSROOT" \
       --extra-cflags="-fPIC -I${KVZ_PREFIX}/include" \
-      --extra-libs="-lm -lpthread" \
+      --extra-libs="-lm"  # bionic provides pthread in libc \
       --disable-everything \
       --disable-programs \
       --disable-doc \
