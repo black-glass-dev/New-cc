@@ -109,6 +109,12 @@ jobs:
           if [ -f app/build/diagnostics/gradle-build.log ]; then
             grep -E '^(FAILURE:|\* What went wrong:|Execution failed for task|e: |Could not resolve|Could not find|> Task .* FAILED|Caused by:)' app/build/diagnostics/gradle-build.log | tail -n 30 | while IFS= read -r line; do echo "::error::$line"; done
           fi
+      - name: Surface native compiler and linker errors in check annotations
+        if: failure()
+        run: |
+          if [ -f app/build/diagnostics/gradle-build.log ]; then
+            grep -E 'error:|undefined reference|ld\.lld|FAILED: |ninja: build stopped' app/build/diagnostics/gradle-build.log | tail -n 40 | cut -c1-400 | while IFS= read -r line; do echo "::error::$line"; done
+          fi
       - name: Verify APK zip alignment
         run: |
           "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c -P 16 -v 4 app/build/outputs/apk/debug/app-debug.apk
