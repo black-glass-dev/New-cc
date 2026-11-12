@@ -16,10 +16,10 @@ import java.io.File
 internal object Hevc10Export {
     const val HEVC_MIME = "video/hevc"
     /** Format-id marker. Not a real MIME type; the exporter maps it to [HEVC_MIME]. */
-    const val HEVC10_MIME = "video/hevc10"
+    const val HEVC10_MIME = Hevc10Codec.HEVC10_MIME
     const val MAIN10_PROFILE_IDC = 2
 
-    fun isHevc10(codecMime: String) = codecMime == HEVC10_MIME
+    fun isHevc10(codecMime: String) = Hevc10Codec.isHevc10(codecMime)
 
     /** The MIME type handed to Transformer. */
     fun transformerMime(codecMime: String) = if (isHevc10(codecMime)) HEVC_MIME else codecMime

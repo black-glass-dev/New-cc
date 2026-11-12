@@ -8,7 +8,7 @@ class ColorRouteWiring(unittest.TestCase):
     def test_launcher_does_not_swallow_active_grade_before_details(self):
         code=(ROOT/'MainActivity.kt').read_text()
         launcher=code.split('private fun launchExportPicker()',1)[1].split('private fun launchExportDocumentPicker',1)[0]
-        self.assertIn('startTimelineExport(null)',launcher)
+        self.assertIn('startTimelineExport(null, ExportRoute.SHIPPING, format)',launcher)
         self.assertNotIn('TimelineRemuxExporter.makePlan',launcher)
         self.assertIn('requireShippingExportSupported(plan)',code)
         self.assertIn('confirmExperimentalExport()',code)

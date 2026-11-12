@@ -29,9 +29,9 @@ internal object ExportVideoFormat {
     /** ProRes and DNxHR are encoded by FFmpeg from the platform H.264 export (a second generation). */
     fun isTranscoded(format: String) = codecMime(format) == "prores422" || codecMime(format) == "dnxhr_hq"
     /** HEVC 8-bit or 10-bit formats: hardware Transformer first, software kvazaar when the device has no encoder. */
-    fun isHevcFamily(format: String) = codecMime(format).let { it == "video/hevc" || it == Hevc10Export.HEVC10_MIME }
+    fun isHevcFamily(format: String) = codecMime(format).let { it == "video/hevc" || it == Hevc10Codec.HEVC10_MIME }
     /** The software codec id for the FFmpeg transcode of an H.264 export. */
-    fun softwareHevcCodec(format: String) = if (Hevc10Export.isHevc10(codecMime(format))) "hevc10" else "hevc8"
+    fun softwareHevcCodec(format: String) = if (Hevc10Codec.isHevc10(codecMime(format))) "hevc10" else "hevc8"
     /** The codec the platform Transformer encodes. Transcoded formats start from H.264. */
     fun encoderMime(format: String) = if (isTranscoded(format)) "video/avc" else codecMime(format)
     fun publishMime(format: String) = when (container(format)) {
@@ -40,6 +40,13 @@ internal object ExportVideoFormat {
         "mxf" -> "application/mxf"
         else -> "video/mp4"
     }
+}
+
+/** Pure format-id marker for 10-bit HEVC (no Android dependency, so host tests can use it).
+ * Not a real MIME type; the exporter maps it to video/hevc. */
+internal object Hevc10Codec {
+    const val HEVC10_MIME = "video/hevc10"
+    fun isHevc10(codecMime: String) = codecMime == HEVC10_MIME
 }
 
 internal enum class ExportRoute { SHIPPING, GRADED_SDR_MP4, EXPERIMENTAL_GRADED }
