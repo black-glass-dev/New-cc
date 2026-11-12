@@ -43,7 +43,7 @@ report_failure() {
   # kvazaar logs (written before configure) so that a kvazaar failure is visible in the annotation.
   for log in "$WORK"/kvazaar-*.log; do
     if [[ -f "$log" ]]; then
-      tail_text+="== ${log##*/} ==\n$(tail -n 60 "$log")\n"
+      tail_text+="== ${log##*/} =="$'\n'"$(tail -n 60 "$log")"$'\n'
     fi
   done
   tail_text="${tail_text:-no build log (failed before configure: exit ${status})}"
@@ -102,7 +102,9 @@ for ABI in "${ABIS[@]}"; do
   KVZ_PREFIX="$WORK/kvazaar-$ABI"
   OBJCOPY="$TOOLCHAIN/bin/llvm-objcopy" "$SCRIPT_DIR/build_kvazaar.sh" "$KVZ_SRC" "$KVZ_PREFIX" \
     -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" \
-    -DANDROID_ABI="$ABI" -DANDROID_PLATFORM="android-${API_LEVEL}" > "$WORK/kvazaar-$ABI.log" 2>&1 \
+    -DANDROID_ABI="$ABI" -DANDROID_PLATFORM="android-${API_LEVEL}" \
+    -DCMAKE_HAVE_LIBC_PTHREAD=1 -DCMAKE_HAVE_THREADS_LIBRARY=1 -DCMAKE_USE_PTHREADS_INIT=1 -DCMAKE_THREAD_LIBS_INIT= \
+    > "$WORK/kvazaar-$ABI.log" 2>&1 \
     || { tail -n 80 "$WORK/kvazaar-$ABI.log"; false; }
   test -f "$KVZ_PREFIX/lib/libkvazaar.a"
 
