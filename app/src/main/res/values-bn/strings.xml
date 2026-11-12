@@ -460,4 +460,5 @@
     <string name="export_format_mkv_hevc10">MKV · HEVC 10-bit (Main 10, ডিভাইসের encoder লাগবে)</string>
     <string name="hevc10_no_encoder">এই ডিভাইসে 10-bit HEVC (Main 10) encoder নেই; কোনো export তৈরি হয়নি।</string>
     <string name="hevc10_refused_output">10-bit HEVC export বাতিল: ফাইলে profile %s ঘোষণা আছে, Main 10 নয়।</string>
+    <string name="hevc_software_note">এই ডিভাইসে HEVC software encoder দিয়ে তৈরি হয়েছে (ধীর হতে পারে, ফাইল ফরম্যাট একই)।</string>
 </resources>

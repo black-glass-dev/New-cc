@@ -9,8 +9,9 @@ import java.io.File
  * 10-bit HEVC (Main 10) export support.
  *
  * Media3 silently drops a requested profile/level when the encoder does not advertise it, so this
- * object (a) refuses before encoding when no HEVC encoder on the device offers Main 10, and
- * (b) reads the hvcC box of the finished file and refuses it unless general_profile_idc is 2.
+ * object (a) tells the caller whether a device HEVC encoder offers Main 10 before encoding (when it
+ * does not, the export uses the software kvazaar route), and (b) reads the hvcC box of the finished
+ * file and refuses it unless general_profile_idc is 2.
  */
 internal object Hevc10Export {
     const val HEVC_MIME = "video/hevc"
@@ -23,11 +24,8 @@ internal object Hevc10Export {
     /** The MIME type handed to Transformer. */
     fun transformerMime(codecMime: String) = if (isHevc10(codecMime)) HEVC_MIME else codecMime
 
-    /**
-     * Picks the Main 10 profile and level to request. Prefers Main tier level 5.1, then 4.1.
-     * Throws IllegalStateException when no device HEVC encoder advertises Main 10.
-     */
-    fun requireEncoderLevel(): Pair<Int, Int> {
+    /** Main-tier level to request for Main 10 (5.1, else 4.1), or null when no device encoder offers it. */
+    fun main10Level(): Int? {
         val advertised = mutableSetOf<Int>()
         for (info in MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos) {
             if (!info.isEncoder) continue
@@ -37,11 +35,21 @@ internal object Hevc10Export {
                 if (pl.profile == MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10) advertised += pl.level
             }
         }
-        val level = when {
+        return when {
             MediaCodecInfo.CodecProfileLevel.HEVCMainTierLevel51 in advertised -> MediaCodecInfo.CodecProfileLevel.HEVCMainTierLevel51
             MediaCodecInfo.CodecProfileLevel.HEVCMainTierLevel41 in advertised -> MediaCodecInfo.CodecProfileLevel.HEVCMainTierLevel41
-            else -> throw IllegalStateException(AppLanguage.text(R.string.hevc10_no_encoder))
+            else -> null
         }
+    }
+
+    /** True when some device HEVC encoder exists (any profile). Used to choose the 8-bit route. */
+    fun deviceHasHevcEncoder(): Boolean = MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.any { info ->
+        info.isEncoder && HEVC_MIME in info.supportedTypes
+    }
+
+    /** The Main 10 profile and level to request. Throws when the device has no Main 10 encoder. */
+    fun requireEncoderLevel(): Pair<Int, Int> {
+        val level = main10Level() ?: throw IllegalStateException(AppLanguage.text(R.string.hevc10_no_encoder))
         return MediaCodecInfo.CodecProfileLevel.HEVCProfileMain10 to level
     }
 

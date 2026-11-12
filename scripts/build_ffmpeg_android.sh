@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
-# Builds a minimal LGPL-only FFmpeg for Android. No --enable-gpl, no external codec libraries.
+# Builds a minimal LGPL-only FFmpeg for Android. No --enable-gpl.
+# External library: kvazaar (BSD-3-Clause HEVC encoder), built per ABI with 8-bit and 10-bit
+# sample storage (scripts/build_kvazaar.sh). FFmpeg's libkvazaar wrapper is patched for yuv420p10le
+# (scripts/patch_ffmpeg_kvazaar.py).
 # Enabled: file protocol, mov/matroska/mxf/mp4 muxers, mov/matroska demuxers, h264/hevc parsers,
-# AAC and H.264 decoders, prores_ks and dnxhd encoders, libswscale, libswresample and the
-# h264_mp4toannexb bitstream filter.
+# AAC and H.264 decoders, prores_ks, dnxhd and libkvazaar encoders, libswscale, libswresample and
+# the h264_mp4toannexb bitstream filter.
 # Used for stream-copy remux of the platform-encoded MP4 into MOV, Matroska or MXF
-# (MXF audio is AAC decoded and resampled to 48 kHz PCM), and for ProRes 422 HQ or DNxHR HQ
-# transcodes of an H.264 MP4 export.
+# (MXF audio is AAC decoded and resampled to 48 kHz PCM), for ProRes 422 HQ or DNxHR HQ
+# transcodes of an H.264 MP4 export, and for software HEVC (8-bit and 10-bit) on devices without a
+# hardware HEVC encoder.
 #
 # Usage: scripts/build_ffmpeg_android.sh <ndk-dir> <out-dir> [abi ...]
 # Output: <out-dir>/<abi>/{include,lib}  (static libraries, PIC, linked into owncut_android)
@@ -13,7 +17,10 @@ set -euo pipefail
 
 FFMPEG_TAG="n8.1.3"
 FFMPEG_SHA256="09f990289327d3ebfedf4fc15cae3f884a65dab7a5aac7bbb5b01ff83900efd9"
+KVAZAAR_TAG="v2.3.1"
+KVAZAAR_SHA256="c5a1699d0bd50bc6bdba485b3438a5681a43d7b2c4fd6311a144740bfa59c9cc"
 API_LEVEL=26
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 NDK="${1:?usage: $0 <ndk-dir> <out-dir> [abi ...]}"
 OUT="${2:?usage: $0 <ndk-dir> <out-dir> [abi ...]}"
@@ -55,6 +62,14 @@ tar -xzf "$ARCHIVE" -C "$WORK"
 SRC="$WORK/FFmpeg-${FFMPEG_TAG}"
 test -x "$SRC/configure"
 
+KVZ_ARCHIVE="$WORK/kvazaar-${KVAZAAR_TAG}.tar.gz"
+curl -sSL --retry 3 -o "$KVZ_ARCHIVE" "https://codeload.github.com/ultravideo/kvazaar/tar.gz/refs/tags/${KVAZAAR_TAG}"
+echo "${KVAZAAR_SHA256}  ${KVZ_ARCHIVE}" | sha256sum -c -
+tar -xzf "$KVZ_ARCHIVE" -C "$WORK"
+KVZ_SRC="$WORK/kvazaar-${KVAZAAR_TAG#v}"
+test -f "$KVZ_SRC/CMakeLists.txt"
+python3 "$SCRIPT_DIR/patch_ffmpeg_kvazaar.py" "$SRC"
+
 HOST_TAG="linux-x86_64"
 TOOLCHAIN="$NDK/toolchains/llvm/prebuilt/$HOST_TAG"
 SYSROOT="$TOOLCHAIN/sysroot"
@@ -77,9 +92,17 @@ for ABI in "${ABIS[@]}"; do
   # The remux needs only AAC decode and resampling, which run fine in C.
   EXTRA=(--disable-asm)
 
+  # kvazaar: 8-bit and 10-bit HEVC in one static archive, built with the NDK toolchain.
+  KVZ_PREFIX="$WORK/kvazaar-$ABI"
+  OBJCOPY="$TOOLCHAIN/bin/llvm-objcopy" "$SCRIPT_DIR/build_kvazaar.sh" "$KVZ_SRC" "$KVZ_PREFIX" \
+    -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" \
+    -DANDROID_ABI="$ABI" -DANDROID_PLATFORM="android-${API_LEVEL}" > "$WORK/kvazaar-$ABI.log" 2>&1 \
+    || { tail -n 80 "$WORK/kvazaar-$ABI.log"; false; }
+  test -f "$KVZ_PREFIX/lib/libkvazaar.a"
+
   (
     cd "$BUILD"
-    "$SRC/configure" \
+    PKG_CONFIG_PATH="${KVZ_PREFIX}/lib/pkgconfig" "$SRC/configure" \
       --prefix="$PREFIX" \
       --target-os=android \
       --arch="$ARCH" \
@@ -91,7 +114,8 @@ for ABI in "${ABIS[@]}"; do
       --strip="$TOOLCHAIN/bin/llvm-strip" \
       --nm="$TOOLCHAIN/bin/llvm-nm" \
       --sysroot="$SYSROOT" \
-      --extra-cflags="-fPIC" \
+      --extra-cflags="-fPIC -I${KVZ_PREFIX}/include" \
+      --extra-libs="-lm -lpthread" \
       --disable-everything \
       --disable-programs \
       --disable-doc \
@@ -113,11 +137,13 @@ for ABI in "${ABIS[@]}"; do
       --enable-muxer=mov,matroska,mp4,mxf \
       --enable-parser=h264,hevc \
       --enable-decoder=aac,h264 \
-      --enable-encoder=prores_ks,dnxhd \
+      --enable-encoder=prores_ks,dnxhd,libkvazaar \
+      --enable-libkvazaar \
       --enable-bsf=h264_mp4toannexb \
       "${EXTRA[@]}" > configure.log 2>&1 || { tail -n 80 configure.log; false; }
     make -j"$(nproc)" > build.log 2>&1 || { tail -n 80 build.log; false; }
     make install > install.log 2>&1
+    cp "$KVZ_PREFIX/lib/libkvazaar.a" "$PREFIX/lib/libkvazaar.a"
   )
 
   test -f "$PREFIX/lib/libavformat.a"
@@ -125,6 +151,7 @@ for ABI in "${ABIS[@]}"; do
   test -f "$PREFIX/lib/libavutil.a"
   test -f "$PREFIX/lib/libswresample.a"
   test -f "$PREFIX/lib/libswscale.a"
-  printf '%s %s\n' "$FFMPEG_TAG" "$FFMPEG_SHA256" > "$PREFIX/FFMPEG_VERSION"
+  test -f "$PREFIX/lib/libkvazaar.a"
+  printf '%s %s\nkvazaar %s %s\n' "$FFMPEG_TAG" "$FFMPEG_SHA256" "$KVAZAAR_TAG" "$KVAZAAR_SHA256" > "$PREFIX/FFMPEG_VERSION"
   echo "built FFmpeg ${FFMPEG_TAG} for ${ABI} -> ${PREFIX}"
 done

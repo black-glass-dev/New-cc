@@ -7,8 +7,8 @@ native FFmpeg remux of the finished MP4 export (`FfmpegRemux`, `ffmpeg_remux_jni
 | Format | Status | How it is produced | Host test |
 | --- | --- | --- | --- |
 | MP4 + H.264 | Offered | Transformer, `VIDEO_H264` | n/a |
-| MP4 + HEVC | Offered; needs a device HEVC encoder, no silent fallback | Transformer, `VIDEO_H265` | n/a |
-| MOV + H.264 / HEVC | Offered | Stream copy of all streams, `mov` muxer, brand `qt` | H.264 and HEVC decode, frames identical to source |
+| MP4 + HEVC | Offered on every phone: device HEVC encoder when present (Transformer), otherwise software kvazaar (BSD-3) from the H.264 export | Transformer `VIDEO_H265`; software: `libkvazaar` preset veryfast, about 0.12 bit/pixel/frame, one keyframe per second | Host: kvazaar output decodes, profile 1 (Main), PSNR about 52 dB on 320x240 |
+| MOV + H.264 / HEVC | Offered | Stream copy of all streams, `mov` muxer, brand `qt`; HEVC source may be the software encode | H.264 and HEVC decode, frames identical to source |
 | MKV + H.264 / HEVC | Offered | Stream copy, `matroska` muxer | H.264 frames identical to source; first pts starts one frame later |
 | MXF + H.264 | Offered, file save only | Video stream copy; AAC decoded and resampled to 48 kHz 16-bit PCM | Decodes; audio level matches source; refused for B-frame H.264 |
 | MXF + HEVC | Not offered | The FFmpeg MXF muxer has no HEVC essence mapping | - |
@@ -17,7 +17,7 @@ native FFmpeg remux of the finished MP4 export (`FfmpegRemux`, `ffmpeg_remux_jni
 | MOV + DNxHR HQ | Offered | H.264 export decoded, then `dnxhd` (`dnxhr_hq`, `yuv422p`), audio AAC copy | Decodes, 60 frames; Y PSNR about 26 dB on detailed content (encoder limit, see below) |
 | MXF + DNxHR HQ | Offered, file save only | As MOV DNxHR, audio 48 kHz PCM | Decodes; audio 48 kHz PCM; no audio input decodes |
 | AV1 | Not offered | No AV1 encoder enabled | - |
-| MP4 / MOV / MKV + HEVC 10-bit (Main 10) | Offered; needs a device HEVC encoder that advertises Main 10, no fallback | Transformer with `VideoEncoderSettings` profile Main 10 (level 5.1, else 4.1); the MP4 is then checked for hvcC `general_profile_idc` 2 before publishing | Host: checker reads profile 1 for an 8-bit Main file and 2 for a 10-bit file (libx265), MOV copy keeps 2. Device encode not tested |
+| MP4 / MOV / MKV + HEVC 10-bit (Main 10) | Offered on every phone: device Main 10 encoder when it advertises Main 10 (5.1, else 4.1), otherwise software kvazaar 10-bit from the H.264 export | Transformer with `VideoEncoderSettings` Main 10; software: `libkvazaar` with yuv420p10le (patched wrapper). The MP4 is checked for hvcC `general_profile_idc` 2 before publishing | Host: 10-bit kvazaar file reports Main 10 (ffprobe and hvcC), decodes, Y PSNR about 40 dB at 720p 2.7 Mbps; MOV copy keeps profile 2 |
 
 "Host test" means the same C++ as the app, compiled with a host FFmpeg of the same configuration,
 run against a generated MP4 (H.264 + AAC, or H.264 without B-frames). The device path is not tested.
@@ -51,6 +51,13 @@ run against a generated MP4 (H.264 + AAC, or H.264 without B-frames). The device
 
 - 10-bit HEVC: the source is 8-bit H.264 decoded by Media3, so the 10-bit file is a bit-depth
   upconversion of the 8-bit frames. Whether the device encoder accepts 8-bit surface input for Main 10
-  depends on the device; a refusal shows as an export error (no codec fallback).
+  depends on the device. When the hardware encode fails, the export is repeated through the software kvazaar route, and the status says so.
 - Media3 silently drops a requested profile the encoder does not advertise, so the app checks the
   encoder before encoding and checks the hvcC profile after encoding.
+
+- Software HEVC (kvazaar, BSD-3-Clause) is used when the device has no HEVC encoder, or no Main 10
+  encoder for 10-bit, or when the hardware encode fails. The export status says that the software encoder was used.
+  Software encoding is slow on phones (no NEON SIMD in this build; 720p runs at a few frames per second).
+- kvazaar is built with 8-bit and 10-bit storage into one archive (`scripts/build_kvazaar.sh`); FFmpeg's
+  libkvazaar wrapper is patched for yuv420p10le (`scripts/patch_ffmpeg_kvazaar.py`).
+- WEBM and AV1 are not offered yet (no VP9 or AV1 encoder in this build).

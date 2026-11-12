@@ -28,6 +28,10 @@ internal object ExportVideoFormat {
     fun codecMime(format: String) = format.substringAfter(':')
     /** ProRes and DNxHR are encoded by FFmpeg from the platform H.264 export (a second generation). */
     fun isTranscoded(format: String) = codecMime(format) == "prores422" || codecMime(format) == "dnxhr_hq"
+    /** HEVC 8-bit or 10-bit formats: hardware Transformer first, software kvazaar when the device has no encoder. */
+    fun isHevcFamily(format: String) = codecMime(format).let { it == "video/hevc" || it == Hevc10Export.HEVC10_MIME }
+    /** The software codec id for the FFmpeg transcode of an H.264 export. */
+    fun softwareHevcCodec(format: String) = if (Hevc10Export.isHevc10(codecMime(format))) "hevc10" else "hevc8"
     /** The codec the platform Transformer encodes. Transcoded formats start from H.264. */
     fun encoderMime(format: String) = if (isTranscoded(format)) "video/avc" else codecMime(format)
     fun publishMime(format: String) = when (container(format)) {

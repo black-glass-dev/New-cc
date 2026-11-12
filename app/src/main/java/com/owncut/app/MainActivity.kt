@@ -1663,27 +1663,57 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                         val fx = richDoc.fxFor(c.id)
                         fx.hasVideoTransformOrFx() || fx.hasAudioEnvelope()
                     }
-                if(route!=ExportRoute.SHIPPING) {
-                    if (useRichPipeline) {
-                        TimelineRenderExporter.exportRichGraded(
-                            this@MainActivity, plan, "explicit-candidate-${System.nanoTime()}",
-                            richDoc, allClipsSnapshot, trackInfos, temporary, cancellation, interpretMissing, codecMime, onProgress
-                        )
+                val renderWith: (String) -> Unit = { mime ->
+                    if(route!=ExportRoute.SHIPPING) {
+                        if (useRichPipeline) {
+                            TimelineRenderExporter.exportRichGraded(
+                                this@MainActivity, plan, "explicit-candidate-${System.nanoTime()}",
+                                richDoc, allClipsSnapshot, trackInfos, temporary, cancellation, interpretMissing, mime, onProgress
+                            )
+                        } else {
+                            TimelineRenderExporter.exportGradedCandidate(this@MainActivity,plan,
+                                "explicit-candidate-${System.nanoTime()}",temporary,cancellation,interpretMissing,mime,onProgress)
+                        }
                     } else {
-                        TimelineRenderExporter.exportGradedCandidate(this@MainActivity,plan,
-                            "explicit-candidate-${System.nanoTime()}",temporary,cancellation,interpretMissing,codecMime,onProgress)
-                    }
-                } else {
-                    if (useRichPipeline) {
-                        TimelineRenderExporter.exportRich(
-                            this@MainActivity, plan, richDoc, allClipsSnapshot, trackInfos,
-                            temporary, cancellation, codecMime, onProgress
-                        )
-                    } else {
-                        TimelineRenderExporter.export(this@MainActivity,plan,temporary,cancellation,codecMime,onProgress)
+                        if (useRichPipeline) {
+                            TimelineRenderExporter.exportRich(
+                                this@MainActivity, plan, richDoc, allClipsSnapshot, trackInfos,
+                                temporary, cancellation, mime, onProgress
+                            )
+                        } else {
+                            TimelineRenderExporter.export(this@MainActivity,plan,temporary,cancellation,mime,onProgress)
+                        }
                     }
                 }
                 val container = ExportVideoFormat.container(videoFormat)
+                // HEVC: hardware Transformer when the device offers the encoder; otherwise, or when the
+                // hardware encode fails, an H.264 export is re-encoded to HEVC by software kvazaar.
+                val hevcFamily = ExportVideoFormat.isHevcFamily(videoFormat)
+                val hevc10 = Hevc10Export.isHevc10(codecMime)
+                var softwareHevc = hevcFamily && (if (hevc10) Hevc10Export.main10Level() == null else !Hevc10Export.deviceHasHevcEncoder())
+                if (softwareHevc) {
+                    renderWith("video/avc")
+                } else if (hevcFamily) {
+                    try {
+                        renderWith(codecMime)
+                    } catch (error: Exception) {
+                        if (error is CancellationException || error is ColorTagsInterpretationRequired) throw error
+                        temporary.delete()
+                        softwareHevc = true
+                        renderWith("video/avc")
+                    }
+                } else {
+                    renderWith(codecMime)
+                }
+                if (softwareHevc) {
+                    // Software kvazaar encode of the H.264 export into an MP4, then the container remux.
+                    val encoded = File(cacheDir, "owncut-hevc-${System.nanoTime()}.mp4")
+                    FfmpegRemux.transcode(temporary, encoded, "mp4", ExportVideoFormat.softwareHevcCodec(videoFormat))
+                    temporary.delete()
+                    if (hevc10) Hevc10Export.requireMain10Output(encoded)
+                    temporary = encoded
+                    resultMessage = AppLanguage.text(R.string.hevc_software_note) + " " + resultMessage
+                }
                 if (container != "mp4") {
                     // Stream copy of the finished MP4 into MOV or Matroska; no re-encode.
                     val remuxed = File(cacheDir, "owncut-remux-${System.nanoTime()}.$container")
@@ -1695,6 +1725,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                     temporary.delete()
                     temporary = remuxed
                 }
+
                 if (destination == null) {
                     failureStage=ExportFailureReport.Stage.PUBLISHING_GALLERY
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

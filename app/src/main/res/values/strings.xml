@@ -460,4 +460,5 @@
     <string name="export_format_mkv_hevc10">MKV · HEVC 10-bit (Main 10)</string>
     <string name="hevc10_no_encoder">10-bit HEVC (Main 10) encoder is not available on this device; nothing was exported.</string>
     <string name="hevc10_refused_output">10-bit HEVC export refused: the file declares profile %s, not Main 10.</string>
+    <string name="hevc_software_note">HEVC was encoded by the software encoder on this device (slower, same file format).</string>
 </resources>

@@ -16,11 +16,20 @@ internal object FfmpegRemux {
         }
     }
 
-    /** codec: "prores422" (MOV only) or "dnxhr_hq" (MOV or MXF). The input must be H.264. */
+    /**
+     * codec: "prores422" (MOV only), "dnxhr_hq" (MOV or MXF), or "hevc8" / "hevc10" (MP4, MOV or MKV;
+     * software kvazaar). The input must be H.264.
+     */
     fun transcode(input: File, output: File, container: String, codec: String) {
-        require(container == "mov" || container == "mxf") { "unsupported container: $container" }
-        require(codec == "prores422" || codec == "dnxhr_hq") { "unsupported codec: $codec" }
+        require(container == "mov" || container == "mxf" || container == "mp4" || container == "mkv") {
+            "unsupported container: $container"
+        }
+        require(codec == "prores422" || codec == "dnxhr_hq" || codec == "hevc8" || codec == "hevc10") {
+            "unsupported codec: $codec"
+        }
         require(codec != "prores422" || container == "mov") { "ProRes is written to MOV only" }
+        require(codec != "dnxhr_hq" || container == "mov" || container == "mxf") { "DNxHR is written to MOV or MXF only" }
+        require((codec != "hevc8" && codec != "hevc10") || container != "mxf") { "HEVC is not written to MXF" }
         val error = nativeTranscode(input.absolutePath, output.absolutePath, container, codec)
         if (error != null) {
             output.delete()

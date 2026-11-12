@@ -6,6 +6,7 @@
 // Requires the LGPL FFmpeg build from scripts/build_ffmpeg_android.sh (OWNCUT_FFMPEG_ROOT).
 #include <jni.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <exception>
@@ -347,7 +348,7 @@ std::string open_video_encode(AVFormatContext* input, AVFormatContext* output, i
                               const std::string& codec, VideoEncode& video) {
     AVStream* in_stream = input->streams[input_index];
     if (in_stream->codecpar->codec_id != AV_CODEC_ID_H264) {
-        return std::string("ProRes and DNxHR export needs an H.264 source, found: ") +
+        return std::string("ProRes, DNxHR and software HEVC export needs an H.264 source, found: ") +
                avcodec_get_name(in_stream->codecpar->codec_id);
     }
     const AVCodec* decoder_codec = avcodec_find_decoder(AV_CODEC_ID_H264);
@@ -361,7 +362,8 @@ std::string open_video_encode(AVFormatContext* input, AVFormatContext* output, i
     if (code < 0) return "video decoder open failed: " + ff_error(code);
 
     const bool prores = codec == "prores422";
-    const char* encoder_name = prores ? "prores_ks" : "dnxhd";
+    const bool software_hevc = codec == "hevc8" || codec == "hevc10";
+    const char* encoder_name = software_hevc ? "libkvazaar" : (prores ? "prores_ks" : "dnxhd");
     const AVCodec* encoder_codec = avcodec_find_encoder_by_name(encoder_name);
     if (encoder_codec == nullptr) return std::string("encoder missing from this FFmpeg build: ") + encoder_name;
 
@@ -373,7 +375,13 @@ std::string open_video_encode(AVFormatContext* input, AVFormatContext* output, i
     AVCodecContext* enc = video.encoder;
     enc->width = video.decoder->width;
     enc->height = video.decoder->height;
-    enc->pix_fmt = prores ? AV_PIX_FMT_YUV422P10LE : AV_PIX_FMT_YUV422P;
+    if (codec == "hevc10") {
+        enc->pix_fmt = AV_PIX_FMT_YUV420P10LE;
+    } else if (software_hevc) {
+        enc->pix_fmt = AV_PIX_FMT_YUV420P;
+    } else {
+        enc->pix_fmt = prores ? AV_PIX_FMT_YUV422P10LE : AV_PIX_FMT_YUV422P;
+    }
     enc->time_base = av_inv_q(fps);
     enc->framerate = fps;
     enc->sample_aspect_ratio = video.decoder->sample_aspect_ratio;
@@ -382,8 +390,18 @@ std::string open_video_encode(AVFormatContext* input, AVFormatContext* output, i
     enc->colorspace = video.decoder->colorspace;
     enc->color_range = video.decoder->color_range;
     if (output->oformat->flags & AVFMT_GLOBALHEADER) enc->flags |= AV_CODEC_FLAG_GLOBAL_HEADER;
-    code = av_opt_set(enc->priv_data, "profile", prores ? "hq" : "dnxhr_hq", 0);
-    if (code < 0) return "encoder profile rejected: " + ff_error(code);
+    if (software_hevc) {
+        // Software HEVC on any phone: about 0.12 bit per pixel per frame, one keyframe per second.
+        const double frame_rate = av_q2d(fps);
+        enc->bit_rate = std::max<int64_t>(2000000, static_cast<int64_t>(
+            static_cast<double>(enc->width) * enc->height * frame_rate * 0.12));
+        enc->gop_size = std::max(1, static_cast<int>(std::lround(frame_rate)));
+        code = av_opt_set(enc->priv_data, "kvazaar-params", "preset=veryfast", 0);
+        if (code < 0) return "kvazaar preset rejected: " + ff_error(code);
+    } else {
+        code = av_opt_set(enc->priv_data, "profile", prores ? "hq" : "dnxhr_hq", 0);
+        if (code < 0) return "encoder profile rejected: " + ff_error(code);
+    }
     code = avcodec_open2(enc, encoder_codec, nullptr);
     if (code < 0) return std::string(encoder_name) + " open failed: " + ff_error(code);
 
@@ -467,10 +485,15 @@ std::string transcode(const std::string& input_path, const std::string& output_p
                       const std::string& container, const std::string& codec) {
     const bool is_mxf = container == "mxf";
     const bool is_mov = container == "mov";
-    if (!is_mov && !is_mxf) return "unsupported container for transcode: " + container;
-    if (codec != "prores422" && codec != "dnxhr_hq") return "unsupported codec: " + codec;
+    const bool is_mp4 = container == "mp4";
+    const bool is_mkv = container == "mkv";
+    const bool software_hevc = codec == "hevc8" || codec == "hevc10";
+    if (!is_mov && !is_mxf && !is_mp4 && !is_mkv) return "unsupported container for transcode: " + container;
+    if (codec != "prores422" && codec != "dnxhr_hq" && !software_hevc) return "unsupported codec: " + codec;
     if (codec == "prores422" && !is_mov) return "ProRes is written to MOV only";
-    const char* format_name = is_mov ? "mov" : "mxf";
+    if (codec == "dnxhr_hq" && is_mp4) return "DNxHR is written to MOV or MXF only";
+    if (software_hevc && is_mxf) return "HEVC is not written to MXF";
+    const char* format_name = is_mov ? "mov" : is_mxf ? "mxf" : is_mp4 ? "mp4" : "matroska";
 
     AVFormatContext* raw_input = nullptr;
     int code = avformat_open_input(&raw_input, input_path.c_str(), nullptr, nullptr);
