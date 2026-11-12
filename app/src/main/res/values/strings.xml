@@ -454,4 +454,5 @@
     <string name="export_format_mov_prores422">MOV · ProRes 422 HQ (re-encoded from the H.264 export)</string>
     <string name="export_format_mov_dnxhr_hq">MOV · DNxHR HQ (re-encoded from the H.264 export)</string>
     <string name="export_format_mxf_dnxhr_hq">MXF · DNxHR HQ (re-encoded, audio 48 kHz PCM, file save only)</string>
+    <string name="export_mxf_gallery_unsupported">MXF is saved with the file picker, not the Gallery.</string>
 </resources>

@@ -37,7 +37,9 @@ run against a generated MP4 (H.264 + AAC, or H.264 without B-frames). The device
 - The MXF muxer accepts only 48 kHz PCM, so the audio is resampled.
 - The MP4 demuxer leaves the video pixel format unset. MXF needs it, so `yuv420p` is declared
   for MXF output (the export encoder produces 8-bit 4:2:0).
-- MXF is not published to the gallery. The save dialog is used.
+- MXF is not published to the gallery. The save dialog is used; the publish path also refuses MXF.
+- MOV and MKV are published to the gallery with `video/quicktime` and `video/x-matroska` MIME types.
+  The MKV row in MediaStore is not verified on a device; if the insert fails the user sees the error.
 - Cancellation is not checked during the remux. It is a fast stream copy, but a long file is not interruptible.
 - Device playback, MediaStore publishing, and colour in the remuxed files are not verified.
 

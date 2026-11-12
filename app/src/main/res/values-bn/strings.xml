@@ -454,4 +454,5 @@
     <string name="export_format_mov_prores422">MOV · ProRes 422 HQ (H.264 export থেকে পুনরায় encode)</string>
     <string name="export_format_mov_dnxhr_hq">MOV · DNxHR HQ (H.264 export থেকে পুনরায় encode)</string>
     <string name="export_format_mxf_dnxhr_hq">MXF · DNxHR HQ (পুনরায় encode, audio 48 kHz PCM, শুধু ফাইলে সেভ)</string>
+    <string name="export_mxf_gallery_unsupported">MXF শুধু ফাইল সেভ (save dialog) দিয়ে হয়, Gallery তে নয়।</string>
 </resources>

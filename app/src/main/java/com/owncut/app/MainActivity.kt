@@ -1809,6 +1809,8 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
     /** Publish only a validated MP4; keep the Gallery row hidden until the copy closes. */
     @android.annotation.TargetApi(Build.VERSION_CODES.Q)
     private fun publishExportToGallery(file: File, cancellation: AtomicBoolean, videoFormat: String) {
+        // MXF is saved through the document picker only; MediaStore has no MXF video row in this build.
+        check(ExportVideoFormat.container(videoFormat) != "mxf") { AppLanguage.text(R.string.export_mxf_gallery_unsupported) }
         ExportPublication.publish(file, cancellation) {
             GalleryPendingOutput.create(this, ExportVideoFormat.container(videoFormat), ExportVideoFormat.publishMime(videoFormat))
         }
