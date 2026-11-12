@@ -40,6 +40,12 @@ report_failure() {
       tail_text+="== ${log##*/} ==\n$(tail -n 40 "$log")\n"
     fi
   done
+  # kvazaar logs (written before configure) so that a kvazaar failure is visible in the annotation.
+  for log in "$WORK"/kvazaar-*.log; do
+    if [[ -f "$log" ]]; then
+      tail_text+="== ${log##*/} ==\n$(tail -n 60 "$log")\n"
+    fi
+  done
   tail_text="${tail_text:-no build log (failed before configure: exit ${status})}"
   echo "$tail_text" | tail -c 6000
   local encoded="${tail_text//%/%25}"
