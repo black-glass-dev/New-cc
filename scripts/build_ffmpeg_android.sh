@@ -103,7 +103,7 @@ for ABI in "${ABIS[@]}"; do
   OBJCOPY="$TOOLCHAIN/bin/llvm-objcopy" "$SCRIPT_DIR/build_kvazaar.sh" "$KVZ_SRC" "$KVZ_PREFIX" \
     -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" \
     -DANDROID_ABI="$ABI" -DANDROID_PLATFORM="android-${API_LEVEL}" \
-    -DCMAKE_HAVE_LIBC_PTHREAD=1 -DCMAKE_HAVE_THREADS_LIBRARY=1 -DCMAKE_USE_PTHREADS_INIT=1 -DCMAKE_THREAD_LIBS_INIT= \
+    -DLINUX=1 -DCMAKE_HAVE_LIBC_PTHREAD=1 -DCMAKE_HAVE_THREADS_LIBRARY=1 -DCMAKE_USE_PTHREADS_INIT=1 -DCMAKE_THREAD_LIBS_INIT= \
     > "$WORK/kvazaar-$ABI.log" 2>&1 \
     || { tail -n 80 "$WORK/kvazaar-$ABI.log"; false; }
   test -f "$KVZ_PREFIX/lib/libkvazaar.a"
