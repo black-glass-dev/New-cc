@@ -70,9 +70,10 @@ for ABI in "${ABIS[@]}"; do
   PREFIX="$OUT/$ABI"
   mkdir -p "$BUILD" "$PREFIX"
 
-  # x86_64 assembly needs nasm; disabled to keep the build self-contained.
-  EXTRA=()
-  if [[ "$ARCH" == "x86_64" ]]; then EXTRA+=(--disable-x86asm); fi
+  # Assembly is disabled for every ABI. x86_64 needs nasm, and the aarch64 NEON transform tables
+  # (ff_tx_tab_*) are referenced without PIC, which fails to link into owncut_android.so.
+  # The remux needs only AAC decode and resampling, which run fine in C.
+  EXTRA=(--disable-asm)
 
   (
     cd "$BUILD"
