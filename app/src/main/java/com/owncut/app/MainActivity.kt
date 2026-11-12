@@ -1702,6 +1702,10 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
             for (index in 0 until count) {
                 if (generation != reframeGeneration || isFinishing) throw CancellationException("Analysis cancelled")
                 val localMs = (durationMs - 1L) * index / (count - 1)
+                // Bounded retrieval needs API 27. API 26 must refuse, never fall back to a full-resolution frame.
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O_MR1) {
+                    throw IllegalStateException("Offline reframe needs Android 8.1 or newer for bounded frame sampling")
+                }
                 val bitmap = retriever.getScaledFrameAtTime(
                     (clip.sourceInMs + localMs) * 1000L,
                     MediaMetadataRetriever.OPTION_CLOSEST,
