@@ -88,6 +88,33 @@ OCU_TEST(TextBanglaSubtitlesSRTVTTTTMLAndMotionTemplates) {
     OCU_ASSERT_TRUE(mf.valid());
 }
 
+OCU_TEST(SmartReframeTracksMovingSalientSubjectOffline) {
+    std::vector<VideoFrame> frames(6);
+    for (std::size_t index = 0; index < frames.size(); ++index) {
+        frames[index] = VideoFrame::allocate(96, 54);
+        OCU_ASSERT_TRUE(frames[index].valid());
+        const int32_t center_x = 22 + static_cast<int32_t>(index) * 10;
+        for (int32_t y = 0; y < frames[index].height; ++y) {
+            float* row = frames[index].data() + y * frames[index].stride_floats;
+            for (int32_t x = 0; x < frames[index].width; ++x) {
+                const bool subject = x >= center_x - 6 && x <= center_x + 6 && y >= 19 && y <= 35;
+                const float value = subject ? 0.95f : 0.08f;
+                row[x * 4] = value;
+                row[x * 4 + 1] = subject ? 0.35f : 0.08f;
+                row[x * 4 + 2] = subject ? 0.12f : 0.08f;
+                row[x * 4 + 3] = 1.0f;
+            }
+        }
+    }
+    const auto trajectory = SmartReframe::compute_reframe_trajectory(frames, 9, 16, 0.0f);
+    OCU_ASSERT_EQ(trajectory.size(), frames.size());
+    OCU_ASSERT_TRUE(trajectory.back().center_x_norm > trajectory.front().center_x_norm + 0.15f);
+    for (const auto& crop : trajectory) {
+        OCU_ASSERT_TRUE(crop.center_x_norm >= 0.0f && crop.center_x_norm <= 1.0f);
+        OCU_ASSERT_TRUE(crop.center_y_norm >= 0.0f && crop.center_y_norm <= 1.0f);
+    }
+}
+
 OCU_TEST(VisionStabilizerSmartReframeSceneCutAndTextBasedEditor) {
     MediaMetadata meta;
     meta.width = 64;

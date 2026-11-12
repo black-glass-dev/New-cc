@@ -31,15 +31,17 @@ import kotlin.math.sin
 internal class TimelineClipGlEffect(
     private val fx: ClipRichFx,
     private val clipDurationUs: Long,
+    private val localOffsetUs: Long = 0L,
 ) : GlEffect {
     override fun toGlShaderProgram(context: Context, useHdr: Boolean): GlShaderProgram {
         if (useHdr) throw VideoFrameProcessingException("HDR clip FX is unsupported")
-        return ClipProgram(fx, clipDurationUs.coerceAtLeast(1L))
+        return ClipProgram(fx, clipDurationUs.coerceAtLeast(1L), localOffsetUs.coerceAtLeast(0L))
     }
 
     private class ClipProgram(
         private val fx: ClipRichFx,
         private val durationUs: Long,
+        private val localOffsetUs: Long,
     ) : BaseGlShaderProgram(false, 1) {
         private var program: GlProgram
         private var aspect = 16f / 9f
@@ -76,14 +78,14 @@ internal class TimelineClipGlEffect(
 
         override fun drawFrame(inputTexId: Int, presentationTimeUs: Long) {
             try {
-                val u = (presentationTimeUs.toFloat() / durationUs.toFloat()).coerceIn(0f, 1f)
-                val effScale = fx.effectiveScaleAt(u).coerceIn(0.1f, 8f)
-                val rad = Math.toRadians(fx.rotationDeg.toDouble())
+                val localMs = ((presentationTimeUs + localOffsetUs) / 1000L).coerceAtLeast(0L)
+                val durMs = (durationUs / 1000L).coerceAtLeast(1L)
+                val transform = fx.transformAt(localMs, durMs)
+                val effScale = transform.scale.coerceIn(0.1f, 8f)
+                val rad = Math.toRadians(transform.rotationDeg.toDouble())
                 val cosR = cos(rad).toFloat()
                 val sinR = sin(rad).toFloat()
 
-                val localMs = (presentationTimeUs / 1000L).coerceAtLeast(0L)
-                val durMs = (durationUs / 1000L).coerceAtLeast(1L)
                 var brightnessMul = fx.opacity.coerceIn(0f, 1f)
                 if (fx.transitionIn == "fade_black" && fx.transitionMs > 0L && localMs < fx.transitionMs) {
                     brightnessMul *= (localMs.toFloat() / fx.transitionMs.toFloat()).coerceIn(0f, 1f)
@@ -99,8 +101,8 @@ internal class TimelineClipGlEffect(
                 program.setSamplerTexIdUniform("uSource", inputTexId, 0)
                 program.setFloatUniform("uAspect", aspect)
                 program.setFloatUniform("uInvScale", 1f / effScale)
-                program.setFloatUniform("uPanX", fx.panX)
-                program.setFloatUniform("uPanY", fx.panY)
+                program.setFloatUniform("uPanX", transform.panX)
+                program.setFloatUniform("uPanY", transform.panY)
                 program.setFloatUniform("uCosR", cosR)
                 program.setFloatUniform("uSinR", sinR)
                 program.setFloatUniform("uAlphaMul", brightnessMul.coerceIn(0f, 1f))
@@ -423,13 +425,23 @@ internal class ClipVolumeAudioProcessor(
     private val fx: ClipRichFx,
     private val clipDurationMs: Long,
     private val duckFactor: Float = 1.0f,
+    private val localOffsetMs: Long = 0L,
 ) : BaseAudioProcessor() {
     private var processedFrames: Long = 0L
+    private var nativeFx: NativeAudioFx? = null
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
         if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT) {
             throw AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
         }
+        nativeFx?.close()
+        nativeFx = if (fx.eqBandsDb.any { kotlin.math.abs(it) > 0.01f } || fx.compressorEnabled || fx.limiterEnabled || fx.gateEnabled) {
+            NativeAudioFx(
+                fx.eqBandsDb.toFloatArray(), fx.compressorEnabled, fx.compressorThresholdDb,
+                fx.compressorRatio, fx.limiterEnabled, fx.limiterCeilingDb,
+                fx.gateEnabled, fx.gateThresholdDb, inputAudioFormat.sampleRate, inputAudioFormat.channelCount,
+            )
+        } else null
         return inputAudioFormat
     }
 
@@ -441,7 +453,7 @@ internal class ClipVolumeAudioProcessor(
         val channels = max(1, inputAudioFormat.channelCount)
         val sampleRate = max(1, inputAudioFormat.sampleRate)
         while (inputBuffer.remaining() >= 2) {
-            val localMs = (processedFrames * 1000L) / sampleRate
+            val localMs = localOffsetMs + (processedFrames * 1000L) / sampleRate
             val gain = fx.effectiveGainAt(localMs, clipDurationMs, duckFactor)
             for (ch in 0 until channels) {
                 if (inputBuffer.remaining() < 2) break
@@ -455,13 +467,25 @@ internal class ClipVolumeAudioProcessor(
             out.put(inputBuffer)
         }
         out.flip()
+        nativeFx?.let { processor ->
+            val sampleCount = out.remaining() / 2
+            val samples = ShortArray(sampleCount)
+            for (index in samples.indices) samples[index] = out.short
+            processor.process(samples)
+            out.clear()
+            samples.forEach { out.putShort(it) }
+            out.flip()
+        }
     }
 
     override fun onFlush() {
         processedFrames = 0L
+        nativeFx?.reset()
     }
 
     override fun onReset() {
         processedFrames = 0L
+        nativeFx?.close()
+        nativeFx = null
     }
 }

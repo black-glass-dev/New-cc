@@ -390,6 +390,61 @@ internal class EngineSession : AutoCloseable {
         recordNativeEdit()
     }
 
+    /** Copies a clip's source range to an audio-only track and mutes its embedded source audio. */
+    @Synchronized
+    fun detachAudio(clipId: String): String {
+        check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
+        val source = clips().firstOrNull { it.id == clipId } ?: error(AppLanguage.text(R.string.message_3d1d8c290a))
+        require(!source.trackId.startsWith("a", ignoreCase = true)) { "Select a video clip to detach audio" }
+        require(tracks().firstOrNull { it.id == source.trackId }?.locked != true) { "Unlock the source track before detaching audio" }
+        require(source.sourceOutMs > source.sourceInMs) { "Clip has no usable source range" }
+        val start = source.startFrame
+        val end = Math.addExact(start, source.durationFrames)
+        val allClips = clips()
+        val audioTracks = tracks().filter { it.kind.equals("audio", ignoreCase = true) || it.id.startsWith("a", true) }
+        var target = audioTracks.firstOrNull { candidate ->
+            allClips.none { it.trackId == candidate.id && start < Math.addExact(it.startFrame, it.durationFrames) && it.startFrame < end }
+        }?.id
+        if (target == null) {
+            var index = 1
+            while (index < 1000) {
+                val candidate = "a$index"
+                if (audioTracks.none { it.id == candidate }) { target = candidate; break }
+                index++
+            }
+        }
+        val audioTrack = target ?: error("No available audio track")
+        ensureTrack(audioTrack, true)
+        var detachedId: String? = null
+        try {
+            detachedId = addMediaClipToTrack(audioTrack, source.mediaId, source.sourceOutMs, start)
+            if (source.sourceInMs > 0L) {
+                nativeTrimClip(handle, detachedId, true, source.sourceInMs)
+                recordNativeEdit()
+                nativeMoveClip(handle, detachedId, audioTrack, start)
+                recordNativeEdit()
+            }
+            val sourceFx = clipFx(clipId)
+            setClipFx(detachedId) {
+                it.copy(
+                    speed = sourceFx.speed,
+                    reversed = sourceFx.reversed,
+                    freezeMs = sourceFx.freezeMs,
+                    volume = sourceFx.volume,
+                    fadeInMs = sourceFx.fadeInMs,
+                    fadeOutMs = sourceFx.fadeOutMs,
+                    muted = false,
+                    duckingDb = sourceFx.duckingDb,
+                )
+            }
+            setClipFx(clipId) { it.copy(muted = true) }
+            return detachedId
+        } catch (error: Throwable) {
+            detachedId?.let { runCatching { deleteClip(it) } }
+            throw error
+        }
+    }
+
     @Synchronized
     fun splitClip(clipId: String, cutFrame: Long, rightClipId: String) {
         check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
@@ -402,6 +457,27 @@ internal class EngineSession : AutoCloseable {
             richDocument = richDocument.copy(clipFx = map)
             syncRichBridgeLocked()
         }
+        recordNativeEdit()
+    }
+
+    @Synchronized
+    fun slipClip(clipId: String, sourceDeltaMs: Long) {
+        check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
+        nativeSlipClip(handle, clipId, sourceDeltaMs)
+        recordNativeEdit()
+    }
+
+    @Synchronized
+    fun rollBoundary(leftClipId: String, rightClipId: String, sourceDeltaMs: Long) {
+        check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
+        nativeRollBoundary(handle, leftClipId, rightClipId, sourceDeltaMs)
+        recordNativeEdit()
+    }
+
+    @Synchronized
+    fun slideClips(leftClipId: String, movingClipId: String, rightClipId: String, deltaMs: Long) {
+        check(handle != 0L) { AppLanguage.text(R.string.message_bf5f0d21b6) }
+        nativeSlideClips(handle, leftClipId, movingClipId, rightClipId, deltaMs)
         recordNativeEdit()
     }
 
@@ -579,6 +655,9 @@ internal class EngineSession : AutoCloseable {
     private external fun nativeRelinkClipMedia(handle: Long, clipId: String, replacementMediaId: String)
     private external fun nativeMoveClip(handle: Long, clipId: String, destinationTrackId: String, destinationStartFrame: Long)
     private external fun nativeSplitClip(handle: Long, clipId: String, cutFrame: Long, rightClipId: String)
+    private external fun nativeSlipClip(handle: Long, clipId: String, sourceDeltaMs: Long)
+    private external fun nativeRollBoundary(handle: Long, leftClipId: String, rightClipId: String, sourceDeltaMs: Long)
+    private external fun nativeSlideClips(handle: Long, leftClipId: String, movingClipId: String, rightClipId: String, deltaMs: Long)
     private external fun nativeTrimClip(handle: Long, clipId: String, leftEdge: Boolean, sourceBoundaryMs: Long)
     private external fun nativeDeleteClip(handle: Long, clipId: String, ripple: Boolean)
     private external fun nativeUndo(handle: Long): Boolean

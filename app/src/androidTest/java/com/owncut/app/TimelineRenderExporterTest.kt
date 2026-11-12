@@ -16,6 +16,88 @@ class TimelineRenderExporterTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context = instrumentation.targetContext
 
+    @Test fun transformKeyframesRoundTripAndInterpolate() {
+        val speedKeys = listOf(SpeedKeyframe(0L, 0.5f), SpeedKeyframe(1000L, 2f))
+        val keys = listOf(
+            TransformKeyframe(0L, 1f, -0.2f, 0f, 0f),
+            TransformKeyframe(1000L, 2f, 0.2f, 0.4f, 90f),
+        )
+        val audioFx = ClipRichFx("audio", eqBandsDb = listOf(3f, 0f, -2f, 0f, 1f, 0f),
+            compressorEnabled = true, compressorThresholdDb = -24f, compressorRatio = 3f,
+            limiterEnabled = true, limiterCeilingDb = -2f, gateEnabled = true, gateThresholdDb = -50f)
+        val source = TimelineRichDocument(outputAspectRatio = 9f / 16f, clipFx = mapOf(
+            "clip" to ClipRichFx("clip", transformKeyframes = keys, speedKeyframes = speedKeys),
+            "audio" to audioFx,
+        ))
+        val restored = TimelineRichDocument.fromJsonString(source.toJsonString())
+        assertEquals(keys, restored.fxFor("clip").transformKeyframes)
+        assertEquals(9f / 16f, restored.outputAspectRatio!!, 0.001f)
+        val customResolution = TimelineRichDocument(outputWidth = 3840, outputHeight = 2160)
+        val restoredResolution = TimelineRichDocument.fromJsonString(customResolution.toJsonString())
+        assertEquals(3840, restoredResolution.outputWidth)
+        assertEquals(2160, restoredResolution.outputHeight)
+        assertEquals(16f / 9f, restoredResolution.outputAspectRatio!!, 0.001f)
+        val invalidResolution = TimelineRichDocument(outputWidth = 3001, outputHeight = 2000)
+        val restoredInvalid = TimelineRichDocument.fromJsonString(invalidResolution.toJsonString())
+        assertNull(restoredInvalid.outputWidth)
+        assertNull(restoredInvalid.outputHeight)
+        val halfway = restored.fxFor("clip").transformAt(500L, 1000L)
+        assertEquals(1.5f, halfway.scale, 0.001f)
+        assertEquals(0f, halfway.panX, 0.001f)
+        assertEquals(0.2f, halfway.panY, 0.001f)
+        assertEquals(45f, halfway.rotationDeg, 0.001f)
+        assertEquals(speedKeys, restored.fxFor("clip").speedKeyframes)
+        assertEquals(1.25f, restored.fxFor("clip").speedAt(500L, 1000L), 0.001f)
+        assertEquals(audioFx.eqBandsDb, restored.fxFor("audio").eqBandsDb)
+        assertTrue(restored.fxFor("audio").compressorEnabled)
+        assertTrue(restored.fxFor("audio").limiterEnabled)
+        assertTrue(restored.fxFor("audio").gateEnabled)
+        assertTrue(restored.fxFor("audio").hasAudioEnvelope())
+    }
+
+    @Test fun speedRampBuildsBoundedVariableRateSegmentsAndExportComposition() = withFixtures { a, _ ->
+        val source = clip("ramp", a, 0, 0, 3000)
+        val fx = ClipRichFx(source.id, speedKeyframes = listOf(
+            SpeedKeyframe(0L, 0.5f), SpeedKeyframe(1000L, 2f), SpeedKeyframe(3000L, 1f),
+        ))
+        val segments = TimelineRenderExporter.speedSegments(fx, 3000L)
+        assertEquals(0L, segments.first().startMs)
+        assertEquals(3000L, segments.last().endMs)
+        assertTrue(segments.all { it.endMs > it.startMs && it.endMs - it.startMs <= 200L })
+        assertTrue(segments.any { it.speed < 1f })
+        assertTrue(segments.any { it.speed > 1f })
+        val rich = TimelineRichDocument(clipFx = mapOf(source.id to fx))
+        val plan = TimelineRemuxExporter.makePlan(listOf(source))
+        assertNotNull(TimelineRenderExporter.richComposition(
+            plan, rich, listOf(source), listOf(TimelineTrackInfo("v1", "video", false, false, 1)),
+        ))
+        val output = File(context.cacheDir, "speed-ramp-${System.nanoTime()}.mp4")
+        try {
+            TimelineRenderExporter.exportRich(context, plan, rich, listOf(source),
+                listOf(TimelineTrackInfo("v1", "video", false, false, 1)), output, AtomicBoolean(false)) { }
+            assertTrue("speed-ramped export should produce a non-empty file", output.isFile && output.length() > 1024L)
+        } finally { output.delete() }
+    }
+
+    @Test fun customResolutionRichExportUsesRequestedEvenDimensions() = withFixtures { a, _ ->
+        val source = clip("custom-size", a, 0, 0, 3000)
+        val plan = TimelineRemuxExporter.makePlan(listOf(source))
+        val rich = TimelineRichDocument(outputWidth = 640, outputHeight = 480)
+        val output = File(context.cacheDir, "custom-size-${System.nanoTime()}.mp4")
+        try {
+            TimelineRenderExporter.exportRich(context, plan, rich, listOf(source),
+                listOf(TimelineTrackInfo("v1", "video", false, false, 1)), output, AtomicBoolean(false)) { }
+            val extractor = MediaExtractor()
+            try {
+                extractor.setDataSource(output.absolutePath)
+                val video = (0 until extractor.trackCount).map(extractor::getTrackFormat)
+                    .single { it.getString(MediaFormat.KEY_MIME) == "video/avc" }
+                assertEquals(640, video.getInteger(MediaFormat.KEY_WIDTH))
+                assertEquals(480, video.getInteger(MediaFormat.KEY_HEIGHT))
+            } finally { extractor.release() }
+        } finally { output.delete() }
+    }
+
     @Test fun rendersUntouchedSourceInsteadOfRemuxing() = withFixtures { a, _ ->
         renderAndCheck(listOf(clip("a", a, 0, 0, 3000)), 3000L)
     }

@@ -139,7 +139,16 @@ internal object ProEditorPanels {
         var fadeOutMs = current.fadeOutMs
         var muted = current.muted
         var duckingDb = current.duckingDb
+        val eqBandsDb = current.eqBandsDb.take(6).toMutableList().apply { while (size < 6) add(0f) }
+        var compressorEnabled = current.compressorEnabled
+        var compressorThresholdDb = current.compressorThresholdDb
+        var compressorRatio = current.compressorRatio
+        var limiterEnabled = current.limiterEnabled
+        var limiterCeilingDb = current.limiterCeilingDb
+        var gateEnabled = current.gateEnabled
+        var gateThresholdDb = current.gateThresholdDb
         val root = container(activity)
+        root.addView(StudioUi.label(activity, AppLanguage.text(R.string.pro_audio_dsp_export_note), 12f, secondary = true))
 
         addSeek(
             root, activity,
@@ -176,6 +185,40 @@ internal object ProEditorPanels {
             setOnCheckedChangeListener { _, checked -> duckingDb = if (checked) -10f else 0f }
         })
 
+        val bandFrequencies = intArrayOf(60, 150, 400, 1000, 4000, 10000)
+        bandFrequencies.forEachIndexed { index, frequency ->
+            addSeek(
+                root, activity,
+                AppLanguage.text(R.string.pro_eq_band_label, frequency, eqBandsDb[index].roundToInt()),
+                360, (eqBandsDb[index].roundToInt() + 180).coerceIn(0, 360),
+                { value -> AppLanguage.text(R.string.pro_eq_band_label, frequency, value - 180) },
+            ) { value -> eqBandsDb[index] = (value - 180).toFloat() }
+        }
+        root.addView(CheckBox(activity).apply {
+            text = AppLanguage.text(R.string.pro_compressor_toggle); isChecked = compressorEnabled
+            setTextColor(StudioUi.text); setOnCheckedChangeListener { _, checked -> compressorEnabled = checked }
+        })
+        addSeek(root, activity, AppLanguage.text(R.string.pro_compressor_threshold, compressorThresholdDb.roundToInt()),
+            60, (compressorThresholdDb.roundToInt() + 60).coerceIn(0, 60),
+            { value -> AppLanguage.text(R.string.pro_compressor_threshold, value - 60) }) { compressorThresholdDb = (it - 60).toFloat() }
+        addSeek(root, activity, AppLanguage.text(R.string.pro_compressor_ratio, compressorRatio.roundToInt()),
+            19, (compressorRatio.roundToInt() - 1).coerceIn(0, 19),
+            { value -> AppLanguage.text(R.string.pro_compressor_ratio, value + 1) }) { compressorRatio = (it + 1).toFloat() }
+        root.addView(CheckBox(activity).apply {
+            text = AppLanguage.text(R.string.pro_limiter_toggle); isChecked = limiterEnabled
+            setTextColor(StudioUi.text); setOnCheckedChangeListener { _, checked -> limiterEnabled = checked }
+        })
+        addSeek(root, activity, AppLanguage.text(R.string.pro_limiter_ceiling, limiterCeilingDb.roundToInt()),
+            12, (limiterCeilingDb.roundToInt() + 12).coerceIn(0, 12),
+            { value -> AppLanguage.text(R.string.pro_limiter_ceiling, value - 12) }) { limiterCeilingDb = (it - 12).toFloat() }
+        root.addView(CheckBox(activity).apply {
+            text = AppLanguage.text(R.string.pro_gate_toggle); isChecked = gateEnabled
+            setTextColor(StudioUi.text); setOnCheckedChangeListener { _, checked -> gateEnabled = checked }
+        })
+        addSeek(root, activity, AppLanguage.text(R.string.pro_gate_threshold, gateThresholdDb.roundToInt()),
+            74, (gateThresholdDb.roundToInt() + 80).coerceIn(0, 74),
+            { value -> AppLanguage.text(R.string.pro_gate_threshold, value - 80) }) { gateThresholdDb = (it - 80).toFloat() }
+
         val statsView = StudioUi.label(activity, "", 12f, secondary = true)
         TimelineMediaAnalyzer.cachedAudio(clip)?.let { cached ->
             statsView.text = AppLanguage.text(R.string.pro_audio_stats, cached.integratedLufs, cached.detectedBpm)
@@ -187,7 +230,13 @@ internal object ProEditorPanels {
             .setView(wrapScroll(activity, root))
             .setPositiveButton(AppLanguage.text(R.string.pro_apply)) { _, _ ->
                 engine.setClipFx(clip.id) {
-                    it.copy(volume = volume, fadeInMs = fadeInMs, fadeOutMs = fadeOutMs, muted = muted, duckingDb = duckingDb)
+                    it.copy(
+                        volume = volume, fadeInMs = fadeInMs, fadeOutMs = fadeOutMs, muted = muted, duckingDb = duckingDb,
+                        eqBandsDb = eqBandsDb.toList(), compressorEnabled = compressorEnabled,
+                        compressorThresholdDb = compressorThresholdDb, compressorRatio = compressorRatio,
+                        limiterEnabled = limiterEnabled, limiterCeilingDb = limiterCeilingDb,
+                        gateEnabled = gateEnabled, gateThresholdDb = gateThresholdDb,
+                    )
                 }
                 onRefresh()
             }

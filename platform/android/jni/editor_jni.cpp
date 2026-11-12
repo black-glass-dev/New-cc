@@ -264,6 +264,36 @@ Java_com_owncut_app_EngineSession_nativeSplitClip(JNIEnv* env, jobject, jlong ha
 }
 
 extern "C" JNIEXPORT void JNICALL
+Java_com_owncut_app_EngineSession_nativeSlipClip(JNIEnv* env, jobject, jlong handle,
+                                                 jstring clip_id, jlong delta_ms) {
+    try {
+        auto session = require_session(handle);
+        session->execute(std::make_unique<SlipClipCommand>(from_java(env, clip_id), Timestamp{delta_ms, kMilliseconds}));
+    } catch (const std::exception& error) { throw_java_argument(env, error.what()); }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_owncut_app_EngineSession_nativeRollBoundary(JNIEnv* env, jobject, jlong handle,
+                                                      jstring left_clip_id, jstring right_clip_id, jlong delta_ms) {
+    try {
+        auto session = require_session(handle);
+        session->execute(std::make_unique<RollBoundaryCommand>(from_java(env, left_clip_id),
+            from_java(env, right_clip_id), Timestamp{delta_ms, kMilliseconds}));
+    } catch (const std::exception& error) { throw_java_argument(env, error.what()); }
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_com_owncut_app_EngineSession_nativeSlideClips(JNIEnv* env, jobject, jlong handle,
+                                                  jstring left_clip_id, jstring moving_clip_id,
+                                                  jstring right_clip_id, jlong delta_ms) {
+    try {
+        auto session = require_session(handle);
+        session->execute(std::make_unique<SlideClipCommand>(from_java(env, left_clip_id),
+            from_java(env, moving_clip_id), from_java(env, right_clip_id), Timestamp{delta_ms, kMilliseconds}));
+    } catch (const std::exception& error) { throw_java_argument(env, error.what()); }
+}
+
+extern "C" JNIEXPORT void JNICALL
 Java_com_owncut_app_EngineSession_nativeTrimClip(JNIEnv* env, jobject, jlong handle,
                                                   jstring clip_id, jboolean left_edge, jlong boundary_ms) {
     try {

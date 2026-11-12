@@ -1,3 +1,70 @@
+## Timeline usability follow-up (2026-11-10)
+
+On active branch `arena/97dcdd15-new-cc`, the ruler/canvas viewport was enlarged to its
+measured 178dp height and all eight Edit tools now appear in two rows rather than hiding
+Tracks and Beat/Scene Cut in a horizontal scroll. Added localized accessible zoom-out/zoom-in
+buttons that use the same native pinch-zoom state. `python3 tests/check_ui_resources.py`
+(425 bilingual strings, theme contrast) and `make test` pass. `git diff --check` passes.
+Android/Kotlin compilation and phone rendering were not run in this environment (Java is
+unavailable). Follow-up added a horizontally pinned track-header column with per-track
+Mute/Unmute and Lock/Unlock controls, one-tap Add Video/Audio Track actions, and a Detach
+Audio action. Both secondary and pro-tool rows are wrapped so adding the action does not
+hide the tail controls. Detach creates a same-source,
+same-range audio clip on the first available non-overlapping audio lane, carries speed/audio
+envelope settings, and mutes the original clip's embedded audio. Source-track lock is checked.
+Resource checks now pass at433 bilingual strings; Android/Kotlin and device behavior are
+unverified. Transform keyframes now persist in `.tlstate`, are bounded/validated on load, interpolate
+scale/pan/rotation in the Media3 clip GL effect, display as diamonds on the timeline, and
+can be added/updated/toggled at the playhead for the selected video clip; tapping a diamond
+seeks to that exact keyframe and selects its clip. Text overlays and
+subtitles now have dedicated labeled timeline lanes with duration blocks; long-press drag moves
+a block and its visible right-edge handle changes the end time, committing through rich-state
+undo and autosave. Transform keyframe interpolation/round-trip regression source was added to
+Android instrumentation. The ungraded main TextureView now samples the same transform curve at the timeline playhead
+for normal clip preview. Speed-ramp points are also stored, drawn as a curve, and sampled into
+MediaPlayer playback speed; rich export now approximates active ramps with bounded constant-rate video/audio segments. The isolated graded preview remains unmodified. Added Android microphone capture into a
+private AAC/M4A file; stopping records it as a synchronized audio-track clip, choosing a
+non-overlapping audio lane, with runtime permission and stop-on-background behavior. These
+changes are not Android compile/device verified: `./gradlew :app:compileDebugKotlin` is blocked because no Java runtime
+exists in the workspace.
+The C++ core now has command-history-backed Slip, adjacent Roll, and three-clip Slide
+commands exposed through JNI and bounded UI choices. UI preflights source ranges using media
+metadata before applying them; Roll and Slide update clips atomically in one undo entry. J/L
+cut uses a detached audio source with available-source-range preflight. Live voiceover records AAC/M4A after runtime
+permission and attaches it as an audio clip. A custom rotary jog dial scrubs frame position
+and commits a seek on release. EQ (six parametric bands), compressor, limiter and gate settings now persist per clip and
+run through the C++ timeline audio DSP from the Media3 rich-export PCM processor. UI labels
+explicitly say these are export effects; normal MediaPlayer live audio is not processed by
+them yet. Voiceover captures are now copied into a media/voiceovers directory beside the owning
+project before the clip is registered, so the project no longer references the recorder's
+temporary capture folder. This is app-private project-relative organization, not a complete
+project packager or external-project portability guarantee. Speed-ramp export now expands each authored ramp into at-most-200ms constant-rate segments,
+with keyframe boundaries preserved, Media3 video speed effects and Sonic audio rate processing;
+segment effects retain the clip-local transform/envelope time offset. This is a piecewise-constant
+approximation, not sample-exact continuous time-warp, and changing a clip's duration can affect
+neighboring edit alignment. Offline reframe now samples at most 120 low-resolution frames (Android API 27+ bounded-size
+retrieval), passes packed RGBA thumbnails into the NDK timeline-engine saliency + local optical-
+flow tracker, smooths crop centers, persists generated transform keyframes, and stores a
+project-wide target aspect ratio. Presets now include 9:16, 1:1, 4:5, 16:9, 4:3, 3:2, 2:1,
+2.39:1, 5:4 and 9:21; a numeric custom-resolution dialog accepts even dimensions from
+144 to 3840 per side under an 8.29MP UHD budget. Resolution settings persist in the rich
+state. Rich export applies Media3 crop presentation at the selected resolution; the main viewer
+uses the selected output aspect. This is a local visual-saliency/motion tracker, not a semantic
+person/object detector or cloud model; Android UI/API behavior and tracking quality remain
+unverified. Offline stabilization now reuses the same bounded sample pipeline and native NDK
+optical-flow stabilizer, offers Smooth/Strong/Camera Lock presets, converts motion/rotation/
+adaptive zoom to undoable transform keyframes, and reaches preview/rich export. This is classic
+optical-flow stabilization, not AI subject-aware stabilization; Android/device quality remains
+unverified. Multicam, compound/adjustment clips and a true dual timeline remain incomplete. Android compile/device/export tests were not
+run here; no parity claim.
+
+Latest UI follow-up: primary Edit actions are now a fixed two-row grid instead of a sideways
+scroll, the timeline height was reduced to give the viewer more space, and Jog Dial is one tap
+from transport. Instrumentation source asserts the grid and one-tap jog affordance. `make test`
+passes; Python policy suite passes 30/30; timeline-engine Phase3 passes 5/5; UI resource/theme
+checks pass at490 strings; `git diff --check` passes. Android build/device tests remain unrun
+because Java is unavailable; no phone-acceptance claim.
+
 ## Original decoder / experimental graded-export APK PUBLISHED
 
 [Download latest candidate](https://github.com/black-glass-dev/New-cc/releases/download/fresh-install-42780814613/owncut-fresh-install-debug.apk).
@@ -1225,3 +1292,17 @@ existing transport suites, Python30 (including3 source-wiring tests),351 bilingu
 Apply/main playback/seek/cuts/reset/history, viewer ghosting and rendered export output
 remain phone-unverified. New dialog cleanup UI source compiled but NOT executed. No new
 APK handoff/publication.25%/75% unchanged.
+
+## Integration of arena/97dcdd15-new-cc into arena/6e511b63-new-cc
+
+Three-way merge with base `ea5f7af` (closest common ancestor; 97dcdd15 is a snapshot). Taken from
+97dcdd15 only: new editor/timeline/jog/reframe/stabilization/audio-FX/voiceover files and their JNI,
+and the textual merge of MainActivity, TimelineRenderExporter, CMakeLists and both strings files
+(0 textual conflicts). Kept from this branch: FFmpeg/kvazaar software HEVC, FfmpegRemux, Hevc10Export,
+ExportRoutePolicy HEVC additions, build scripts, CI cache key and EXPORT_CONTAINERS.md.
+
+Run locally on the merged tree: `make test` PASS; `tests/check_ui_resources.py` PASS (510 bilingual strings);
+`python3 -m unittest discover -s tests -p 'test_*.py'` PASS (30 tests); CMake build and ctest 12/12 PASS;
+Kotlin host tests (`tests/run_host_kotlin.py`) PASS.
+NOT run locally: Android Gradle assemble/lint/compile (no Android SDK here); see the CI run for the merged commit.
+Phone/emulator behaviour of the new 97dcdd15 features and the merged export flow is unverified.

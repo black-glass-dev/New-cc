@@ -67,4 +67,3 @@ ctest --test-dir build_timeline_san --output-on-failure
   - `app/src/main/java/com/owncut/timeline/TimelineBridge.kt`: `TimelineEngineBridge` + `@JvmStatic external` JNI bindings (`nativeSyncClips`, `nativeEvaluateSnap`, `nativePinchZoom`, `nativeResetZoom`, `nativeGetZoomScale`, `nativeGetCapabilitiesJson`, plus edit/split/undo/redo C API hooks).
   - `app/src/main/java/com/owncut/app/EngineSession.kt`: keeps revision-cached timeline snapshots automatically synced to `TimelineEngineBridge` and releases native handles in `close()`.
   - `app/src/main/java/com/owncut/app/TimelineView.kt` & `MainActivity.kt`: live 2-finger `ScaleGestureDetector` pinch zoom + native magnetic snap evaluation with visual snap guide line and `HapticFeedbackConstants.CLOCK_TICK`.
-

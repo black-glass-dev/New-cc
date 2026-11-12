@@ -5,6 +5,17 @@ import org.json.JSONObject
 import java.io.File
 import java.util.Locale
 
+internal data class TransformKeyframe(
+    val timeMs: Long,
+    val scale: Float,
+    val panX: Float,
+    val panY: Float,
+    val rotationDeg: Float,
+)
+
+internal data class TransformSample(val scale: Float, val panX: Float, val panY: Float, val rotationDeg: Float)
+internal data class SpeedKeyframe(val timeMs: Long, val speed: Float)
+
 internal data class ClipRichFx(
     val clipId: String,
     val trackId: String = "v1",
@@ -29,9 +40,20 @@ internal data class ClipRichFx(
     val chromaKeyHex: String = "",
     val chromaTolerance: Float = 0.0f,
     val audioPeaks: List<Float> = emptyList(),
+    val transformKeyframes: List<TransformKeyframe> = emptyList(),
+    val speedKeyframes: List<SpeedKeyframe> = emptyList(),
+    val eqBandsDb: List<Float> = List(6) { 0f },
+    val compressorEnabled: Boolean = false,
+    val compressorThresholdDb: Float = -18f,
+    val compressorRatio: Float = 4f,
+    val limiterEnabled: Boolean = false,
+    val limiterCeilingDb: Float = -1f,
+    val gateEnabled: Boolean = false,
+    val gateThresholdDb: Float = -45f,
 ) {
     fun hasVideoTransformOrFx(): Boolean =
         kotlin.math.abs(speed - 1.0) > 1e-3 ||
+            speedKeyframes.isNotEmpty() ||
             reversed ||
             freezeMs >= 0L ||
             kotlin.math.abs(opacity - 1.0f) > 1e-3f ||
@@ -44,6 +66,7 @@ internal data class ClipRichFx(
             kotlin.math.abs(dynamicZoomEnd - 1.0f) > 1e-3f ||
             (transitionIn != "none" && transitionMs > 0L) ||
             chromaKeyHex.isNotBlank() ||
+            transformKeyframes.isNotEmpty() ||
             fadeInMs > 0L ||
             fadeOutMs > 0L
 
@@ -52,7 +75,8 @@ internal data class ClipRichFx(
             kotlin.math.abs(volume - 1.0f) > 1e-3f ||
             fadeInMs > 0L ||
             fadeOutMs > 0L ||
-            kotlin.math.abs(duckingDb) > 1e-2f
+            kotlin.math.abs(duckingDb) > 1e-2f ||
+            eqBandsDb.any { kotlin.math.abs(it) > 1e-2f } || compressorEnabled || limiterEnabled || gateEnabled
 
     fun effectiveGainAt(localMs: Long, clipDurationMs: Long, duckMultiplier: Float = 1.0f): Float {
         if (muted) return 0f
@@ -67,11 +91,47 @@ internal data class ClipRichFx(
         return g.coerceIn(0f, 2f)
     }
 
+    fun transformAt(localMs: Long, durationMs: Long): TransformSample {
+        val frames = transformKeyframes.sortedBy { it.timeMs }
+        if (frames.isNotEmpty()) {
+            val t = localMs.coerceIn(0L, durationMs.coerceAtLeast(0L))
+            val before = frames.lastOrNull { it.timeMs <= t }
+            val after = frames.firstOrNull { it.timeMs >= t }
+            if (before == null) return frames.first().sample()
+            if (after == null || before.timeMs == after.timeMs) return before.sample()
+            val u = ((t - before.timeMs).toFloat() / (after.timeMs - before.timeMs).toFloat()).coerceIn(0f, 1f)
+            return TransformSample(
+                scale = lerp(before.scale, after.scale, u).coerceIn(0.1f, 8f),
+                panX = lerp(before.panX, after.panX, u).coerceIn(-2f, 2f),
+                panY = lerp(before.panY, after.panY, u).coerceIn(-2f, 2f),
+                rotationDeg = lerp(before.rotationDeg, after.rotationDeg, u),
+            )
+        }
+        val u = if (durationMs <= 0L) 0f else (localMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
+        return TransformSample(
+            (scale * lerp(dynamicZoomStart, dynamicZoomEnd, u)).coerceIn(0.1f, 8f),
+            panX.coerceIn(-2f, 2f), panY.coerceIn(-2f, 2f), rotationDeg,
+        )
+    }
+
     fun effectiveScaleAt(progress01: Float): Float {
         val u = progress01.coerceIn(0f, 1f)
-        val dz = dynamicZoomStart + (dynamicZoomEnd - dynamicZoomStart) * u
-        return (scale * dz).coerceIn(0.1f, 8.0f)
+        return transformAt((u * 1_000_000f).toLong(), 1_000_000L).scale
     }
+
+    fun speedAt(localMs: Long, durationMs: Long): Float {
+        val keys = speedKeyframes.sortedBy { it.timeMs }
+        if (keys.isEmpty()) return speed.toFloat().coerceIn(0.25f, 4f)
+        val time = localMs.coerceIn(0L, durationMs.coerceAtLeast(0L))
+        val before = keys.lastOrNull { it.timeMs <= time } ?: return keys.first().speed
+        val after = keys.firstOrNull { it.timeMs >= time } ?: return before.speed
+        if (before.timeMs == after.timeMs) return before.speed
+        val u = (time - before.timeMs).toFloat() / (after.timeMs - before.timeMs).toFloat()
+        return lerp(before.speed, after.speed, u).coerceIn(0.25f, 4f)
+    }
+
+    private fun TransformKeyframe.sample() = TransformSample(scale, panX, panY, rotationDeg)
+    private fun lerp(a: Float, b: Float, u: Float) = a + (b - a) * u
 }
 
 internal data class TextOverlayItem(
@@ -120,6 +180,11 @@ internal data class TimelineRichDocument(
     val snapEnabled: Boolean = true,
     val beatBpm: Double = 0.0,
     val beatOffsetMs: Long = 0L,
+    /** Sequence output aspect ratio (width / height); null preserves source ratio. */
+    val outputAspectRatio: Float? = null,
+    /** Optional explicit even-pixel output dimensions, bounded to UHD. */
+    val outputWidth: Int? = null,
+    val outputHeight: Int? = null,
     val clipFx: Map<String, ClipRichFx> = emptyMap(),
     val overlays: List<TextOverlayItem> = emptyList(),
     val subtitles: List<SubtitleCueItem> = emptyList(),
@@ -134,6 +199,14 @@ internal data class TimelineRichDocument(
         root.put("snap_enabled", snapEnabled)
         root.put("beat_bpm", beatBpm)
         root.put("beat_offset_ms", beatOffsetMs)
+        outputAspectRatio?.takeIf { it.isFinite() && it in 0.3f..3.2f }?.let { root.put("output_aspect_ratio", it.toDouble()) }
+        val resolutionValid = outputWidth != null && outputHeight != null &&
+            outputWidth in 144..3840 && outputHeight in 144..3840 && outputWidth % 2 == 0 && outputHeight % 2 == 0 &&
+            outputWidth.toLong() * outputHeight <= 8_294_400L
+        if (resolutionValid) {
+            root.put("output_width", outputWidth!!)
+            root.put("output_height", outputHeight!!)
+        }
 
         val fxArray = JSONArray()
         for (fx in clipFx.values.sortedBy { it.clipId }) {
@@ -163,6 +236,33 @@ internal data class TimelineRichDocument(
             val peaksArr = JSONArray()
             for (p in fx.audioPeaks) peaksArr.put(p.toDouble())
             obj.put("audio_peaks", peaksArr)
+            val keyframes = JSONArray()
+            fx.transformKeyframes.sortedBy { it.timeMs }.forEach { key ->
+                keyframes.put(JSONObject().apply {
+                    put("time_ms", key.timeMs)
+                    put("scale", key.scale.toDouble())
+                    put("pan_x", key.panX.toDouble())
+                    put("pan_y", key.panY.toDouble())
+                    put("rotation_deg", key.rotationDeg.toDouble())
+                })
+            }
+            obj.put("transform_keyframes", keyframes)
+            val speedKeys = JSONArray()
+            fx.speedKeyframes.sortedBy { it.timeMs }.forEach { key ->
+                speedKeys.put(JSONObject().apply { put("time_ms", key.timeMs); put("speed", key.speed.toDouble()) })
+            }
+            obj.put("speed_keyframes", speedKeys)
+            val eq = JSONArray()
+            fx.eqBandsDb.take(6).forEach { eq.put(it.coerceIn(-18f, 18f).toDouble()) }
+            while (eq.length() < 6) eq.put(0.0)
+            obj.put("eq_bands_db", eq)
+            obj.put("compressor_enabled", fx.compressorEnabled)
+            obj.put("compressor_threshold_db", fx.compressorThresholdDb.toDouble())
+            obj.put("compressor_ratio", fx.compressorRatio.toDouble())
+            obj.put("limiter_enabled", fx.limiterEnabled)
+            obj.put("limiter_ceiling_db", fx.limiterCeilingDb.toDouble())
+            obj.put("gate_enabled", fx.gateEnabled)
+            obj.put("gate_threshold_db", fx.gateThresholdDb.toDouble())
             fxArray.put(obj)
         }
         root.put("clip_fx", fxArray)
@@ -221,6 +321,15 @@ internal data class TimelineRichDocument(
             val snap = root.optBoolean("snap_enabled", true)
             val bpm = root.optDouble("beat_bpm", 0.0).takeIf { it.isFinite() && it >= 0.0 } ?: 0.0
             val offsetMs = root.optLong("beat_offset_ms", 0L).coerceAtLeast(0L)
+            val storedWidth = root.optInt("output_width", -1)
+            val storedHeight = root.optInt("output_height", -1)
+            val validResolution = storedWidth in 144..3840 && storedHeight in 144..3840 &&
+                storedWidth % 2 == 0 && storedHeight % 2 == 0 && storedWidth.toLong() * storedHeight <= 8_294_400L
+            val outputWidth = storedWidth.takeIf { validResolution }
+            val outputHeight = storedHeight.takeIf { validResolution }
+            val outputAspectRatio = if (validResolution) storedWidth.toFloat() / storedHeight.toFloat()
+                else root.optDouble("output_aspect_ratio", Double.NaN)
+                    .takeIf { it.isFinite() && it in 0.3..3.2 }?.toFloat()
 
             val fxMap = LinkedHashMap<String, ClipRichFx>()
             val fxArr = root.optJSONArray("clip_fx") ?: JSONArray()
@@ -232,6 +341,34 @@ internal data class TimelineRichDocument(
                 val peaks = if (peaksJson != null) {
                     List(peaksJson.length()) { idx -> peaksJson.optDouble(idx, 0.0).toFloat().coerceIn(0f, 1f) }
                 } else emptyList()
+                val keyframeArray = obj.optJSONArray("transform_keyframes") ?: JSONArray()
+                val keyframes = buildList {
+                    for (keyIndex in 0 until minOf(keyframeArray.length(), 2048)) {
+                        val key = keyframeArray.optJSONObject(keyIndex) ?: continue
+                        val timeMs = key.optLong("time_ms", -1L)
+                        if (timeMs < 0L) continue
+                        add(TransformKeyframe(
+                            timeMs = timeMs,
+                            scale = key.optDouble("scale", 1.0).toFloat().takeIf { it.isFinite() }?.coerceIn(0.1f, 8f) ?: 1f,
+                            panX = key.optDouble("pan_x", 0.0).toFloat().takeIf { it.isFinite() }?.coerceIn(-2f, 2f) ?: 0f,
+                            panY = key.optDouble("pan_y", 0.0).toFloat().takeIf { it.isFinite() }?.coerceIn(-2f, 2f) ?: 0f,
+                            rotationDeg = key.optDouble("rotation_deg", 0.0).toFloat().takeIf { it.isFinite() }?.coerceIn(-3600f, 3600f) ?: 0f,
+                        ))
+                    }
+                }.distinctBy { it.timeMs }.sortedBy { it.timeMs }
+                val speedKeyArray = obj.optJSONArray("speed_keyframes") ?: JSONArray()
+                val speedKeys = buildList {
+                    for (keyIndex in 0 until minOf(speedKeyArray.length(), 2048)) {
+                        val key = speedKeyArray.optJSONObject(keyIndex) ?: continue
+                        val timeMs = key.optLong("time_ms", -1L)
+                        val speed = key.optDouble("speed", Double.NaN).toFloat()
+                        if (timeMs >= 0L && speed.isFinite()) add(SpeedKeyframe(timeMs, speed.coerceIn(0.25f, 4f)))
+                    }
+                }.distinctBy { it.timeMs }.sortedBy { it.timeMs }
+                val eqArray = obj.optJSONArray("eq_bands_db") ?: JSONArray()
+                val eqBands = List(6) { index ->
+                    eqArray.optDouble(index, 0.0).toFloat().takeIf { it.isFinite() }?.coerceIn(-18f, 18f) ?: 0f
+                }
                 fxMap[id] = ClipRichFx(
                     clipId = id,
                     trackId = obj.optString("track_id", "v1"),
@@ -256,6 +393,16 @@ internal data class TimelineRichDocument(
                     chromaKeyHex = obj.optString("chroma_key_hex", ""),
                     chromaTolerance = obj.optDouble("chroma_tolerance", 0.0).toFloat().coerceIn(0f, 1f),
                     audioPeaks = peaks,
+                    transformKeyframes = keyframes,
+                    speedKeyframes = speedKeys,
+                    eqBandsDb = eqBands,
+                    compressorEnabled = obj.optBoolean("compressor_enabled", false),
+                    compressorThresholdDb = obj.optDouble("compressor_threshold_db", -18.0).toFloat().takeIf { it.isFinite() }?.coerceIn(-60f, 0f) ?: -18f,
+                    compressorRatio = obj.optDouble("compressor_ratio", 4.0).toFloat().takeIf { it.isFinite() }?.coerceIn(1f, 20f) ?: 4f,
+                    limiterEnabled = obj.optBoolean("limiter_enabled", false),
+                    limiterCeilingDb = obj.optDouble("limiter_ceiling_db", -1.0).toFloat().takeIf { it.isFinite() }?.coerceIn(-12f, 0f) ?: -1f,
+                    gateEnabled = obj.optBoolean("gate_enabled", false),
+                    gateThresholdDb = obj.optDouble("gate_threshold_db", -45.0).toFloat().takeIf { it.isFinite() }?.coerceIn(-80f, -6f) ?: -45f,
                 )
             }
 
@@ -312,6 +459,9 @@ internal data class TimelineRichDocument(
                 snapEnabled = snap,
                 beatBpm = bpm,
                 beatOffsetMs = offsetMs,
+                outputAspectRatio = outputAspectRatio,
+                outputWidth = outputWidth,
+                outputHeight = outputHeight,
                 clipFx = fxMap,
                 overlays = ovList,
                 subtitles = subList,

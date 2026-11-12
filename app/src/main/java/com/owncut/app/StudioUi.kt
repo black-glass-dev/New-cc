@@ -59,7 +59,11 @@ internal object StudioUi {
 
 internal enum class StudioIcon { HOME, EDIT, MEDIA, COLOR, FLOW, EXPORT, SPLIT, TRIM_LEFT, TRIM_RIGHT, DELETE, RIPPLE,
     UNDO, REDO, SAVE, SAVE_AS, OPEN, RECOVER, IMPORT, LINK, PLAY, FOLLOW, CANCEL, PLUS, SETTINGS, RENAME, REFRESH, INFO,
-    SPEED, AUDIO, TRANSFORM, TEXT, SUBTITLES, TRANSITION, PIP, BEAT, MAGNET, MARKER, DUPLICATE, FREEZE }
+    SPEED, AUDIO, TRANSFORM, TEXT, SUBTITLES, TRANSITION, PIP, BEAT, MAGNET, MARKER, DUPLICATE, FREEZE,
+    ZOOM_IN, ZOOM_OUT, MUTE, LOCK, KEYFRAME,
+    J_CUT, L_CUT, SLIP, ROLL, SLIDE, VOICEOVER, EQ, COMPRESSOR, LIMITER, GATE,
+    REFRAME, STABILIZE, OPTICAL_FLOW, MULTICAM, COMPOUND, ADJUSTMENT, DUAL_TIMELINE,
+    JOG_DIAL, SPEED_RAMP, SOURCE_VIEW, TRACK }
 
 /** Original stroke-vector icons: no icon font, emoji, external assets or proprietary artwork.
  * Button's text is semantic state (TalkBack/tooltip); the visual face draws only the icon.
@@ -136,6 +140,20 @@ internal class StudioButton @JvmOverloads constructor(context: Context, attrs: A
             StudioIcon.SETTINGS -> { canvas.drawCircle(12f,12f,7f,ink); canvas.drawCircle(12f,12f,2.5f,ink)
                 for(i in 0..7) { canvas.save(); canvas.rotate(i*45f,12f,12f); line(12f,2f,12f,5f); canvas.restore() } }
             StudioIcon.INFO -> { canvas.drawCircle(12f,12f,9f,ink); line(12f,11f,12f,17f); canvas.drawCircle(12f,7f,.5f,ink) }
+            StudioIcon.ZOOM_IN, StudioIcon.ZOOM_OUT -> {
+                canvas.drawCircle(10f,10f,6f,ink); line(14.5f,14.5f,21f,21f)
+                line(7f,10f,13f,10f)
+                if (icon == StudioIcon.ZOOM_IN) line(10f,7f,10f,13f)
+            }
+            StudioIcon.MUTE -> {
+                path(4f,9f,8f,9f,13f,5f,13f,19f,8f,15f,4f,15f,4f,9f)
+                line(16f,8f,21f,16f); line(21f,8f,16f,16f)
+            }
+            StudioIcon.LOCK -> {
+                canvas.drawRoundRect(RectF(4f,10f,20f,21f),2f,2f,ink)
+                canvas.drawArc(RectF(7f,3f,17f,15f),180f,180f,false,ink)
+            }
+            StudioIcon.KEYFRAME -> path(12f,2f,22f,12f,12f,22f,2f,12f,12f,2f)
             StudioIcon.SPEED -> {
                 canvas.drawArc(RectF(3f,5f,21f,23f), 180f, 180f, false, ink)
                 line(12f, 14f, 17f, 8f); canvas.drawCircle(12f, 14f, 1.8f, ink)
@@ -182,6 +200,81 @@ internal class StudioButton @JvmOverloads constructor(context: Context, attrs: A
             StudioIcon.FREEZE -> {
                 line(12f, 3f, 12f, 21f); line(4f, 7.5f, 20f, 16.5f); line(4f, 16.5f, 20f, 7.5f)
                 canvas.drawCircle(12f, 12f, 2.5f, ink)
+            }
+            StudioIcon.J_CUT, StudioIcon.L_CUT -> {
+                line(4f,6f,20f,6f); line(4f,18f,20f,18f)
+                val offset = if (icon == StudioIcon.J_CUT) -4f else 4f
+                line(7f,6f,7f,18f + offset); line(17f,6f,17f,18f + offset)
+                canvas.drawCircle(7f,18f + offset,1.5f,ink); canvas.drawCircle(17f,18f + offset,1.5f,ink)
+            }
+            StudioIcon.SLIP -> {
+                box(5f,5f,19f,19f); line(2f,12f,8f,12f); path(5f,9f,2f,12f,5f,15f)
+                line(22f,12f,16f,12f); path(19f,9f,22f,12f,19f,15f)
+            }
+            StudioIcon.ROLL -> {
+                line(12f,4f,12f,20f); line(3f,12f,9f,12f); path(6f,9f,3f,12f,6f,15f)
+                line(21f,12f,15f,12f); path(18f,9f,21f,12f,18f,15f)
+            }
+            StudioIcon.SLIDE -> {
+                box(8f,7f,16f,17f); line(2f,12f,7f,12f); path(5f,9f,2f,12f,5f,15f)
+                line(22f,12f,17f,12f); path(19f,9f,22f,12f,19f,15f)
+            }
+            StudioIcon.VOICEOVER -> {
+                canvas.drawRoundRect(RectF(9f,3f,15f,15f),3f,3f,ink)
+                canvas.drawArc(RectF(6f,6f,18f,18f),0f,180f,false,ink); line(12f,18f,12f,22f); line(8f,22f,16f,22f)
+            }
+            StudioIcon.EQ -> {
+                line(5f,4f,5f,20f); line(12f,4f,12f,20f); line(19f,4f,19f,20f)
+                canvas.drawCircle(5f,9f,2f,ink); canvas.drawCircle(12f,15f,2f,ink); canvas.drawCircle(19f,7f,2f,ink)
+            }
+            StudioIcon.COMPRESSOR -> {
+                val p=Path(); p.moveTo(3f,20f); p.lineTo(9f,12f); p.cubicTo(12f,8f,13f,7f,21f,5f); canvas.drawPath(p,ink)
+                line(4f,4f,4f,20f); line(4f,20f,21f,20f)
+            }
+            StudioIcon.LIMITER -> {
+                line(4f,5f,20f,5f); path(3f,15f,7f,15f,9f,8f,12f,15f,15f,9f,17f,15f,21f,15f)
+                line(4f,20f,20f,20f)
+            }
+            StudioIcon.GATE -> {
+                path(2f,12f,5f,12f,7f,7f,9f,17f,11f,12f,13f,12f)
+                path(17f,12f,19f,7f,21f,17f,23f,12f)
+            }
+            StudioIcon.REFRAME -> {
+                path(8f,3f,3f,3f,3f,8f); path(16f,3f,21f,3f,21f,8f)
+                path(3f,16f,3f,21f,8f,21f); path(21f,16f,21f,21f,16f,21f)
+                canvas.drawCircle(12f,12f,3f,ink)
+            }
+            StudioIcon.STABILIZE -> {
+                path(12f,2f,20f,5f,19f,14f,12f,22f,5f,14f,4f,5f,12f,2f)
+                line(8f,12f,11f,15f); line(11f,15f,16f,9f)
+            }
+            StudioIcon.OPTICAL_FLOW -> {
+                canvas.drawCircle(5f,6f,2f,ink); canvas.drawCircle(19f,18f,2f,ink)
+                path(7f,6f,12f,6f,12f,12f,19f,12f); path(16f,9f,19f,12f,16f,15f)
+                path(17f,18f,12f,18f,12f,12f,5f,12f)
+            }
+            StudioIcon.MULTICAM -> {
+                box(3f,3f,10f,10f); box(14f,3f,21f,10f); box(3f,14f,10f,21f); box(14f,14f,21f,21f)
+            }
+            StudioIcon.COMPOUND -> { box(3f,5f,16f,20f); box(8f,3f,21f,18f); line(11f,8f,18f,8f); line(11f,12f,18f,12f) }
+            StudioIcon.ADJUSTMENT -> {
+                line(4f,6f,20f,6f); line(4f,12f,20f,12f); line(4f,18f,20f,18f)
+                canvas.drawCircle(9f,6f,2f,ink); canvas.drawCircle(15f,12f,2f,ink); canvas.drawCircle(7f,18f,2f,ink)
+            }
+            StudioIcon.DUAL_TIMELINE -> {
+                box(3f,3f,21f,9f); box(3f,15f,21f,21f); line(8f,6f,13f,6f); line(13f,18f,18f,18f)
+            }
+            StudioIcon.JOG_DIAL -> {
+                canvas.drawCircle(12f,12f,8f,ink); canvas.drawCircle(12f,12f,2f,ink)
+                path(5f,6f,5f,3f,9f,3f); path(19f,18f,19f,21f,15f,21f)
+            }
+            StudioIcon.SPEED_RAMP -> {
+                line(3f,20f,3f,4f); line(3f,20f,21f,20f)
+                val p=Path(); p.moveTo(5f,18f); p.cubicTo(8f,18f,9f,15f,12f,12f); p.cubicTo(15f,9f,16f,6f,20f,5f); canvas.drawPath(p,ink)
+            }
+            StudioIcon.SOURCE_VIEW -> { box(2f,4f,22f,20f); path(9f,8f,16f,12f,9f,16f,9f,8f) }
+            StudioIcon.TRACK -> {
+                box(3f,4f,21f,9f); box(3f,11f,21f,16f); box(3f,18f,21f,22f)
             }
         }
         canvas.restoreToCount(save)

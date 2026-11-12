@@ -65,6 +65,11 @@ internal class TimelineView(context: Context) : View(context) {
     private var trimClip: ClipSnapshot? = null
     private var trimLeftEdge = true
     private var trimDeltaFrames = 0L
+    private data class RichBlockDrag(
+        val id: String, val subtitle: Boolean, val startMs: Long, val endMs: Long,
+        val resizeEnd: Boolean, val downX: Float, var deltaFrames: Long = 0L,
+    )
+    private var richBlockDrag: RichBlockDrag? = null
     private var downX = 0f
     private var moveDelta = 0f
     private var snapGuideFrame = -1L
@@ -86,6 +91,8 @@ internal class TimelineView(context: Context) : View(context) {
     var onTwoFingerUndo: (() -> Unit)? = null
     var onThreeFingerRedo: (() -> Unit)? = null
     var onMarkerClick: ((TimelineMarkerItem) -> Unit)? = null
+    var onKeyframeClick: ((ClipSnapshot, Long) -> Unit)? = null
+    var onEditRichBlock: ((String, Boolean, Long, Long) -> Unit)? = null
 
     private val scaleDetector = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
         override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
@@ -175,6 +182,15 @@ internal class TimelineView(context: Context) : View(context) {
         invalidate()
     }
 
+    /** Accessible button zoom shares the native zoom state used by pinch gestures. */
+    fun zoomBy(factor: Double, focusXPx: Double = width / 2.0) {
+        val native = onPinchZoom?.invoke(factor, focusXPx)
+        zoomMultiplier = (native ?: (zoomMultiplier * factor)).coerceIn(0.25, 8.0)
+        pixelsPerFrame = TimelineGeometry.pixelsPerFrame(endFrame, density) * zoomMultiplier
+        requestLayout()
+        invalidate()
+    }
+
     fun xForFrame(frame: Long): Float = (frame * pixelsPerFrame).toFloat()
     private fun frameAt(x: Float) = TimelineGeometry.frameAt(x, pixelsPerFrame, endFrame)
     private fun trackAt(y: Float): String? = if (y < rulerHeight) selectedTrack ?: tracks.firstOrNull()
@@ -208,6 +224,46 @@ internal class TimelineView(context: Context) : View(context) {
         else x >= r.right - handleW && x <= r.right + 3f * density
     }
 
+    private fun findRichBlockAt(x: Float, y: Float): RichBlockDrag? {
+        val laneTop = rulerHeight + tracks.size.coerceAtLeast(1) * laneHeight
+        val resizeSlop = 12f * density
+        for (item in richDoc.overlays) {
+            val x0 = xForFrame(item.startMs * 30L / 1000L)
+            val x1 = max(x0 + 10f * density, xForFrame((item.startMs + item.durationMs) * 30L / 1000L))
+            if (y in (laneTop + 2f * density)..(laneTop + 31f * density) && x in x0..x1)
+                return RichBlockDrag(item.id, false, item.startMs, item.startMs + item.durationMs, x >= x1 - resizeSlop, x)
+        }
+        val subTop = laneTop + 34f * density
+        for (item in richDoc.subtitles) {
+            val x0 = xForFrame(item.startMs * 30L / 1000L)
+            val x1 = max(x0 + 10f * density, xForFrame(item.endMs * 30L / 1000L))
+            if (y in (subTop + 2f * density)..(subTop + 31f * density) && x in x0..x1)
+                return RichBlockDrag(item.id, true, item.startMs, item.endMs, x >= x1 - resizeSlop, x)
+        }
+        return null
+    }
+
+    private fun findKeyframeAt(x: Float, y: Float): Pair<ClipSnapshot, Long>? {
+        val radius = 10f * density
+        var best: Pair<ClipSnapshot, Long>? = null
+        var bestDistance = Float.MAX_VALUE
+        for (clip in clips) {
+            val rect = clipRect(clip)
+            val fx = richDoc.fxFor(clip.id)
+            if (fx.transformKeyframes.isEmpty() || y !in (rect.top - radius)..(rect.top + 18f * density)) continue
+            fx.transformKeyframes.forEach { key ->
+                val frame = clip.startFrame + key.timeMs.coerceAtLeast(0L) * 30L / 1000L
+                val px = xForFrame(frame) + if (movingClip?.id == clip.id) moveDelta else 0f
+                val distance = abs(px - x)
+                if (distance <= radius && distance < bestDistance) {
+                    best = clip to frame
+                    bestDistance = distance
+                }
+            }
+        }
+        return best
+    }
+
     private fun findMarkerAt(x: Float): TimelineMarkerItem? {
         val hitPx = 12f * density
         return richDoc.markers.minByOrNull { mk ->
@@ -221,7 +277,7 @@ internal class TimelineView(context: Context) : View(context) {
         val wantedWidth = ceil(xForFrame(endFrame) + 24f * density).toInt().coerceAtLeast((240 * density).toInt())
         setMeasuredDimension(
             resolveSize(wantedWidth.coerceAtLeast(suggestedMinimumWidth), widthMeasureSpec),
-            resolveSize((rulerHeight + tracks.size.coerceAtLeast(1) * laneHeight).toInt(), heightMeasureSpec),
+            resolveSize((rulerHeight + tracks.size.coerceAtLeast(1) * laneHeight + 68f * density).toInt(), heightMeasureSpec),
         )
     }
 
@@ -239,6 +295,14 @@ internal class TimelineView(context: Context) : View(context) {
             paint.strokeWidth = density
             canvas.drawLine(visible.left.toFloat(), rulerHeight + (lane + 1) * laneHeight, visible.right.toFloat(), rulerHeight + (lane + 1) * laneHeight, paint)
         }
+        val richLaneTop = rulerHeight + tracks.size.coerceAtLeast(1) * laneHeight
+        paint.color = StudioUi.background
+        canvas.drawRect(visible.left.toFloat(), richLaneTop, visible.right.toFloat(), richLaneTop + 34f * density, paint)
+        paint.color = StudioUi.surface
+        canvas.drawRect(visible.left.toFloat(), richLaneTop + 34f * density, visible.right.toFloat(), richLaneTop + 68f * density, paint)
+        paint.color = StudioUi.border
+        canvas.drawLine(visible.left.toFloat(), richLaneTop + 34f * density, visible.right.toFloat(), richLaneTop + 34f * density, paint)
+        canvas.drawLine(visible.left.toFloat(), richLaneTop + 68f * density, visible.right.toFloat(), richLaneTop + 68f * density, paint)
         if (clips.isEmpty()) {
             paint.color = StudioUi.muted
             paint.textSize = 12f * density
@@ -289,21 +353,50 @@ internal class TimelineView(context: Context) : View(context) {
             tick += tickFrames
         }
 
-        // Overlay & subtitle indicator bars along ruler bottom
-        for (ov in richDoc.overlays) {
-            val x0 = xForFrame((ov.startMs * 30L) / 1000L)
-            val x1 = max(x0 + 6f * density, xForFrame(((ov.startMs + ov.durationMs) * 30L) / 1000L))
+        // Dedicated visual text/subtitle lanes keep rich timing editable concepts visible.
+        paint.textSize = 9f * density
+        val textLaneTop = rulerHeight + tracks.size.coerceAtLeast(1) * laneHeight
+        paint.color = 0xFFFACC15.toInt()
+        canvas.drawText(AppLanguage.text(R.string.timeline_text_lane), visible.left + 4f * density, textLaneTop + 12f * density, paint)
+        richDoc.overlays.forEach { overlay ->
+            val drag = richBlockDrag?.takeIf { !it.subtitle && it.id == overlay.id }
+            val deltaMs = drag?.let { it.deltaFrames * 1000L / 30L } ?: 0L
+            val startMs = when { drag == null -> overlay.startMs; drag.resizeEnd -> overlay.startMs; else -> (overlay.startMs + deltaMs).coerceAtLeast(0L) }
+            val durationMs = if (drag?.resizeEnd == true) (overlay.durationMs + deltaMs).coerceAtLeast(100L) else overlay.durationMs
+            val x0 = xForFrame(startMs * 30L / 1000L)
+            val x1 = max(x0 + 10f * density, xForFrame((startMs + durationMs) * 30L / 1000L))
             if (x1 >= visible.left && x0 <= visible.right) {
-                paint.color = 0xCCFACC15.toInt()
-                canvas.drawRoundRect(x0, rulerHeight - 6f * density, x1, rulerHeight - 3.5f * density, 2f * density, 2f * density, paint)
+                paint.color = 0xCC8A6E00.toInt()
+                val block = RectF(x0, textLaneTop + 3f * density, x1, textLaneTop + 29f * density)
+                canvas.drawRoundRect(block, 4f * density, 4f * density, paint)
+                paint.color = 0xFFFFF3B0.toInt(); paint.strokeWidth = 1.5f * density
+                canvas.drawLine(block.right - 4f * density, block.top + 4f * density, block.right - 4f * density, block.bottom - 4f * density, paint)
+                paint.textSize = 9f * density
+                canvas.save(); canvas.clipRect(block)
+                canvas.drawText(overlay.text.ifBlank { "Text overlay" }, block.left + 4f * density, block.centerY() + 3f * density, paint)
+                canvas.restore()
             }
         }
-        for (sub in richDoc.subtitles) {
-            val x0 = xForFrame((sub.startMs * 30L) / 1000L)
-            val x1 = max(x0 + 6f * density, xForFrame((sub.endMs * 30L) / 1000L))
+        val subtitleLaneTop = textLaneTop + 34f * density
+        paint.color = 0xFF7DD3FC.toInt(); paint.textSize = 9f * density
+        canvas.drawText(AppLanguage.text(R.string.timeline_subtitle_lane), visible.left + 4f * density, subtitleLaneTop + 12f * density, paint)
+        richDoc.subtitles.forEach { cue ->
+            val drag = richBlockDrag?.takeIf { it.subtitle && it.id == cue.id }
+            val deltaMs = drag?.let { it.deltaFrames * 1000L / 30L } ?: 0L
+            val startMs = when { drag == null -> cue.startMs; drag.resizeEnd -> cue.startMs; else -> (cue.startMs + deltaMs).coerceAtLeast(0L) }
+            val endMs = if (drag?.resizeEnd == true) (cue.endMs + deltaMs).coerceAtLeast(startMs + 100L) else startMs + (cue.endMs - cue.startMs)
+            val x0 = xForFrame(startMs * 30L / 1000L)
+            val x1 = max(x0 + 10f * density, xForFrame(endMs * 30L / 1000L))
             if (x1 >= visible.left && x0 <= visible.right) {
-                paint.color = 0xCC38BDF8.toInt()
-                canvas.drawRoundRect(x0, rulerHeight - 3f * density, x1, rulerHeight - 1f * density, 1.5f * density, 1.5f * density, paint)
+                paint.color = 0xCC075985.toInt()
+                val block = RectF(x0, subtitleLaneTop + 3f * density, x1, subtitleLaneTop + 29f * density)
+                canvas.drawRoundRect(block, 4f * density, 4f * density, paint)
+                paint.color = 0xFFE0F2FE.toInt(); paint.strokeWidth = 1.5f * density
+                canvas.drawLine(block.right - 4f * density, block.top + 4f * density, block.right - 4f * density, block.bottom - 4f * density, paint)
+                paint.textSize = 9f * density
+                canvas.save(); canvas.clipRect(block)
+                canvas.drawText(cue.text, block.left + 4f * density, block.centerY() + 3f * density, paint)
+                canvas.restore()
             }
         }
 
@@ -436,6 +529,37 @@ internal class TimelineView(context: Context) : View(context) {
                 canvas.drawRoundRect(rect, 7 * density, 7 * density, paint)
                 paint.style = Paint.Style.FILL
             }
+            if (!fx.transformKeyframes.isEmpty()) {
+                paint.color = 0xFFFFD166.toInt()
+                val radius = 3.5f * density
+                fx.transformKeyframes.forEach { key ->
+                    val keyFrame = clip.startFrame + (key.timeMs.coerceAtLeast(0L) * 30L / 1000L)
+                    val x = xForFrame(keyFrame) + if (movingClip?.id == clip.id) moveDelta else 0f
+                    if (x in (visible.left - radius)..(visible.right + radius)) {
+                        val y = rect.top + 9f * density
+                        marker.reset()
+                        marker.moveTo(x, y - radius); marker.lineTo(x + radius, y)
+                        marker.lineTo(x, y + radius); marker.lineTo(x - radius, y); marker.close()
+                        canvas.drawPath(marker, paint)
+                    }
+                }
+            }
+            if (fx.speedKeyframes.size >= 2) {
+                val keys = fx.speedKeyframes.sortedBy { it.timeMs }
+                tempPath.reset()
+                keys.forEachIndexed { keyIndex, key ->
+                    val frame = clip.startFrame + key.timeMs.coerceAtLeast(0L) * 30L / 1000L
+                    val x = xForFrame(frame) + if (movingClip?.id == clip.id) moveDelta else 0f
+                    val ratio = ((key.speed - 0.25f) / 3.75f).coerceIn(0f, 1f)
+                    val y = rect.bottom - 5f * density - ratio * (rect.height() - 10f * density)
+                    if (keyIndex == 0) tempPath.moveTo(x, y) else tempPath.lineTo(x, y)
+                    marker.reset(); marker.moveTo(x, y - 3f * density); marker.lineTo(x + 3f * density, y)
+                    marker.lineTo(x, y + 3f * density); marker.lineTo(x - 3f * density, y); marker.close()
+                    paint.color = 0xFFB794F4.toInt(); canvas.drawPath(marker, paint)
+                }
+                paint.color = 0xFFB794F4.toInt(); paint.style = Paint.Style.STROKE; paint.strokeWidth = 2f * density
+                canvas.drawPath(tempPath, paint); paint.style = Paint.Style.FILL
+            }
         }
 
         // Magnetic snap guide line
@@ -462,6 +586,13 @@ internal class TimelineView(context: Context) : View(context) {
         override fun onSingleTapUp(e: MotionEvent): Boolean {
             if (maxPointerCount > 1) return false
             performClick()
+            findKeyframeAt(e.x, e.y)?.let { (clip, frame) ->
+                selectedId = clip.id
+                onKeyframeClick?.invoke(clip, frame)
+                onSeek(clip.trackId, frame.coerceIn(0L, endFrame))
+                invalidate()
+                return true
+            }
             if (e.y < rulerHeight) {
                 val tappedMarker = findMarkerAt(e.x)
                 if (tappedMarker != null) {
@@ -477,6 +608,12 @@ internal class TimelineView(context: Context) : View(context) {
 
         override fun onLongPress(e: MotionEvent) {
             if (maxPointerCount > 1 || e.y < rulerHeight || trimClip != null) return
+            richBlockDrag = findRichBlockAt(e.x, e.y)
+            if (richBlockDrag != null) {
+                parent?.requestDisallowInterceptTouchEvent(true)
+                performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                return
+            }
             movingClip = clips.lastOrNull { clipRect(it).contains(e.x, e.y) }
             if (movingClip != null) {
                 movingTargetTrack = movingClip?.trackId
@@ -489,7 +626,7 @@ internal class TimelineView(context: Context) : View(context) {
     })
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (!isEnabled || clips.isEmpty()) return false
+        if (!isEnabled || (clips.isEmpty() && richDoc.overlays.isEmpty() && richDoc.subtitles.isEmpty())) return false
         maxPointerCount = max(maxPointerCount, event.pointerCount)
         if (event.actionMasked == MotionEvent.ACTION_DOWN) {
             maxPointerCount = 1
@@ -533,6 +670,11 @@ internal class TimelineView(context: Context) : View(context) {
                 }
             }
             MotionEvent.ACTION_MOVE -> {
+                richBlockDrag?.let { drag ->
+                    drag.deltaFrames = ((event.x - drag.downX) / pixelsPerFrame).roundToLong()
+                    invalidate()
+                    return true
+                }
                 if (draggingHead) {
                     setPlayhead(frameAt(event.x))
                     onScrub(playheadFrame, false)
@@ -565,6 +707,18 @@ internal class TimelineView(context: Context) : View(context) {
                 }
             }
             MotionEvent.ACTION_UP -> {
+                richBlockDrag?.let { drag ->
+                    val deltaMs = drag.deltaFrames * 1000L / 30L
+                    val start = if (drag.resizeEnd) drag.startMs else (drag.startMs + deltaMs).coerceAtLeast(0L)
+                    val end = if (drag.resizeEnd) (drag.endMs + deltaMs).coerceAtLeast(start + 100L)
+                        else start + (drag.endMs - drag.startMs).coerceAtLeast(100L)
+                    if (deltaMs != 0L) onEditRichBlock?.invoke(drag.id, drag.subtitle, start, end)
+                    richBlockDrag = null
+                    parent?.requestDisallowInterceptTouchEvent(false)
+                    invalidate()
+                    performClick()
+                    return true
+                }
                 if (maybeFireMultiFingerHistory()) {
                     draggingHead = false; movingClip = null; trimClip = null; snapGuideFrame = -1L
                     maxPointerCount = 1; invalidate(); return true
@@ -599,7 +753,7 @@ internal class TimelineView(context: Context) : View(context) {
             MotionEvent.ACTION_CANCEL -> {
                 gestures.onTouchEvent(event)
                 draggingHead = false; movingClip = null; movingTargetTrack = null
-                trimClip = null; trimDeltaFrames = 0L
+                trimClip = null; trimDeltaFrames = 0L; richBlockDrag = null
                 moveDelta = 0f; snapGuideFrame = -1L; lastHapticSnapFrame = -1L
                 onScrubCancel(); invalidate(); return true
             }

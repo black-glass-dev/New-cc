@@ -32,6 +32,14 @@ class MinimalLayoutTest {
                         assertFalse(buttons.any { it.icon == StudioIcon.SAVE || it.icon == StudioIcon.TRIM_LEFT || it.icon == StudioIcon.RECOVER })
                         assertEquals(1, buttons.count { it.icon == StudioIcon.IMPORT })
                         assertEquals(1, buttons.count { it.icon == StudioIcon.PLAY })
+                        assertEquals("Jog dial should be one-tap from transport", 1, buttons.count { it.icon == StudioIcon.JOG_DIAL })
+                        val splitButton = buttons.single { it.icon == StudioIcon.SPLIT }
+                        assertTrue("Primary Edit actions should be in fixed rows", splitButton.parent is android.widget.LinearLayout)
+                        val primaryRow = splitButton.parent as android.widget.LinearLayout
+                        assertTrue("Primary Edit actions should be in a row grid", primaryRow.parent is android.widget.LinearLayout)
+                        val primaryGrid = primaryRow.parent as android.widget.LinearLayout
+                        assertEquals(android.widget.LinearLayout.VERTICAL, primaryGrid.orientation)
+                        assertEquals(2, primaryGrid.childCount)
                         fun page(value: String) = MainActivity::class.java.getDeclaredMethod("showWorkspacePage",String::class.java).apply { isAccessible = true }.invoke(activity,value)
                         page("Media"); assertTrue(metadata.isShown); assertTrue(sourceBar.isShown)
                         page("Tools"); assertFalse(metadata.isShown)

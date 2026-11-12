@@ -38,6 +38,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
     private var engine: EngineSession? = null
+    private var voiceoverRecorder: LiveVoiceoverRecorder? = null
+    private var voiceoverButton: Button? = null
+    private val voiceoverPermissionRequest = 9031
     @Volatile private var managedStore: ManagedProjectStore? = null
     private var libraryId: String? = null
     private var projectName = AppLanguage.text(R.string.workspace_name)
@@ -63,6 +66,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
     private lateinit var engineStatusText: TextView
     private lateinit var mediaText: TextView
     private lateinit var timelineContainer: LinearLayout
+    private var timelineTrackHeaders: LinearLayout? = null
     private var timelineView: TimelineView? = null
     private var timelineViewport: HorizontalScrollView? = null
     private lateinit var timelinePositionText: TextView
@@ -89,11 +93,14 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
     private val mediaHandler = Handler(mediaThread.looper)
     private val metadataExecutor = Executors.newSingleThreadScheduledExecutor()
     private val exportExecutor = Executors.newSingleThreadExecutor()
+    private val reframeExecutor = Executors.newSingleThreadExecutor()
+    @Volatile private var reframeGeneration = 0
     @Volatile private var exportCancellation: AtomicBoolean? = null
     private lateinit var cancelExportButton: Button
     private var pendingAutosave: ScheduledFuture<*>? = null
     private var metadataRequestSequence = 0
     @Volatile private var playerGeneration = 0
+    @Volatile private var lastPreviewSpeed = Float.NaN
     private val playbackTicker = object : Runnable {
         override fun run() {
             if(mainGradePreview!=null) return
@@ -396,14 +403,14 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         root.addView(transportRow, matchWrap())
         updateFollowButton()
         val timelineScroll = ScrollView(this).apply {
-            isFillViewport = false
+            isFillViewport = true
             isVerticalScrollBarEnabled = true
         }
         timelineContainer = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
+            orientation = LinearLayout.HORIZONTAL
             background = StudioUi.shape(this@MainActivity)
         }
-        timelineScroll.addView(timelineContainer)
+        timelineScroll.addView(timelineContainer, ScrollView.LayoutParams(-1, -2))
         root.addView(timelineScroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(164)))
 
         seekBar = SeekBar(this).apply {
@@ -436,14 +443,14 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         root.addView(editHelpText, matchWrap())
         workspacePanels.getOrPut("Tools") { mutableListOf() }.add(editHelpText)
 
-        val editScroll = HorizontalScrollView(this).apply { isHorizontalScrollBarEnabled = false }
+        // Primary Edit actions are fixed in two rows; no horizontal swipe hides essential tools.
+        val editScroll = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val editControls = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         editControls.addView(actionButton(AppLanguage.text(R.string.message_ef1f98dae3), StudioIcon.SPLIT) { splitAtPlayhead() }, wrapButtonParams())
         editControls.addView(actionButton(AppLanguage.text(R.string.message_2f1b3a4ea9), StudioIcon.TRIM_LEFT) { trimAtPlayhead(leftEdge = true) }, wrapButtonParams())
         editControls.addView(actionButton(AppLanguage.text(R.string.message_0a1e880c02), StudioIcon.TRIM_RIGHT) { trimAtPlayhead(leftEdge = false) }, wrapButtonParams())
         editControls.addView(actionButton(AppLanguage.text(R.string.message_1c025b7a2c), StudioIcon.DELETE) { deleteSelected(ripple = false) }, wrapButtonParams())
         editControls.addView(actionButton(AppLanguage.text(R.string.message_895cdbe3da), StudioIcon.RIPPLE) { deleteSelected(ripple = true) }, wrapButtonParams())
-        editScroll.addView(editControls)
         root.addView(editScroll, matchWrap())
         workspacePanels.getOrPut("Edit") { mutableListOf() }.add(editScroll)
 
@@ -604,20 +611,66 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         // Move Play to the transport; eliminate full-width Play and duplicate Import bars.
         transportRow.addView(playButton, 0, LinearLayout.LayoutParams(dp(52),dp(52)))
         transportRow.addView(actionButton(AppLanguage.text(R.string.message_f04897b60d), StudioIcon.IMPORT) { launchVideoPicker() }, LinearLayout.LayoutParams(dp(52),dp(52)))
+        transportRow.addView(actionButton(AppLanguage.text(R.string.timeline_jog_dial), StudioIcon.JOG_DIAL) {
+            showJogDialDialog()
+        }, LinearLayout.LayoutParams(dp(52), dp(52)))
         timelinePositionText.typeface = android.graphics.Typeface.MONOSPACE
         timelinePositionText.setTextColor(StudioUi.text)
         root.addView(transportRow,matchWrap())
-        root.addView(timelineScroll,LinearLayout.LayoutParams(-1,dp(112)))
+        val timelineZoomRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.END or Gravity.CENTER_VERTICAL
+        }
+        timelineZoomRow.addView(actionButton("V+", StudioIcon.PLUS) {
+            val s = engine ?: return@actionButton
+            val existing = s.tracks().map { it.id }.toSet()
+            val id = (1..999).asSequence().map { "v$it" }.first { it !in existing }
+            s.ensureTrack(id, false); refreshTimeline(); scheduleAutosave()
+        }.apply { contentDescription = AppLanguage.text(R.string.timeline_add_video_track); tooltipText = contentDescription }, wrapButtonParams())
+        timelineZoomRow.addView(actionButton("A+", StudioIcon.PLUS) {
+            val s = engine ?: return@actionButton
+            val existing = s.tracks().map { it.id }.toSet()
+            val id = (1..999).asSequence().map { "a$it" }.first { it !in existing }
+            s.ensureTrack(id, true); refreshTimeline(); scheduleAutosave()
+        }.apply { contentDescription = AppLanguage.text(R.string.timeline_add_audio_track); tooltipText = contentDescription }, wrapButtonParams())
+        timelineZoomRow.addView(actionButton("−", StudioIcon.ZOOM_OUT) {
+            timelineView?.zoomBy(1.0 / 1.25)
+        }.apply { contentDescription = AppLanguage.text(R.string.timeline_zoom_out); tooltipText = contentDescription }, wrapButtonParams())
+        timelineZoomRow.addView(actionButton("+", StudioIcon.ZOOM_IN) {
+            timelineView?.zoomBy(1.25)
+        }.apply { contentDescription = AppLanguage.text(R.string.timeline_zoom_in); tooltipText = contentDescription }, wrapButtonParams())
+        root.addView(timelineZoomRow, matchWrap())
+        root.addView(timelineScroll,LinearLayout.LayoutParams(-1,dp(224)))
         val secondaryTools = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         // Trim and ripple remain accessible in Tools; Split/Delete + history are primary.
         val advanced = listOf(editControls.getChildAt(1),editControls.getChildAt(2),editControls.getChildAt(4))
         for(view in advanced) { editControls.removeView(view); secondaryTools.addView(view,wrapButtonParams()) }
         secondaryTools.addView(actionButton(AppLanguage.text(R.string.action_duplicate), StudioIcon.DUPLICATE) { duplicateSelectedClip() }, wrapButtonParams())
         secondaryTools.addView(actionButton(AppLanguage.text(R.string.action_freeze), StudioIcon.FREEZE) { freezeAtPlayhead() }, wrapButtonParams())
-        val secondaryScroll = HorizontalScrollView(this).apply {
-            isHorizontalScrollBarEnabled = false
-            addView(secondaryTools)
+        secondaryTools.addView(actionButton(AppLanguage.text(R.string.action_detach_audio), StudioIcon.AUDIO) {
+            val s = engine ?: return@actionButton
+            val c = currentSelectedClip() ?: run {
+                Toast.makeText(this, AppLanguage.text(R.string.pro_select_clip_first), Toast.LENGTH_SHORT).show()
+                return@actionButton
+            }
+            try {
+                val detachedId = s.detachAudio(c.id)
+                val trackId = s.clips().firstOrNull { it.id == detachedId }?.trackId ?: "a1"
+                refreshTimeline(); scheduleAutosave()
+                Toast.makeText(this, AppLanguage.text(R.string.timeline_detached_audio, trackId.uppercase()), Toast.LENGTH_LONG).show()
+            } catch (error: Exception) { showError(error) }
+        }, wrapButtonParams())
+        val secondaryScroll = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val secondaryFirstRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val secondarySecondRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        while (secondaryTools.childCount > 0) {
+            val child = secondaryTools.getChildAt(0)
+            secondaryTools.removeViewAt(0)
+            (if (secondaryFirstRow.childCount < 3) secondaryFirstRow else secondarySecondRow)
+                .addView(child, wrapButtonParams())
         }
+        secondaryScroll.addView(secondaryFirstRow, matchWrap())
+        secondaryScroll.addView(secondarySecondRow, matchWrap())
         val undo = projectButtons.getChildAt(0); val redo = projectButtons.getChildAt(1)
         projectButtons.removeView(undo); projectButtons.removeView(redo)
         editControls.addView(undo,0,wrapButtonParams()); editControls.addView(redo,wrapButtonParams())
@@ -646,6 +699,18 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
             scheduleAutosave()
             Toast.makeText(this, AppLanguage.text(R.string.pro_marker_added, formatTime(posMs)), Toast.LENGTH_SHORT).show()
         }, wrapButtonParams())
+        while (editControls.childCount > 0) {
+            val row = editScroll.getChildAt(editScroll.childCount - 1) as? LinearLayout
+                ?: LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }.also { editScroll.addView(it, matchWrap()) }
+            if (row.childCount >= 3) {
+                val nextRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+                editScroll.addView(nextRow, matchWrap())
+            } else {
+                val child = editControls.getChildAt(0)
+                editControls.removeViewAt(0)
+                row.addView(child, wrapButtonParams())
+            }
+        }
         root.addView(editScroll,matchWrap())
         val proToolsRow = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         proToolsRow.addView(actionButton(AppLanguage.text(R.string.action_speed), StudioIcon.SPEED) {
@@ -662,12 +727,93 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                 applyClipPlaybackParams(); refreshTimeline(); scheduleAutosave()
             }
         }, wrapButtonParams())
+        voiceoverButton = actionButton(AppLanguage.text(R.string.action_voiceover), StudioIcon.AUDIO) {
+            toggleVoiceoverRecording()
+        }.also { it.contentDescription = AppLanguage.text(R.string.action_voiceover) }
+        proToolsRow.addView(voiceoverButton, wrapButtonParams())
         proToolsRow.addView(actionButton(AppLanguage.text(R.string.action_transform), StudioIcon.TRANSFORM) {
             val s = engine ?: return@actionButton
             val c = currentSelectedClip() ?: run { Toast.makeText(this, AppLanguage.text(R.string.pro_select_clip_first), Toast.LENGTH_SHORT).show(); return@actionButton }
             ProEditorPanels.showTransformPanel(this, s, c) {
                 updatePreviewOverlay(); refreshTimeline(); scheduleAutosave()
             }
+        }, wrapButtonParams())
+        proToolsRow.addView(actionButton(AppLanguage.text(R.string.reframe_auto_action), StudioIcon.REFRAME) {
+            showOfflineReframeOptions()
+        }, wrapButtonParams())
+        proToolsRow.addView(actionButton(AppLanguage.text(R.string.stabilize_action), StudioIcon.STABILIZE) {
+            showOfflineStabilizationOptions()
+        }, wrapButtonParams())
+        proToolsRow.addView(actionButton(AppLanguage.text(R.string.timeline_keyframe_toggle), StudioIcon.KEYFRAME) {
+            val s = engine ?: return@actionButton
+            val clip = currentSelectedClip() ?: run {
+                Toast.makeText(this, AppLanguage.text(R.string.pro_select_clip_first), Toast.LENGTH_SHORT).show()
+                return@actionButton
+            }
+            if (clip.trackId.startsWith("a", true)) return@actionButton
+            val localMs = frameToMs((timelineFrame - clip.startFrame).coerceIn(0L, clip.durationFrames))
+            val currentFx = s.clipFx(clip.id)
+            s.mutateRichState(recordUndo = true) { doc ->
+                val fx = doc.clipFx[clip.id] ?: currentFx
+                val existing = fx.transformKeyframes.firstOrNull { kotlin.math.abs(it.timeMs - localMs) <= 1L }
+                val unchanged = existing != null && kotlin.math.abs(existing.scale - fx.scale) < 1e-3f &&
+                    kotlin.math.abs(existing.panX - fx.panX) < 1e-3f && kotlin.math.abs(existing.panY - fx.panY) < 1e-3f &&
+                    kotlin.math.abs(existing.rotationDeg - fx.rotationDeg) < 1e-2f
+                val withoutCurrent = fx.transformKeyframes.filterNot { kotlin.math.abs(it.timeMs - localMs) <= 1L }
+                val next = if (unchanged) withoutCurrent else
+                    (withoutCurrent + TransformKeyframe(localMs, fx.scale, fx.panX, fx.panY, fx.rotationDeg)).sortedBy { it.timeMs }
+                val map = LinkedHashMap(doc.clipFx)
+                map[clip.id] = fx.copy(transformKeyframes = next)
+                doc.copy(clipFx = map)
+            }
+            refreshTimeline(); scheduleAutosave()
+        }, wrapButtonParams())
+        proToolsRow.addView(actionButton(AppLanguage.text(R.string.timeline_speed_keyframe_toggle), StudioIcon.SPEED) {
+            val s = engine ?: return@actionButton
+            val clip = currentSelectedClip() ?: run {
+                Toast.makeText(this, AppLanguage.text(R.string.pro_select_clip_first), Toast.LENGTH_SHORT).show()
+                return@actionButton
+            }
+            val localMs = frameToMs((timelineFrame - clip.startFrame).coerceIn(0L, clip.durationFrames))
+            val currentFx = s.clipFx(clip.id)
+            s.mutateRichState(recordUndo = true) { doc ->
+                val fx = doc.clipFx[clip.id] ?: currentFx
+                val existing = fx.speedKeyframes.firstOrNull { kotlin.math.abs(it.timeMs - localMs) <= 1L }
+                val unchanged = existing != null && kotlin.math.abs(existing.speed - fx.speed.toFloat()) < 1e-3f
+                val without = fx.speedKeyframes.filterNot { kotlin.math.abs(it.timeMs - localMs) <= 1L }
+                val next = if (unchanged) without else (without + SpeedKeyframe(localMs, fx.speed.toFloat().coerceIn(0.25f, 4f))).sortedBy { it.timeMs }
+                val map = LinkedHashMap(doc.clipFx); map[clip.id] = fx.copy(speedKeyframes = next)
+                doc.copy(clipFx = map)
+            }
+            applyClipPlaybackParams(); refreshTimeline(); scheduleAutosave()
+        }, wrapButtonParams())
+        proToolsRow.addView(actionButton(AppLanguage.text(R.string.action_slip), StudioIcon.TRIM_LEFT) {
+            showSlipRollDialog(isRoll = false)
+        }, wrapButtonParams())
+        proToolsRow.addView(actionButton(AppLanguage.text(R.string.action_roll), StudioIcon.TRIM_RIGHT) {
+            showSlipRollDialog(isRoll = true)
+        }, wrapButtonParams())
+        proToolsRow.addView(actionButton(AppLanguage.text(R.string.action_slide), StudioIcon.TRANSFORM) {
+            showSlideDialog()
+        }, wrapButtonParams())
+        proToolsRow.addView(actionButton(AppLanguage.text(R.string.action_jl_cut), StudioIcon.TRANSITION) {
+            val clip = currentSelectedClip() ?: run {
+                Toast.makeText(this, AppLanguage.text(R.string.pro_select_clip_first), Toast.LENGTH_SHORT).show()
+                return@actionButton
+            }
+            if (clip.trackId.startsWith("a", true)) {
+                Toast.makeText(this, AppLanguage.text(R.string.pro_select_clip_first), Toast.LENGTH_SHORT).show()
+                return@actionButton
+            }
+            val labels = arrayOf("J" to 500, "L" to 500, "J" to 1000, "L" to 1000)
+            AlertDialog.Builder(this)
+                .setTitle(AppLanguage.text(R.string.action_jl_cut))
+                .setItems(labels.map { AppLanguage.text(R.string.jl_cut_option, it.first, it.second) }.toTypedArray()) { _, which ->
+                    runCatching { applyJLCut(clip, labels[which].first == "J", labels[which].second.toLong()) }
+                        .onFailure { error -> showError(error as? Exception ?: RuntimeException(error)) }
+                }
+                .setNegativeButton(AppLanguage.text(R.string.pro_close), null)
+                .show()
         }, wrapButtonParams())
         proToolsRow.addView(actionButton(AppLanguage.text(R.string.action_text), StudioIcon.TEXT) {
             val s = engine ?: return@actionButton
@@ -702,10 +848,17 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                 refreshTimeline(); scheduleAutosave()
             }
         }, wrapButtonParams())
-        val proToolsScroll = HorizontalScrollView(this).apply {
-            isHorizontalScrollBarEnabled = false
-            addView(proToolsRow)
+        // Keep every tool discoverable without requiring a horizontal swipe: two compact rows.
+        val proToolsScroll = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        val proToolsRows = mutableListOf<LinearLayout>()
+        while (proToolsRow.childCount > 0) {
+            if (proToolsRows.isEmpty() || proToolsRows.last().childCount >= 4)
+                proToolsRows += LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            val child = proToolsRow.getChildAt(0)
+            proToolsRow.removeViewAt(0)
+            proToolsRows.last().addView(child, wrapButtonParams())
         }
+        proToolsRows.forEach { proToolsScroll.addView(it, matchWrap()) }
         val contextBody = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(8),0,dp(8),0) }
         contextBody.addView(mediaText,matchWrap()); contextBody.addView(selectedClipText,matchWrap()); contextBody.addView(seekBar,matchWrap())
         workspacePanels.getOrPut("Media") { mutableListOf() }.addAll(listOf(mediaText,selectedClipText,seekBar))
@@ -721,7 +874,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         workspacePanels.getOrPut("Tools") { mutableListOf() }.add(statusText)
         val contextScroll = ScrollView(this).apply { addView(contextBody); background = StudioUi.shape(this@MainActivity,StudioUi.surface,8) }
         detailsPanel = contextScroll
-        root.addView(contextScroll,LinearLayout.LayoutParams(-1,dp(176)))
+        root.addView(contextScroll,LinearLayout.LayoutParams(-1,dp(152)))
         root.addView(navigation,matchWrap())
         showWorkspacePage(workspacePage)
         if (!compactFallback) { setContentView(root); return }
@@ -865,7 +1018,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         if (selectedClipId != null && clips.none { it.id == selectedClipId }) selectedClipId = null
         if (timelineView == null) {
             val canvas = TimelineView(this).apply {
-                minimumWidth = (resources.displayMetrics.widthPixels - dp(32)).coerceAtLeast(dp(180))
+                minimumWidth = (resources.displayMetrics.widthPixels - dp(152)).coerceAtLeast(dp(160))
                 onSeek = { track, frame -> seekTimelineAt(track, frame) }
                 onScrub = { frame, commit ->
                     if (!projectIoBusy) {
@@ -898,8 +1051,32 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                 onMarkerClick = { mk ->
                     Toast.makeText(this@MainActivity, "${mk.label} (${formatTime(mk.positionMs)})", Toast.LENGTH_SHORT).show()
                 }
+                onKeyframeClick = { clip, frame ->
+                    selectedClipId = clip.id
+                    timelineFrame = frame.coerceIn(clip.startFrame, clip.startFrame + clip.durationFrames)
+                    refreshTimeline()
+                }
+                onEditRichBlock = { id, isSubtitle, startMs, endMs ->
+                    val session = engine
+                    if (session != null) {
+                        session.mutateRichState(recordUndo = true) { doc ->
+                            if (isSubtitle) doc.copy(subtitles = doc.subtitles.map {
+                                if (it.id == id) it.copy(startMs = startMs, endMs = endMs.coerceAtLeast(startMs + 100L)) else it
+                            }) else doc.copy(overlays = doc.overlays.map {
+                                if (it.id == id) it.copy(startMs = startMs, durationMs = (endMs - startMs).coerceAtLeast(100L)) else it
+                            })
+                        }
+                        scheduleAutosave()
+                        refreshTimeline()
+                    }
+                }
             }
             timelineView = canvas
+            timelineTrackHeaders = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setBackgroundColor(StudioUi.background)
+            }
+            timelineContainer.addView(timelineTrackHeaders, LinearLayout.LayoutParams(dp(120), -2))
             val viewport = object : HorizontalScrollView(this) {
                 override fun onInterceptTouchEvent(event: MotionEvent): Boolean {
                     val intercepted = super.onInterceptTouchEvent(event)
@@ -920,7 +1097,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                 addView(canvas, FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
             }
             timelineViewport = viewport
-            timelineContainer.addView(viewport, matchWrap())
+            timelineContainer.addView(viewport, LinearLayout.LayoutParams(0, -2, 1f))
         }
         val session = engine
         timelineView?.apply {
@@ -930,6 +1107,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
             }
             isEnabled = !projectIoBusy
         }
+        if (session != null) refreshTimelineTrackHeaders(session.tracks())
         updatePreviewOverlay()
         val selected = clips.firstOrNull { it.id == selectedClipId }
         if (::relinkButton.isInitialized) relinkButton.isEnabled = selected != null && !projectIoBusy && !selectedMediaLoading
@@ -945,6 +1123,68 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         }
     }
 
+    private fun refreshTimelineTrackHeaders(tracks: List<TimelineTrackInfo>) {
+        val headers = timelineTrackHeaders ?: return
+        headers.removeAllViews()
+        val orderedTracks = tracks.sortedWith(compareBy<TimelineTrackInfo>({ if (it.id.startsWith("a", true)) 1 else 0 }, { it.id }))
+        // Align lane controls with the canvas ruler while keeping them pinned during horizontal scroll.
+        headers.addView(View(this), LinearLayout.LayoutParams(-1, dp(34)))
+        orderedTracks.forEach { track ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(3), 0, dp(3), 0)
+                setBackgroundColor(if (track.locked) 0xFF252B38.toInt() else StudioUi.surface)
+            }
+            val name = TextView(this).apply {
+                text = track.id.uppercase(java.util.Locale.ROOT)
+                textSize = 10f
+                maxLines = 1
+                setTextColor(StudioUi.text)
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            row.addView(name, LinearLayout.LayoutParams(-1, dp(22)))
+            val controls = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            val mute = actionButton(if (track.muted) "M✓" else "M", if (track.muted) StudioIcon.MUTE else StudioIcon.AUDIO) {
+                val current = engine?.tracks()?.firstOrNull { it.id == track.id } ?: return@actionButton
+                engine?.setTrackState(track.id, !current.muted, current.locked)
+                refreshTimeline(); scheduleAutosave()
+            }.apply {
+                isSelected = track.muted
+                contentDescription = AppLanguage.text(if (track.muted) R.string.timeline_track_unmute else R.string.timeline_track_mute, track.id)
+                tooltipText = contentDescription
+            }
+            val lock = actionButton(if (track.locked) "L✓" else "L", StudioIcon.LOCK) {
+                val current = engine?.tracks()?.firstOrNull { it.id == track.id } ?: return@actionButton
+                engine?.setTrackState(track.id, current.muted, !current.locked)
+                refreshTimeline(); scheduleAutosave()
+            }.apply {
+                isSelected = track.locked
+                contentDescription = AppLanguage.text(if (track.locked) R.string.timeline_track_unlock else R.string.timeline_track_lock, track.id)
+                tooltipText = contentDescription
+            }
+            controls.addView(mute, LinearLayout.LayoutParams(dp(52), dp(48)).apply { rightMargin = dp(2) })
+            controls.addView(lock, LinearLayout.LayoutParams(dp(52), dp(48)))
+            row.addView(controls, LinearLayout.LayoutParams(-1, dp(48)))
+            headers.addView(row, LinearLayout.LayoutParams(-1, dp(72)))
+        }
+        if (tracks.isEmpty()) headers.addView(View(this), LinearLayout.LayoutParams(-1, dp(72)))
+        listOf(R.string.timeline_text_lane, R.string.timeline_subtitle_lane).forEach { labelId ->
+            headers.addView(TextView(this).apply {
+                text = AppLanguage.text(labelId)
+                textSize = 10f
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(6), 0, dp(4), 0)
+                setTextColor(StudioUi.muted)
+                background = StudioUi.shape(this@MainActivity, StudioUi.surface, 4)
+            }, LinearLayout.LayoutParams(-1, dp(34)))
+        }
+        headers.requestLayout()
+    }
+
     private fun updateFollowButton() {
         if (::followPlayheadButton.isInitialized)
             followPlayheadButton.text = if (followPlayhead) AppLanguage.text(R.string.message_279f0e3cdf) else AppLanguage.text(R.string.message_c3dbf41a1e)
@@ -957,6 +1197,46 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         if (::timelinePositionText.isInitialized)
             timelinePositionText.text = AppLanguage.text(R.string.message_e653e09701, TimelineGeometry.timecode(timelineFrame))
         updatePreviewOverlay()
+        updatePreviewTransform()
+    }
+
+    private fun updatePreviewTransform() {
+        preview.setOutputAspectRatio(engine?.richState()?.outputAspectRatio)
+        if (preview.width <= 0 || preview.height <= 0) return
+        val clip = timelineClips.firstOrNull { it.id == selectedClipId }
+        val fx = if (clip != null && !clip.trackId.startsWith("a", true)) engine?.clipFx(clip.id) else null
+        val localMs = clip?.let { frameToMs((timelineFrame - it.startFrame).coerceAtLeast(0L)) } ?: 0L
+        val clipDurationMs = clip?.let { frameToMs(it.durationFrames) } ?: 0L
+        val sample = if (clip != null && fx != null) fx.transformAt(localMs, clipDurationMs)
+            else TransformSample(1f, 0f, 0f, 0f)
+        updatePreviewPlaybackSpeed(if (clip != null && fx != null) fx.speedAt(localMs, clipDurationMs) else 1f)
+        val cx = preview.width / 2f
+        val cy = preview.height / 2f
+        val matrix = android.graphics.Matrix().apply {
+            setScale(sample.scale, sample.scale, cx, cy)
+            postRotate(sample.rotationDeg, cx, cy)
+            postTranslate(sample.panX * preview.width / 2f, -sample.panY * preview.height / 2f)
+        }
+        preview.setTransform(matrix)
+    }
+
+    private fun updatePreviewPlaybackSpeed(speed: Float) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || !speed.isFinite()) return
+        val target = speed.coerceIn(0.25f, 4f)
+        if (kotlin.math.abs(target - lastPreviewSpeed) < 0.015f) return
+        val current = player ?: return
+        if (!playerPrepared) return
+        val generation = playerGeneration
+        mediaHandler.post {
+            if (generation == playerGeneration && player === current && playerPrepared) {
+                try {
+                    val params = current.playbackParams
+                    params.speed = target
+                    current.playbackParams = params
+                    lastPreviewSpeed = target
+                } catch (_: IllegalStateException) { }
+            }
+        }
     }
 
     private fun updatePreviewOverlay() {
@@ -1236,6 +1516,585 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         preview.alpha = 1f
         refreshTimeline()
         readMetadataAndRegister(uri, existingClipId = clip.id)
+    }
+
+    private fun probeMediaDurationMs(mediaId: String): Long {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(this, Uri.parse(mediaId))
+            retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+                ?: error("Could not determine source duration; edit was not applied")
+        } finally { runCatching { retriever.release() } }
+    }
+
+    private fun showSlipRollDialog(isRoll: Boolean) {
+        val session = engine ?: return
+        val selected = currentSelectedClip() ?: run {
+            Toast.makeText(this, AppLanguage.text(R.string.pro_select_clip_first), Toast.LENGTH_SHORT).show()
+            return
+        }
+        val neighbors = if (isRoll) session.clips().filter { it.trackId == selected.trackId }.let { clips ->
+            clips.firstOrNull { it.startFrame == selected.startFrame + selected.durationFrames }
+                ?: clips.firstOrNull { it.startFrame + it.durationFrames == selected.startFrame }
+        } else null
+        if (isRoll && neighbors == null) {
+            Toast.makeText(this, AppLanguage.text(R.string.timeline_roll_requires_adjacent), Toast.LENGTH_SHORT).show()
+            return
+        }
+        val offsets = listOf(-500L, -250L, 250L, 500L)
+        val choices = offsets.map { value ->
+            AppLanguage.text(R.string.timeline_offset_choice,
+                AppLanguage.text(if (value < 0L) R.string.timeline_earlier else R.string.timeline_later), kotlin.math.abs(value))
+        }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(AppLanguage.text(if (isRoll) R.string.action_roll else R.string.action_slip))
+            .setItems(choices) { _, index ->
+                val delta = offsets[index]
+                try {
+                    if (!isRoll) {
+                        val sourceDuration = probeMediaDurationMs(selected.mediaId)
+                        require(selected.sourceInMs + delta >= 0L && selected.sourceOutMs + delta <= sourceDuration) {
+                            "Slip would exceed source media bounds"
+                        }
+                        session.slipClip(selected.id, delta)
+                    } else {
+                        val adjacent = neighbors ?: return@setItems
+                        val left = if (adjacent.startFrame < selected.startFrame) adjacent else selected
+                        val right = if (left.id == selected.id) adjacent else selected
+                        val leftDuration = probeMediaDurationMs(left.mediaId)
+                        val rightDuration = probeMediaDurationMs(right.mediaId)
+                        require(left.sourceOutMs + delta <= leftDuration && left.sourceOutMs + delta > left.sourceInMs &&
+                            right.sourceInMs + delta >= 0L && right.sourceInMs + delta < right.sourceOutMs) {
+                            "Roll would exceed source media bounds"
+                        }
+                        session.rollBoundary(left.id, right.id, delta)
+                    }
+                    refreshTimeline(); scheduleAutosave()
+                } catch (error: Exception) { showError(error) }
+            }
+            .setNegativeButton(AppLanguage.text(R.string.pro_close), null)
+            .show()
+    }
+
+    private fun showJogDialDialog() {
+        val startFrame = timelineFrame
+        val dial = VirtualJogDialView(this)
+        dial.onDelta = { delta, commit ->
+            val frame = (startFrame + delta).coerceIn(0L, timelineView?.endFrame ?: 0L)
+            setPlayheadDisplay(frame)
+            if (commit) {
+                val track = timelineClips.firstOrNull { it.id == selectedClipId }?.trackId
+                    ?: timelineClips.firstOrNull()?.trackId
+                if (track != null) seekTimelineAt(track, frame)
+            }
+        }
+        AlertDialog.Builder(this)
+            .setTitle(AppLanguage.text(R.string.timeline_jog_dial))
+            .setView(dial)
+            .setPositiveButton(AppLanguage.text(R.string.pro_close), null)
+            .show()
+    }
+
+    private fun showSlideDialog() {
+        val session = engine ?: return
+        val moving = currentSelectedClip() ?: run {
+            Toast.makeText(this, AppLanguage.text(R.string.pro_select_clip_first), Toast.LENGTH_SHORT).show()
+            return
+        }
+        val sameTrack = session.clips().filter { it.trackId == moving.trackId }
+        val left = sameTrack.firstOrNull { it.startFrame + it.durationFrames == moving.startFrame }
+        val right = sameTrack.firstOrNull { it.startFrame == moving.startFrame + moving.durationFrames }
+        if (left == null || right == null) {
+            Toast.makeText(this, AppLanguage.text(R.string.timeline_roll_requires_adjacent), Toast.LENGTH_SHORT).show()
+            return
+        }
+        val offsets = listOf(-500L, -250L, 250L, 500L)
+        val labels = offsets.map { value -> AppLanguage.text(R.string.timeline_offset_choice,
+            AppLanguage.text(if (value < 0L) R.string.timeline_earlier else R.string.timeline_later), kotlin.math.abs(value)) }.toTypedArray()
+        AlertDialog.Builder(this).setTitle(AppLanguage.text(R.string.action_slide)).setItems(labels) { _, index ->
+            try {
+                val leftDuration = probeMediaDurationMs(left.mediaId)
+                val rightDuration = probeMediaDurationMs(right.mediaId)
+                val delta = offsets[index]
+                require(left.sourceOutMs + delta <= leftDuration && left.sourceOutMs + delta > left.sourceInMs &&
+                    right.sourceInMs + delta >= 0L && right.sourceInMs + delta < right.sourceOutMs) {
+                    "Slide would exceed source media bounds"
+                }
+                session.slideClips(left.id, moving.id, right.id, delta)
+                refreshTimeline(); scheduleAutosave()
+            } catch (error: Exception) { showError(error) }
+        }.setNegativeButton(AppLanguage.text(R.string.pro_close), null).show()
+    }
+
+    private fun applyJLCut(videoClip: ClipSnapshot, isJCut: Boolean, offsetMs: Long) {
+        val session = engine ?: error("No open project")
+        require(offsetMs in 1L..5000L) { "Cut offset must be between 1 and 5000 ms" }
+        require(!videoClip.trackId.startsWith("a", true)) { "Select a video clip" }
+        val extraFrames = (offsetMs * TimelineGeometry.FPS + 999L) / 1000L
+        val videoEnd = videoClip.startFrame + videoClip.durationFrames
+        val proposedStart = if (isJCut) (videoClip.startFrame - extraFrames).coerceAtLeast(0L) else videoClip.startFrame
+        val proposedEnd = if (isJCut) videoEnd else videoEnd + extraFrames
+        var extendedSourceOut = videoClip.sourceOutMs
+        if (isJCut) require(videoClip.sourceInMs >= offsetMs) { "The clip has insufficient source preroll for this J-cut" }
+        else {
+            val retriever = MediaMetadataRetriever()
+            val mediaDuration = try {
+                retriever.setDataSource(this, Uri.parse(videoClip.mediaId))
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+            } finally { runCatching { retriever.release() } }
+            extendedSourceOut = videoClip.sourceOutMs + offsetMs
+            require(mediaDuration != null && extendedSourceOut <= mediaDuration) { "The source has insufficient audio postroll for this L-cut" }
+        }
+        val detachedId = session.detachAudio(videoClip.id)
+        val detached = session.clips().firstOrNull { it.id == detachedId } ?: error("Detached audio clip disappeared")
+        val candidateTracks = session.tracks().filter { it.id.startsWith("a", true) }.map { it.id }.toMutableList()
+        var target = candidateTracks.firstOrNull { track ->
+            session.clips().filter { it.id != detachedId && it.trackId == track }.none { other ->
+                proposedStart < other.startFrame + other.durationFrames && other.startFrame < proposedEnd
+            }
+        }
+        if (target == null) {
+            var n = 1
+            while (session.tracks().any { it.id == "a$n" }) n++
+            target = "a$n"
+            session.ensureTrack(target, true)
+        }
+        val targetTrack = target ?: error("No audio track available for the cut")
+        if (detached.trackId != targetTrack || detached.startFrame != videoClip.startFrame)
+            session.moveClip(detachedId, targetTrack, videoClip.startFrame)
+        if (isJCut) session.trimClip(detachedId, true, videoClip.sourceInMs - offsetMs)
+        else session.trimClip(detachedId, false, extendedSourceOut)
+        refreshTimeline(); scheduleAutosave()
+    }
+
+    private data class OfflineFrameSamples(val rgba: ByteArray, val width: Int, val height: Int, val count: Int)
+
+    /** Decode a bounded 8-bit thumbnail sequence; never falls back to full-resolution API-26 frames. */
+    private fun sampleOfflineVideoFrames(clip: ClipSnapshot, generation: Int): OfflineFrameSamples {
+        require(Build.VERSION.SDK_INT >= 27) { AppLanguage.text(R.string.reframe_requires_api27) }
+        val durationMs = (clip.sourceOutMs - clip.sourceInMs).coerceAtLeast(1L)
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(this, Uri.parse(clip.mediaId))
+            var sourceWidth = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull()
+                ?: error("Video width metadata unavailable")
+            var sourceHeight = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull()
+                ?: error("Video height metadata unavailable")
+            val rotation = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
+            if (rotation == 90 || rotation == 270) { val swap = sourceWidth; sourceWidth = sourceHeight; sourceHeight = swap }
+            require(sourceWidth > 0 && sourceHeight > 0) { "Invalid source dimensions" }
+            val sourceRatio = sourceWidth.toDouble() / sourceHeight.toDouble()
+            val pixelBudget = 160 * 90
+            val thumbWidth: Int
+            val thumbHeight: Int
+            if (sourceRatio >= 1.0) {
+                thumbWidth = minOf(160, kotlin.math.sqrt(pixelBudget * sourceRatio).toInt()).coerceAtLeast(16)
+                thumbHeight = (thumbWidth / sourceRatio).toInt().coerceIn(16, 160)
+            } else {
+                thumbHeight = minOf(160, kotlin.math.sqrt(pixelBudget / sourceRatio).toInt()).coerceAtLeast(16)
+                thumbWidth = (thumbHeight * sourceRatio).toInt().coerceIn(16, 160)
+            }
+            require(thumbWidth * thumbHeight <= pixelBudget) { "Analysis thumbnail exceeds pixel budget" }
+            val count = ((durationMs + 499L) / 500L + 1L).coerceIn(2L, 120L).toInt()
+            val packed = ByteArray(count * thumbWidth * thumbHeight * 4)
+            val argb = IntArray(thumbWidth * thumbHeight)
+            for (index in 0 until count) {
+                if (generation != reframeGeneration || isFinishing) throw CancellationException("Analysis cancelled")
+                val localMs = (durationMs - 1L) * index / (count - 1)
+                val bitmap = retriever.getScaledFrameAtTime(
+                    (clip.sourceInMs + localMs) * 1000L,
+                    MediaMetadataRetriever.OPTION_CLOSEST,
+                    thumbWidth,
+                    thumbHeight,
+                ) ?: error("Could not decode a bounded video sample")
+                try {
+                    val thumbnail = if (bitmap.width == thumbWidth && bitmap.height == thumbHeight) bitmap
+                        else android.graphics.Bitmap.createScaledBitmap(bitmap, thumbWidth, thumbHeight, true)
+                    try {
+                        thumbnail.getPixels(argb, 0, thumbWidth, 0, 0, thumbWidth, thumbHeight)
+                        val base = index * thumbWidth * thumbHeight * 4
+                        for (pixel in argb.indices) {
+                            val color = argb[pixel]
+                            val at = base + pixel * 4
+                            packed[at] = (color shr 16).toByte()
+                            packed[at + 1] = (color shr 8).toByte()
+                            packed[at + 2] = color.toByte()
+                            packed[at + 3] = (color ushr 24).toByte()
+                        }
+                    } finally { if (thumbnail !== bitmap) thumbnail.recycle() }
+                } finally { bitmap.recycle() }
+            }
+            return OfflineFrameSamples(packed, thumbWidth, thumbHeight, count)
+        } finally { retriever.release() }
+    }
+
+    private fun showOfflineReframeOptions() {
+        val clip = currentSelectedClip() ?: run {
+            Toast.makeText(this, AppLanguage.text(R.string.pro_select_clip_first), Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (clip.trackId.startsWith("a", true)) {
+            Toast.makeText(this, AppLanguage.text(R.string.pro_select_clip_first), Toast.LENGTH_SHORT).show()
+            return
+        }
+        val aspects = listOf(
+            Triple(R.string.reframe_aspect_vertical, 9, 16),
+            Triple(R.string.reframe_aspect_square, 1, 1),
+            Triple(R.string.reframe_aspect_portrait, 4, 5),
+            Triple(R.string.reframe_aspect_landscape, 16, 9),
+            Triple(R.string.reframe_aspect_standard, 4, 3),
+            Triple(R.string.reframe_aspect_photo, 3, 2),
+            Triple(R.string.reframe_aspect_wide, 2, 1),
+            Triple(R.string.reframe_aspect_cinema, 239, 100),
+            Triple(R.string.reframe_aspect_classic_portrait, 5, 4),
+            Triple(R.string.reframe_aspect_tall, 9, 21),
+        )
+        val labels = (listOf(AppLanguage.text(R.string.reframe_aspect_original)) +
+            aspects.map { AppLanguage.text(it.first) } +
+            AppLanguage.text(R.string.reframe_custom_resolution)).toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(AppLanguage.text(R.string.reframe_choose_title))
+            .setMessage(AppLanguage.text(R.string.reframe_guide))
+            .setItems(labels) { _, which ->
+                when {
+                    which == 0 -> resetOfflineReframe(clip)
+                    which == aspects.size + 1 -> showCustomOutputResolutionDialog(clip)
+                    else -> {
+                        val (_, numerator, denominator) = aspects[which - 1]
+                        beginOfflineReframe(clip, numerator, denominator)
+                    }
+                }
+            }
+            .setNegativeButton(AppLanguage.text(R.string.pro_close), null)
+            .show()
+    }
+
+    private fun showOfflineStabilizationOptions() {
+        val clip = currentSelectedClip() ?: run {
+            Toast.makeText(this, AppLanguage.text(R.string.pro_select_clip_first), Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (clip.trackId.startsWith("a", true)) {
+            Toast.makeText(this, AppLanguage.text(R.string.pro_select_clip_first), Toast.LENGTH_SHORT).show()
+            return
+        }
+        val choices = listOf(
+            Triple(R.string.stabilize_mode_smooth, 0.55f, false),
+            Triple(R.string.stabilize_mode_strong, 0.85f, false),
+            Triple(R.string.stabilize_mode_lock, 0.65f, true),
+        )
+        AlertDialog.Builder(this)
+            .setTitle(AppLanguage.text(R.string.stabilize_choose_title))
+            .setMessage(AppLanguage.text(R.string.stabilize_guide))
+            .setItems(choices.map { AppLanguage.text(it.first) }.toTypedArray()) { _, index ->
+                val (_, smoothness, cameraLock) = choices[index]
+                beginOfflineStabilization(clip, smoothness, cameraLock)
+            }
+            .setNegativeButton(AppLanguage.text(R.string.pro_close), null)
+            .show()
+    }
+
+    private fun beginOfflineStabilization(clip: ClipSnapshot, smoothness: Float, cameraLock: Boolean) {
+        if (Build.VERSION.SDK_INT < 27) {
+            Toast.makeText(this, AppLanguage.text(R.string.reframe_requires_api27), Toast.LENGTH_LONG).show()
+            return
+        }
+        val sessionAtStart = engine ?: return
+        val expectedEditGeneration = editGeneration
+        val generation = ++reframeGeneration
+        statusText.text = AppLanguage.text(R.string.reframe_analyzing)
+        reframeExecutor.execute {
+            try {
+                val frames = sampleOfflineVideoFrames(clip, generation)
+                val trajectory = NativeReframe.nativeAnalyzeStabilization(
+                    frames.rgba, frames.width, frames.height, frames.count, smoothness, cameraLock, 1.35f,
+                )
+                require(trajectory.size == frames.count * 4) { "Native stabilizer returned incomplete samples" }
+                if (generation != reframeGeneration || isFinishing) return@execute
+                mainHandler.post {
+                    if (generation != reframeGeneration || isFinishing || engine !== sessionAtStart ||
+                        editGeneration != expectedEditGeneration || currentSelectedClip()?.id != clip.id) return@post
+                    val duration = (clip.sourceOutMs - clip.sourceInMs).coerceAtLeast(1L)
+                    val keys = (0 until frames.count).map { index ->
+                        val at = index * 4
+                        TransformKeyframe(
+                            timeMs = (duration - 1L) * index / (frames.count - 1),
+                            scale = trajectory[at + 3].coerceIn(1f, 1.5f),
+                            panX = trajectory[at].coerceIn(-0.5f, 0.5f),
+                            panY = trajectory[at + 1].coerceIn(-0.5f, 0.5f),
+                            rotationDeg = (-Math.toDegrees(trajectory[at + 2].toDouble())).toFloat().coerceIn(-30f, 30f),
+                        )
+                    }
+                    sessionAtStart.mutateRichState(recordUndo = true) { doc ->
+                        val map = LinkedHashMap(doc.clipFx)
+                        map[clip.id] = doc.fxFor(clip.id).copy(
+                            scale = 1f, panX = 0f, panY = 0f, rotationDeg = 0f,
+                            dynamicZoomStart = 1f, dynamicZoomEnd = 1f,
+                            transformKeyframes = keys,
+                        )
+                        doc.copy(clipFx = map)
+                    }
+                    updatePreviewOverlay(); updatePreviewTransform(); refreshTimeline(); scheduleAutosave()
+                    statusText.text = AppLanguage.text(R.string.stabilize_applied)
+                    Toast.makeText(this, AppLanguage.text(R.string.stabilize_applied), Toast.LENGTH_LONG).show()
+                }
+            } catch (_: CancellationException) {
+                // A newer analysis or Activity destruction invalidated this bounded worker.
+            } catch (error: Exception) {
+                if (generation == reframeGeneration && !isFinishing) mainHandler.post {
+                    if (generation == reframeGeneration) {
+                        statusText.text = AppLanguage.text(R.string.reframe_failed)
+                        showError(error)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun resetOfflineReframe(clip: ClipSnapshot) {
+        val session = engine ?: return
+        session.mutateRichState(recordUndo = true) { doc ->
+            val current = doc.fxFor(clip.id)
+            val map = LinkedHashMap(doc.clipFx)
+            map[clip.id] = current.copy(
+                scale = 1f, panX = 0f, panY = 0f, rotationDeg = 0f,
+                dynamicZoomStart = 1f, dynamicZoomEnd = 1f, transformKeyframes = emptyList(),
+            )
+            doc.copy(clipFx = map, outputAspectRatio = null, outputWidth = null, outputHeight = null)
+        }
+        preview.setOutputAspectRatio(null)
+        updatePreviewOverlay(); updatePreviewTransform(); refreshTimeline(); scheduleAutosave()
+    }
+
+    private fun showCustomOutputResolutionDialog(clip: ClipSnapshot) {
+        val fields = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(dp(20), dp(12), dp(20), dp(8))
+        }
+        val widthField = android.widget.EditText(this).apply {
+            hint = AppLanguage.text(R.string.reframe_width_hint)
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            setText("1080")
+            contentDescription = hint
+        }
+        val heightField = android.widget.EditText(this).apply {
+            hint = AppLanguage.text(R.string.reframe_height_hint)
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            setText("1920")
+            contentDescription = hint
+        }
+        fields.addView(widthField, LinearLayout.LayoutParams(0, dp(56), 1f))
+        fields.addView(heightField, LinearLayout.LayoutParams(0, dp(56), 1f).apply { marginStart = dp(8) })
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(AppLanguage.text(R.string.reframe_custom_title))
+            .setMessage(AppLanguage.text(R.string.reframe_custom_invalid))
+            .setView(fields)
+            .setPositiveButton(AppLanguage.text(R.string.pro_apply), null)
+            .setNegativeButton(AppLanguage.text(R.string.pro_close), null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val width = widthField.text.toString().toIntOrNull()
+                val height = heightField.text.toString().toIntOrNull()
+                val valid = width != null && height != null &&
+                    width in 144..3840 && height in 144..3840 && width % 2 == 0 && height % 2 == 0 &&
+                    width.toLong() * height <= 8_294_400L && width.toFloat() / height in 0.3f..3.2f
+                if (!valid) {
+                    widthField.error = AppLanguage.text(R.string.reframe_custom_invalid)
+                    heightField.error = AppLanguage.text(R.string.reframe_custom_invalid)
+                    return@setOnClickListener
+                }
+                dialog.dismiss()
+                val w = width!!
+                val h = height!!
+                val divisor = gcdPositive(w, h)
+                beginOfflineReframe(clip, w / divisor, h / divisor, w, h)
+            }
+        }
+        dialog.show()
+    }
+
+    private fun gcdPositive(a: Int, b: Int): Int {
+        var x = a
+        var y = b
+        while (y != 0) { val remainder = x % y; x = y; y = remainder }
+        return x.coerceAtLeast(1)
+    }
+
+    private fun beginOfflineReframe(
+        clip: ClipSnapshot,
+        aspectNum: Int,
+        aspectDen: Int,
+        outputWidth: Int? = null,
+        outputHeight: Int? = null,
+    ) {
+        if (Build.VERSION.SDK_INT < 27) {
+            Toast.makeText(this, AppLanguage.text(R.string.reframe_requires_api27), Toast.LENGTH_LONG).show()
+            return
+        }
+        val sessionAtStart = engine ?: return
+        val expectedEditGeneration = editGeneration
+        val generation = ++reframeGeneration
+        statusText.text = AppLanguage.text(R.string.reframe_analyzing)
+        reframeExecutor.execute {
+            try {
+                val frames = sampleOfflineVideoFrames(clip, generation)
+                val samples = NativeReframe.nativeAnalyzeRgba(
+                    frames.rgba, frames.width, frames.height, frames.count, aspectNum, aspectDen, 0.82f,
+                )
+                require(samples.size == frames.count * 4) { "Native reframe returned incomplete samples" }
+                if (generation != reframeGeneration || isFinishing) return@execute
+                mainHandler.post {
+                    if (generation != reframeGeneration || isFinishing || engine !== sessionAtStart ||
+                        editGeneration != expectedEditGeneration || currentSelectedClip()?.id != clip.id) return@post
+                    val session = sessionAtStart
+                    val localDuration = (clip.sourceOutMs - clip.sourceInMs).coerceAtLeast(1L)
+                    val keys = (0 until frames.count).map { index ->
+                        val at = index * 4
+                        val time = (localDuration - 1L) * index / (frames.count - 1)
+                        TransformKeyframe(
+                            timeMs = time,
+                            scale = 1f,
+                            panX = (samples[at] - 0.5f).coerceIn(-0.5f, 0.5f),
+                            panY = (0.5f - samples[at + 1]).coerceIn(-0.5f, 0.5f),
+                            rotationDeg = 0f,
+                        )
+                    }
+                    session.mutateRichState(recordUndo = true) { doc ->
+                        val current = doc.fxFor(clip.id)
+                        val map = LinkedHashMap(doc.clipFx)
+                        map[clip.id] = current.copy(
+                            scale = 1f, panX = 0f, panY = 0f, rotationDeg = 0f,
+                            dynamicZoomStart = 1f, dynamicZoomEnd = 1f,
+                            transformKeyframes = keys,
+                        )
+                        doc.copy(
+                            clipFx = map,
+                            outputAspectRatio = aspectNum.toFloat() / aspectDen,
+                            outputWidth = outputWidth,
+                            outputHeight = outputHeight,
+                        )
+                    }
+                    preview.setOutputAspectRatio(session.richState().outputAspectRatio)
+                    updatePreviewOverlay(); updatePreviewTransform(); refreshTimeline(); scheduleAutosave()
+                    statusText.text = AppLanguage.text(R.string.reframe_applied)
+                    Toast.makeText(this, AppLanguage.text(R.string.reframe_applied), Toast.LENGTH_LONG).show()
+                }
+            } catch (_: CancellationException) {
+                // A later request or Activity destruction invalidated this worker.
+            } catch (error: Exception) {
+                if (generation == reframeGeneration && !isFinishing) mainHandler.post {
+                    if (generation == reframeGeneration) {
+                        statusText.text = AppLanguage.text(R.string.reframe_failed)
+                        showError(error)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun toggleVoiceoverRecording() {
+        val active = voiceoverRecorder
+        if (active?.isRecording() == true) {
+            finishVoiceoverRecording()
+            return
+        }
+        if (checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), voiceoverPermissionRequest)
+            return
+        }
+        startVoiceoverRecording()
+    }
+
+    private fun startVoiceoverRecording() {
+        try {
+            val recorder = LiveVoiceoverRecorder(this)
+            recorder.start()
+            voiceoverRecorder = recorder
+            voiceoverButton?.contentDescription = AppLanguage.text(R.string.voiceover_recording)
+            statusText.text = AppLanguage.text(R.string.voiceover_recording)
+        } catch (error: Exception) {
+            voiceoverRecorder = null
+            showError(error)
+        }
+    }
+
+    /** Keep recorded media with its owning project instead of leaving a project clip pointing
+     * into the recorder's temporary capture directory. Import/export-as-copy remains separate.
+     */
+    private fun storeVoiceoverBesideProject(source: File): File {
+        val projectDirectory = File(projectPath).absoluteFile.parentFile
+            ?: throw IllegalStateException("Project has no parent directory")
+        val mediaDirectory = File(projectDirectory, "media/voiceovers")
+        check(mediaDirectory.isDirectory || mediaDirectory.mkdirs()) { "Cannot create project voiceover directory" }
+        val destination = File(mediaDirectory, "voice-${java.util.UUID.randomUUID()}.m4a")
+        val staging = File(mediaDirectory, ".${destination.name}.partial")
+        try {
+            source.inputStream().use { input ->
+                java.io.FileOutputStream(staging).use { output ->
+                    input.copyTo(output)
+                    output.fd.sync()
+                }
+            }
+            check(staging.isFile && staging.length() > 0L && staging.renameTo(destination)) {
+                "Cannot publish voiceover into project media"
+            }
+            source.delete()
+            return destination
+        } catch (error: Exception) {
+            staging.delete()
+            destination.delete()
+            throw error
+        }
+    }
+
+    private fun finishVoiceoverRecording() {
+        val recorder = voiceoverRecorder ?: return
+        voiceoverRecorder = null
+        voiceoverButton?.contentDescription = AppLanguage.text(R.string.action_voiceover)
+        try {
+            val result = recorder.stop() ?: return
+            val (temporaryFile, elapsedMs) = result
+            val voiceoverFile = storeVoiceoverBesideProject(temporaryFile)
+            val metadata = MediaMetadataRetriever()
+            val measuredDuration = try {
+                metadata.setDataSource(voiceoverFile.absolutePath)
+                metadata.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+            } catch (_: RuntimeException) { null } finally { runCatching { metadata.release() } }
+            val durationMs = (measuredDuration ?: elapsedMs).coerceAtLeast(250L)
+            val session = engine ?: throw IllegalStateException("No open project to receive the voiceover")
+            val all = session.clips()
+            val durationFrames = (durationMs * TimelineGeometry.FPS + 999L) / 1000L
+            val tracks = session.tracks().filter { it.id.startsWith("a", true) }
+            val targetTrack = tracks.firstOrNull { track ->
+                all.none { clip -> clip.trackId == track.id && timelineFrame < clip.startFrame + clip.durationFrames &&
+                    clip.startFrame < timelineFrame + durationFrames }
+            }?.id ?: run {
+                var n = 1
+                while (session.tracks().any { it.id == "a$n" }) n++
+                "a$n"
+            }
+            val id = session.addMediaClipToTrack(targetTrack, Uri.fromFile(voiceoverFile).toString(), durationMs, timelineFrame)
+            selectedClipId = id
+            refreshTimeline(); scheduleAutosave()
+            Toast.makeText(this, AppLanguage.text(R.string.voiceover_saved, targetTrack.uppercase()), Toast.LENGTH_LONG).show()
+        } catch (error: Exception) {
+            showError(error)
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == voiceoverPermissionRequest) {
+            val granted = grantResults.firstOrNull() == android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (granted) startVoiceoverRecording()
+            else Toast.makeText(this, AppLanguage.text(R.string.voiceover_permission), Toast.LENGTH_LONG).show()
+        }
+    }
+
+    override fun onPause() {
+        if (voiceoverRecorder?.isRecording() == true) finishVoiceoverRecording()
+        super.onPause()
     }
 
     private fun currentSelectedClip(): ClipSnapshot? = engine?.clips()?.firstOrNull { it.id == selectedClipId }
@@ -1603,7 +2462,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
             showError(error)
             showExportFailureDetails("Owncut ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) revision=${BuildConfig.PREVIEW_REVISION}\n" +
                 ExportFailureReport.details(error,ExportFailureReport.Stage.PREPARING,exportClips.size,
-                    exportClips.count { it.gradeActive },TimelineRenderExporter.OUTPUT_HEIGHT),
+                    exportClips.count { it.gradeActive },engine?.richState()?.outputHeight ?: TimelineRenderExporter.OUTPUT_HEIGHT),
                 if(route==ExportRoute.SHIPPING && destination==null && Build.VERSION.SDK_INT>=29 &&
                     exportClips.any { it.gradeActive }) ({ confirmExperimentalExport() }) else null)
             return
@@ -1645,6 +2504,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
             var failureReport: String?=null
             var needsInterpretation=false
             var failureStage=ExportFailureReport.Stage.PREPARING
+            var failureOutputHeight = engine?.richState()?.outputHeight ?: TimelineRenderExporter.OUTPUT_HEIGHT
             try {
                 ExportRoutePolicy.requireAllowed(route,plan.clips.any { it.gradeActive },Build.VERSION.SDK_INT)
                 if(route==ExportRoute.SHIPPING) TimelineRenderExporter.requireShippingExportSupported(plan)
@@ -1654,9 +2514,11 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                 }
                 val snapEngine = engine
                 val richDoc = snapEngine?.richState() ?: TimelineRichDocument()
+                failureOutputHeight = richDoc.outputHeight ?: TimelineRenderExporter.OUTPUT_HEIGHT
                 val allClipsSnapshot = snapEngine?.clips().orEmpty()
                 val trackInfos = snapEngine?.tracks().orEmpty()
-                val useRichPipeline = richDoc.overlays.isNotEmpty() ||
+                val useRichPipeline = richDoc.outputAspectRatio != null || richDoc.outputWidth != null ||
+                    richDoc.outputHeight != null || richDoc.overlays.isNotEmpty() ||
                     richDoc.subtitles.isNotEmpty() ||
                     allClipsSnapshot.any { it.trackId != "v1" } ||
                     plan.clips.any { c ->
@@ -1751,7 +2613,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                 val cleaned = destination == null || deleteFailedExportDocument(destination)
                 failureReport="Owncut ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) revision=${BuildConfig.PREVIEW_REVISION} route=${route.name}\n" +
                     ExportFailureReport.details(error,failureStage,plan.clips.size,
-                        plan.clips.count { it.gradeActive },TimelineRenderExporter.OUTPUT_HEIGHT)
+                        plan.clips.count { it.gradeActive },failureOutputHeight)
                 resultMessage = AppLanguage.text(R.string.message_38516603a3, error.message ?: error.javaClass.simpleName) +
                     if (cleaned) "" else AppLanguage.text(R.string.message_360e86bda3)
             } finally {
@@ -2404,6 +3266,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         val old = player
         player = null
         playerPrepared = false
+        lastPreviewSpeed = Float.NaN
         isSeeking = false; timelineScrubbing = false
         if (::seekBar.isInitialized) seekBar.isEnabled = false
         playerGeneration += 1
@@ -2417,6 +3280,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
     private fun playButtonOrNull(): Button? = if (::playButton.isInitialized) playButton else null
 
     override fun onSurfaceTextureAvailable(texture: SurfaceTexture, width: Int, height: Int) {
+        updatePreviewTransform()
         try {
             previewSurface = Surface(texture)
             surfaceReady = true
@@ -2511,6 +3375,8 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         mediaSourcesDialog?.dismiss(); mediaSourcesDialog=null
         checkpointRepairDialog?.dismiss(); checkpointRepairDialog=null
         metadataRequestSequence += 1
+        reframeGeneration += 1
+        reframeExecutor.shutdownNow()
         if (!handingOffEngine) pendingAutosave?.cancel(false)
         if (::preview.isInitialized) preview.surfaceTextureListener = null
         releasePlayer()

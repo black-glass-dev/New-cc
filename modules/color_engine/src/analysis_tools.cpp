@@ -65,4 +65,3 @@ std::shared_ptr<const Image32F> depth_matte(std::span<const float> depth,std::si
     return image;
 }
 } // namespace color
-

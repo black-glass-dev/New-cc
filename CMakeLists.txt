@@ -45,7 +45,10 @@ if(ANDROID)
         platform/android/jni/color_jni.cpp
         platform/android/jni/color_module_jni.cpp)
     if(OWNCUT_ENABLE_TIMELINE_ENGINE)
-        list(APPEND OWNCUT_ANDROID_SOURCES modules/timeline_engine/bridge/android_jni.cpp)
+        list(APPEND OWNCUT_ANDROID_SOURCES
+            modules/timeline_engine/bridge/android_jni.cpp
+            platform/android/jni/audio_fx_jni.cpp
+            platform/android/jni/reframe_jni.cpp)
     endif()
     add_library(owncut_android SHARED ${OWNCUT_ANDROID_SOURCES})
     target_link_libraries(owncut_android PRIVATE owncut_engine)

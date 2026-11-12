@@ -136,7 +136,8 @@ StabilizationAnalysis Stabilizer::analyze_sequence(const std::vector<VideoFrame>
             const std::size_t count = static_cast<std::size_t>(w) * static_cast<std::size_t>(h);
             for (int32_t y = 0; y < h; ++y) {
                 for (int32_t x = 0; x < w; ++x) {
-                    const std::size_t idx = static_cast<std::size_t>(y) * w + x;
+                    const std::size_t idx = static_cast<std::size_t>(y) * static_cast<std::size_t>(w) +
+                                            static_cast<std::size_t>(x);
                     const float u = flow.flow_xy[idx * 2 + 0];
                     const float v = flow.flow_xy[idx * 2 + 1];
                     sx += u;
@@ -207,8 +208,8 @@ bool Stabilizer::stabilize_frame(const VideoFrame& src, const FrameMotionSample&
     if (!dst.valid()) return false;
     dst.pts = src.pts;
 
-    const float cx = src.width * 0.5f;
-    const float cy = src.height * 0.5f;
+    const float cx = static_cast<float>(src.width) * 0.5f;
+    const float cy = static_cast<float>(src.height) * 0.5f;
     const float cs = std::cos(-sample.corr_dtheta);
     const float sn = std::sin(-sample.corr_dtheta);
     const float inv_zoom = 1.0f / std::max(0.5f, zoom_factor);
@@ -239,6 +240,8 @@ std::vector<ReframeCropBox> SmartReframe::compute_reframe_trajectory(const std::
     const double target_ar = static_cast<double>(target_aspect_num) / static_cast<double>(target_aspect_den);
     std::vector<float> raw_cx(frames.size(), 0.5f);
     std::vector<float> raw_cy(frames.size(), 0.5f);
+    std::vector<float> salient_cx(frames.size(), 0.5f);
+    std::vector<float> salient_cy(frames.size(), 0.5f);
 
     for (std::size_t i = 0; i < frames.size(); ++i) {
         const VideoFrame& f = frames[i];
@@ -260,8 +263,47 @@ std::vector<ReframeCropBox> SmartReframe::compute_reframe_trajectory(const std::
             }
         }
         if (wsum > 1e-6) {
-            raw_cx[i] = static_cast<float>(sx / wsum);
-            raw_cy[i] = static_cast<float>(sy / wsum);
+            salient_cx[i] = static_cast<float>(sx / wsum);
+            salient_cy[i] = static_cast<float>(sy / wsum);
+        }
+    }
+
+    // Offline saliency-guided local visual tracking: estimate optical flow between the
+    // sampled frames, follow a bounded patch around the previous subject estimate, and
+    // blend that prediction with this frame's saliency center. No network/model required.
+    raw_cx[0] = salient_cx[0];
+    raw_cy[0] = salient_cy[0];
+    for (std::size_t i = 1; i < frames.size(); ++i) {
+        raw_cx[i] = salient_cx[i];
+        raw_cy[i] = salient_cy[i];
+        const auto& previous = frames[i - 1];
+        const auto& current = frames[i];
+        if (!previous.valid() || !current.valid() || previous.width != current.width || previous.height != current.height)
+            continue;
+        const OpticalFlowField flow = RetimeEngine::estimate_optical_flow(previous, current, 3, 2);
+        if (!flow.valid()) continue;
+        const int32_t cx = std::clamp(static_cast<int32_t>(raw_cx[i - 1] * static_cast<float>(flow.width)), 0, flow.width - 1);
+        const int32_t cy = std::clamp(static_cast<int32_t>(raw_cy[i - 1] * static_cast<float>(flow.height)), 0, flow.height - 1);
+        const int32_t rx = std::max(3, flow.width / 12);
+        const int32_t ry = std::max(3, flow.height / 12);
+        double dx = 0.0, dy = 0.0, weights = 0.0;
+        for (int32_t y = std::max(0, cy - ry); y <= std::min(flow.height - 1, cy + ry); ++y) {
+            for (int32_t x = std::max(0, cx - rx); x <= std::min(flow.width - 1, cx + rx); ++x) {
+                const auto index = static_cast<std::size_t>(y) * static_cast<std::size_t>(flow.width) + static_cast<std::size_t>(x);
+                const float u = flow.flow_xy[index * 2];
+                const float v = flow.flow_xy[index * 2 + 1];
+                const double magnitude = std::hypot(u, v);
+                const double weight = 1.0 / (1.0 + magnitude);
+                dx += static_cast<double>(u) * weight;
+                dy += static_cast<double>(v) * weight;
+                weights += weight;
+            }
+        }
+        if (weights > 1e-6) {
+            const float predicted_x = std::clamp(raw_cx[i - 1] + static_cast<float>(dx / weights / flow.width), 0.0f, 1.0f);
+            const float predicted_y = std::clamp(raw_cy[i - 1] + static_cast<float>(dy / weights / flow.height), 0.0f, 1.0f);
+            raw_cx[i] = 0.7f * predicted_x + 0.3f * salient_cx[i];
+            raw_cy[i] = 0.7f * predicted_y + 0.3f * salient_cy[i];
         }
     }
 
@@ -301,10 +343,10 @@ bool SmartReframe::apply_reframe(const VideoFrame& src, const ReframeCropBox& bo
     if (!dst.valid()) return false;
     dst.pts = src.pts;
 
-    const float x0 = (box.center_x_norm - box.crop_width_norm * 0.5f) * src.width;
-    const float y0 = (box.center_y_norm - box.crop_height_norm * 0.5f) * src.height;
-    const float cw = box.crop_width_norm * src.width;
-    const float ch = box.crop_height_norm * src.height;
+    const float x0 = (box.center_x_norm - box.crop_width_norm * 0.5f) * static_cast<float>(src.width);
+    const float y0 = (box.center_y_norm - box.crop_height_norm * 0.5f) * static_cast<float>(src.height);
+    const float cw = box.crop_width_norm * static_cast<float>(src.width);
+    const float ch = box.crop_height_norm * static_cast<float>(src.height);
 
     for (int32_t y = 0; y < out_height; ++y) {
         float* row = dst.data() + y * dst.stride_floats;

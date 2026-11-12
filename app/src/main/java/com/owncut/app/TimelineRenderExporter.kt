@@ -7,11 +7,13 @@ import androidx.media3.common.Effect
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.audio.AudioProcessor
+import androidx.media3.common.audio.SonicAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Clock
 import androidx.media3.effect.DefaultVideoFrameProcessor
 import androidx.media3.effect.GlEffect
 import androidx.media3.effect.Presentation
+import androidx.media3.effect.SpeedChangeEffect
 import androidx.media3.transformer.Codec
 import androidx.media3.transformer.Composition
 import androidx.media3.transformer.DefaultEncoderFactory
@@ -102,6 +104,27 @@ internal object TimelineRenderExporter {
             .build()
     }
 
+    internal data class SpeedSegment(val startMs: Long, val endMs: Long, val speed: Float)
+
+    /** Approximate a linear ramp with short, constant-rate codec segments. Splits at every
+     * authored key so no segment straddles a discontinuity; 200ms caps rate-curve error.
+     */
+    internal fun speedSegments(fx: ClipRichFx, durationMs: Long): List<SpeedSegment> {
+        val duration = durationMs.coerceAtLeast(1L)
+        if (fx.speedKeyframes.isEmpty()) return listOf(SpeedSegment(0L, duration, fx.speed.coerceIn(0.25, 4.0).toFloat()))
+        val keyTimes = fx.speedKeyframes.map { it.timeMs.coerceIn(0L, duration) }.distinct().sorted()
+        val boundaries = sortedSetOf(0L, duration)
+        keyTimes.forEach { boundaries += it }
+        val authored = boundaries.toList()
+        for (i in 0 until authored.lastIndex) {
+            var point = authored[i] + 200L
+            while (point < authored[i + 1]) { boundaries += point; point += 200L }
+        }
+        return boundaries.toList().zipWithNext().mapNotNull { (start, end) ->
+            if (end <= start) null else SpeedSegment(start, end, fx.speedAt(start + (end - start) / 2L, duration))
+        }
+    }
+
     internal fun richComposition(
         plan: TimelineRemuxExporter.Plan,
         richDoc: TimelineRichDocument,
@@ -112,40 +135,32 @@ internal object TimelineRenderExporter {
     ): Composition {
         val trackStates = tracks.associateBy { it.id }
         val v1TrackMuted = trackStates["v1"]?.muted == true
-        val videoItems = plan.clips.mapIndexed { index, clip ->
+        val videoItems = plan.clips.flatMapIndexed { index, clip ->
             checkCancelled()
             val fx = richDoc.fxFor(clip.id)
             val durMs = (clip.sourceOutMs - clip.sourceInMs).coerceAtLeast(1L)
-            val durUs = durMs * 1000L
-            val media = MediaItem.Builder()
-                .setUri(clip.mediaId)
-                .setClippingConfiguration(
-                    MediaItem.ClippingConfiguration.Builder()
-                        .setStartPositionMs(clip.sourceInMs)
-                        .setEndPositionMs(clip.sourceOutMs)
-                        .build()
-                )
-                .build()
-
-            val videoFx = mutableListOf<Effect>()
-            if (fx.hasVideoTransformOrFx()) {
-                videoFx += TimelineClipGlEffect(fx, durUs)
+            speedSegments(fx, durMs).map { segment ->
+                checkCancelled()
+                val media = MediaItem.Builder()
+                    .setUri(clip.mediaId)
+                    .setClippingConfiguration(
+                        MediaItem.ClippingConfiguration.Builder()
+                            .setStartPositionMs(clip.sourceInMs + segment.startMs)
+                            .setEndPositionMs((clip.sourceInMs + segment.endMs).coerceAtMost(clip.sourceOutMs))
+                            .build()
+                    ).build()
+                val videoFx = mutableListOf<Effect>()
+                if (fx.hasVideoTransformOrFx()) videoFx += TimelineClipGlEffect(fx, durMs * 1000L, segment.startMs * 1000L)
+                if (segment.speed != 1f) videoFx += SpeedChangeEffect(segment.speed)
+                if (grades != null && index < grades.size) videoFx += grades[index]
+                val effectiveFx = if (v1TrackMuted) fx.copy(muted = true) else fx
+                val audioFx = mutableListOf<AudioProcessor>()
+                if (segment.speed != 1f) audioFx += SonicAudioProcessor().apply { setSpeed(segment.speed) }
+                if (effectiveFx.hasAudioEnvelope()) audioFx += ClipVolumeAudioProcessor(effectiveFx, durMs, localOffsetMs = segment.startMs)
+                EditedMediaItem.Builder(media).apply {
+                    if (audioFx.isNotEmpty() || videoFx.isNotEmpty()) setEffects(Effects(audioFx, videoFx))
+                }.build()
             }
-            if (grades != null && index < grades.size) {
-                videoFx += grades[index]
-            }
-
-            val audioFx = mutableListOf<AudioProcessor>()
-            val effectiveFx = if (v1TrackMuted) fx.copy(muted = true) else fx
-            if (effectiveFx.hasAudioEnvelope()) {
-                audioFx += ClipVolumeAudioProcessor(effectiveFx, durMs)
-            }
-
-            EditedMediaItem.Builder(media).apply {
-                if (audioFx.isNotEmpty() || videoFx.isNotEmpty()) {
-                    setEffects(Effects(audioFx, videoFx))
-                }
-            }.build()
         }
 
         val sequences = mutableListOf<EditedMediaItemSequence>()
@@ -174,29 +189,27 @@ internal object TimelineRenderExporter {
                 val duckFactor = if (fx.duckingDb < -0.5f) {
                     Math.pow(10.0, fx.duckingDb / 20.0).toFloat().coerceIn(0.1f, 1f)
                 } else 1.0f
-                val aMedia = MediaItem.Builder()
-                    .setUri(aClip.mediaId)
-                    .setClippingConfiguration(
-                        MediaItem.ClippingConfiguration.Builder()
-                            .setStartPositionMs(aClip.sourceInMs)
-                            .setEndPositionMs(aClip.sourceOutMs)
-                            .build()
-                    )
-                    .build()
-                val audioProcessors: List<AudioProcessor> =
+                for (segment in speedSegments(fx, durMs)) {
+                    val aMedia = MediaItem.Builder()
+                        .setUri(aClip.mediaId)
+                        .setClippingConfiguration(
+                            MediaItem.ClippingConfiguration.Builder()
+                                .setStartPositionMs(aClip.sourceInMs + segment.startMs)
+                                .setEndPositionMs((aClip.sourceInMs + segment.endMs).coerceAtMost(aClip.sourceOutMs))
+                                .build()
+                        ).build()
+                    val audioProcessors = mutableListOf<AudioProcessor>()
+                    if (segment.speed != 1f) audioProcessors += SonicAudioProcessor().apply { setSpeed(segment.speed) }
                     if (fx.hasAudioEnvelope() || duckFactor < 0.99f) {
-                        listOf(ClipVolumeAudioProcessor(fx, durMs, duckFactor))
-                    } else emptyList()
-                val item = EditedMediaItem.Builder(aMedia)
-                    .setRemoveVideo(true)
-                    .apply {
-                        if (audioProcessors.isNotEmpty()) {
-                            setEffects(Effects(audioProcessors, emptyList()))
-                        }
+                        audioProcessors += ClipVolumeAudioProcessor(fx, durMs, duckFactor, segment.startMs)
                     }
-                    .build()
-                seqBuilder.addItem(item)
-                hasItems = true
+                    val item = EditedMediaItem.Builder(aMedia)
+                        .setRemoveVideo(true)
+                        .apply { if (audioProcessors.isNotEmpty()) setEffects(Effects(audioProcessors, emptyList())) }
+                        .build()
+                    seqBuilder.addItem(item)
+                    hasItems = true
+                }
                 cursorFrame = maxOf(cursorFrame, aClip.startFrame + aClip.durationFrames)
             }
             if (hasItems) {
@@ -208,7 +221,24 @@ internal object TimelineRenderExporter {
         if (richDoc.overlays.isNotEmpty() || richDoc.subtitles.isNotEmpty()) {
             globalVideoEffects += TextBurnGlEffect(richDoc)
         }
-        globalVideoEffects += Presentation.createForHeight(OUTPUT_HEIGHT)
+        val explicitWidth = richDoc.outputWidth
+        val explicitHeight = richDoc.outputHeight
+        require((explicitWidth == null) == (explicitHeight == null)) { "Custom resolution needs both dimensions" }
+        if (explicitWidth != null && explicitHeight != null) {
+            require(explicitWidth in 144..3840 && explicitHeight in 144..3840 &&
+                explicitWidth % 2 == 0 && explicitHeight % 2 == 0 &&
+                explicitWidth.toLong() * explicitHeight <= 8_294_400L) { "Invalid custom output resolution" }
+            globalVideoEffects += Presentation.createForWidthAndHeight(
+                explicitWidth, explicitHeight, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP,
+            )
+        } else {
+            richDoc.outputAspectRatio?.let { aspect ->
+                globalVideoEffects += Presentation.createForAspectRatio(
+                    aspect, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP,
+                )
+            }
+            globalVideoEffects += Presentation.createForHeight(OUTPUT_HEIGHT)
+        }
 
         return Composition.Builder(sequences)
             .setTransmuxAudio(false)

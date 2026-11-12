@@ -111,4 +111,3 @@ Affine2D reframe_transform(std::size_t sw,std::size_t sh,std::size_t dw,std::siz
     return t;
 }
 } // namespace color
-

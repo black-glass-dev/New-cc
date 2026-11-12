@@ -76,6 +76,52 @@ private:
 
 enum class TrimEdge { left, right };
 
+class SlipClipCommand final : public EditCommand {
+public:
+    SlipClipCommand(std::string clip_id, Timestamp source_delta);
+    void apply(Timeline& timeline) override;
+    void undo(Timeline& timeline) override;
+private:
+    std::string clip_id_;
+    Timestamp delta_;
+    Clip before_{};
+    Clip after_{};
+    bool captured_{false};
+    bool applied_{false};
+};
+
+class RollBoundaryCommand final : public EditCommand {
+public:
+    RollBoundaryCommand(std::string left_clip_id, std::string right_clip_id, Timestamp delta);
+    void apply(Timeline& timeline) override;
+    void undo(Timeline& timeline) override;
+private:
+    std::string left_id_;
+    std::string right_id_;
+    Timestamp delta_;
+    Clip left_before_{};
+    Clip right_before_{};
+    Clip left_after_{};
+    Clip right_after_{};
+    bool captured_{false};
+    bool applied_{false};
+};
+
+class SlideClipCommand final : public EditCommand {
+public:
+    SlideClipCommand(std::string left_clip_id, std::string moving_clip_id,
+                     std::string right_clip_id, Timestamp delta);
+    void apply(Timeline& timeline) override;
+    void undo(Timeline& timeline) override;
+private:
+    std::string left_id_, moving_id_, right_id_;
+    Timestamp delta_;
+    Clip left_before_{}, moving_before_{}, right_before_{};
+    Clip left_after_{}, moving_after_{}, right_after_{};
+    bool captured_{false};
+    bool applied_{false};
+};
+
 class TrimClipCommand final : public EditCommand {
 public:
     TrimClipCommand(std::string clip_id, TrimEdge edge, Timestamp source_boundary);
