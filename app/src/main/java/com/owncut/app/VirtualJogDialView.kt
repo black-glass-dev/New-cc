@@ -68,7 +68,7 @@ internal class VirtualJogDialView(context: Context) : View(context) {
     override fun onTouchEvent(event: MotionEvent): Boolean {
         val cx = width / 2f
         val cy = height / 2f
-        val angle = atan2(event.y - cy, event.x - cx)
+        val angle = atan2((event.y - cy).toDouble(), (event.x - cx).toDouble())
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 lastAngle = angle

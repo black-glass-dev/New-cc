@@ -17,6 +17,7 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.Surface
 import android.view.TextureView
+import android.view.View
 import android.view.WindowInsets
 import android.view.ViewGroup
 import android.widget.Button
@@ -410,7 +411,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
             orientation = LinearLayout.HORIZONTAL
             background = StudioUi.shape(this@MainActivity)
         }
-        timelineScroll.addView(timelineContainer, ScrollView.LayoutParams(-1, -2))
+        timelineScroll.addView(timelineContainer, FrameLayout.LayoutParams(-1, -2))
         root.addView(timelineScroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(164)))
 
         seekBar = SeekBar(this).apply {
