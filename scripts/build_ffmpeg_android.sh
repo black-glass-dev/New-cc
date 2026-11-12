@@ -18,6 +18,30 @@ ABIS=("$@")
 if [[ ${#ABIS[@]} -eq 0 ]]; then ABIS=(arm64-v8a); fi
 
 WORK="$(mktemp -d)"
+CURRENT_BUILD=""
+# On failure, surface the tail of configure/make logs as a CI annotation (readable through the
+# checks API when raw job logs are unavailable) and as the step summary.
+report_failure() {
+  local status=$?
+  local tail_text=""
+  for log in "$CURRENT_BUILD/ffbuild/config.log" "$CURRENT_BUILD/configure.log" "$CURRENT_BUILD/build.log" "$CURRENT_BUILD/install.log"; do
+    if [[ -n "$CURRENT_BUILD" && -f "$log" ]]; then
+      tail_text+="== ${log##*/} ==\n$(tail -n 40 "$log")\n"
+    fi
+  done
+  tail_text="${tail_text:-no build log (failed before configure: exit ${status})}"
+  echo "$tail_text" | tail -c 6000
+  local encoded="${tail_text//%/%25}"
+  encoded="${encoded//$'\r'/%0D}"
+  encoded="${encoded//$'\n'/%0A}"
+  echo "::error title=FFmpeg Android build failed::${encoded}"
+  if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+    { echo '### FFmpeg Android build failed'; echo '```'; echo "$tail_text" | tail -c 6000; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+  fi
+  rm -rf "$WORK"
+  exit "$status"
+}
+trap report_failure ERR
 trap 'rm -rf "$WORK"' EXIT
 
 ARCHIVE="$WORK/ffmpeg-${FFMPEG_TAG}.tar.gz"
@@ -40,6 +64,7 @@ for ABI in "${ABIS[@]}"; do
   esac
 
   BUILD="$WORK/build-$ABI"
+  CURRENT_BUILD="$BUILD"
   PREFIX="$OUT/$ABI"
   mkdir -p "$BUILD" "$PREFIX"
 
@@ -82,9 +107,9 @@ for ABI in "${ABIS[@]}"; do
       --enable-demuxer=mov,matroska \
       --enable-muxer=mov,matroska,mp4 \
       --enable-parser=h264,hevc \
-      "${EXTRA[@]}"
-    make -j"$(nproc)"
-    make install
+      "${EXTRA[@]}" > configure.log 2>&1 || { tail -n 80 configure.log; false; }
+    make -j"$(nproc)" > build.log 2>&1 || { tail -n 80 build.log; false; }
+    make install > install.log 2>&1
   )
 
   test -f "$PREFIX/lib/libavformat.a"
