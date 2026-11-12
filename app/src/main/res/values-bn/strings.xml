@@ -455,4 +455,9 @@
     <string name="export_format_mov_dnxhr_hq">MOV · DNxHR HQ (H.264 export থেকে পুনরায় encode)</string>
     <string name="export_format_mxf_dnxhr_hq">MXF · DNxHR HQ (পুনরায় encode, audio 48 kHz PCM, শুধু ফাইলে সেভ)</string>
     <string name="export_mxf_gallery_unsupported">MXF শুধু ফাইল সেভ (save dialog) দিয়ে হয়, Gallery তে নয়।</string>
+    <string name="export_format_mp4_hevc10">MP4 · HEVC 10-bit (Main 10, ডিভাইসের encoder লাগবে)</string>
+    <string name="export_format_mov_hevc10">MOV · HEVC 10-bit (Main 10, ডিভাইসের encoder লাগবে)</string>
+    <string name="export_format_mkv_hevc10">MKV · HEVC 10-bit (Main 10, ডিভাইসের encoder লাগবে)</string>
+    <string name="hevc10_no_encoder">এই ডিভাইসে 10-bit HEVC (Main 10) encoder নেই; কোনো export তৈরি হয়নি।</string>
+    <string name="hevc10_refused_output">10-bit HEVC export বাতিল: ফাইলে profile %s ঘোষণা আছে, Main 10 নয়।</string>
 </resources>

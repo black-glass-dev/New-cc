@@ -1764,6 +1764,9 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         ExportVideoFormat.PRORES_422_MOV -> R.string.export_format_mov_prores422
         ExportVideoFormat.DNXHR_HQ_MOV -> R.string.export_format_mov_dnxhr_hq
         ExportVideoFormat.DNXHR_HQ_MXF -> R.string.export_format_mxf_dnxhr_hq
+        ExportVideoFormat.MP4_HEVC10 -> R.string.export_format_mp4_hevc10
+        ExportVideoFormat.MOV_HEVC10 -> R.string.export_format_mov_hevc10
+        ExportVideoFormat.MKV_HEVC10 -> R.string.export_format_mkv_hevc10
         else -> R.string.export_format_mkv_hevc
     }
 

@@ -24,6 +24,7 @@ import androidx.media3.transformer.ExportException
 import androidx.media3.transformer.ExportResult
 import androidx.media3.transformer.ProgressHolder
 import androidx.media3.transformer.Transformer
+import androidx.media3.transformer.VideoEncoderSettings
 import java.io.File
 import java.util.concurrent.CancellationException
 import java.util.concurrent.CountDownLatch
@@ -343,8 +344,18 @@ internal object TimelineRenderExporter {
         handler.post {
             try {
                 if (cancelled.get()) throw CancellationException(AppLanguage.text(R.string.message_1452bfda9c))
+                // 10-bit HEVC: request Main 10 explicitly and never fall back to another codec.
+                val hevc10 = Hevc10Export.isHevc10(videoMime)
                 val platform = DefaultEncoderFactory.Builder(context.applicationContext)
-                    .setEnableFallback(candidate==null).build()
+                    .setEnableFallback(candidate==null && !hevc10)
+                    .apply {
+                        if (hevc10) {
+                            val (profile, level) = Hevc10Export.requireEncoderLevel()
+                            setRequestedVideoEncoderSettings(
+                                VideoEncoderSettings.Builder().setEncodingProfileLevel(profile, level).build()
+                            )
+                        }
+                    }.build()
                 val alwaysEncode = object : Codec.EncoderFactory by platform {
                     override fun videoNeedsEncoding() = true
                     override fun audioNeedsEncoding() = true
@@ -353,7 +364,7 @@ internal object TimelineRenderExporter {
                     .setLooper(thread.looper)
                     .apply { candidate?.configure(context,this) }
                     .setEncoderFactory(alwaysEncode)
-                    .setVideoMimeType(videoMime)
+                    .setVideoMimeType(Hevc10Export.transformerMime(videoMime))
                     .setAudioMimeType(MimeTypes.AUDIO_AAC)
                     .addListener(object : Transformer.Listener {
                         override fun onCompleted(composition: Composition, exportResult: ExportResult) {
@@ -386,6 +397,7 @@ internal object TimelineRenderExporter {
                 Math.addExact(total, Math.multiplyExact(clip.sourceOutMs - clip.sourceInMs, 1000L))
             }
             TimelineRemuxExporter.verifyMuxedOutput(output, true, cancelled, expectedDurationUs)
+            if (Hevc10Export.isHevc10(videoMime)) Hevc10Export.requireMain10Output(output)
             succeeded = true
         } catch (interrupted: InterruptedException) {
             cancelled.set(true)

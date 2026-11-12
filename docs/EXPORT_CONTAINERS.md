@@ -17,7 +17,7 @@ native FFmpeg remux of the finished MP4 export (`FfmpegRemux`, `ffmpeg_remux_jni
 | MOV + DNxHR HQ | Offered | H.264 export decoded, then `dnxhd` (`dnxhr_hq`, `yuv422p`), audio AAC copy | Decodes, 60 frames; Y PSNR about 26 dB on detailed content (encoder limit, see below) |
 | MXF + DNxHR HQ | Offered, file save only | As MOV DNxHR, audio 48 kHz PCM | Decodes; audio 48 kHz PCM; no audio input decodes |
 | AV1 | Not offered | No AV1 encoder enabled | - |
-| 10-bit HEVC | Not offered | Needs 10-bit encoder configuration and device tests | - |
+| MP4 / MOV / MKV + HEVC 10-bit (Main 10) | Offered; needs a device HEVC encoder that advertises Main 10, no fallback | Transformer with `VideoEncoderSettings` profile Main 10 (level 5.1, else 4.1); the MP4 is then checked for hvcC `general_profile_idc` 2 before publishing | Host: checker reads profile 1 for an 8-bit Main file and 2 for a 10-bit file (libx265), MOV copy keeps 2. Device encode not tested |
 
 "Host test" means the same C++ as the app, compiled with a host FFmpeg of the same configuration,
 run against a generated MP4 (H.264 + AAC, or H.264 without B-frames). The device path is not tested.
@@ -48,3 +48,9 @@ run against a generated MP4 (H.264 + AAC, or H.264 without B-frames). The device
 - DNxHR PSNR on detailed content (mandelbrot test, 29 dB) is much lower than ProRes (53 dB) with
   FFmpeg's `dnxhd` encoder. A flat source gives 48 dB. Not yet resolved; device output is to be checked.
 - Transcodes run on the device CPU through FFmpeg. Large clips take time.
+
+- 10-bit HEVC: the source is 8-bit H.264 decoded by Media3, so the 10-bit file is a bit-depth
+  upconversion of the 8-bit frames. Whether the device encoder accepts 8-bit surface input for Main 10
+  depends on the device; a refusal shows as an export error (no codec fallback).
+- Media3 silently drops a requested profile the encoder does not advertise, so the app checks the
+  encoder before encoding and checks the hvcC profile after encoding.

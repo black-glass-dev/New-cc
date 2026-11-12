@@ -455,4 +455,9 @@
     <string name="export_format_mov_dnxhr_hq">MOV · DNxHR HQ (re-encoded from the H.264 export)</string>
     <string name="export_format_mxf_dnxhr_hq">MXF · DNxHR HQ (re-encoded, audio 48 kHz PCM, file save only)</string>
     <string name="export_mxf_gallery_unsupported">MXF is saved with the file picker, not the Gallery.</string>
+    <string name="export_format_mp4_hevc10">MP4 · HEVC 10-bit (Main 10)</string>
+    <string name="export_format_mov_hevc10">MOV · HEVC 10-bit (Main 10)</string>
+    <string name="export_format_mkv_hevc10">MKV · HEVC 10-bit (Main 10)</string>
+    <string name="hevc10_no_encoder">10-bit HEVC (Main 10) encoder is not available on this device; nothing was exported.</string>
+    <string name="hevc10_refused_output">10-bit HEVC export refused: the file declares profile %s, not Main 10.</string>
 </resources>
