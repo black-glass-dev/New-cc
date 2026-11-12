@@ -16,9 +16,17 @@ internal object ExportVideoFormat {
     const val MKV_H264 = "mkv:video/avc"
     const val MKV_HEVC = "mkv:video/hevc"
     const val MXF_H264 = "mxf:video/avc"
-    val ALL = listOf(MP4_H264, MP4_HEVC, MOV_H264, MOV_HEVC, MKV_H264, MKV_HEVC, MXF_H264)
+    const val PRORES_422_MOV = "mov:prores422"
+    const val DNXHR_HQ_MOV = "mov:dnxhr_hq"
+    const val DNXHR_HQ_MXF = "mxf:dnxhr_hq"
+    val ALL = listOf(MP4_H264, MP4_HEVC, MOV_H264, MOV_HEVC, MKV_H264, MKV_HEVC, MXF_H264,
+        PRORES_422_MOV, DNXHR_HQ_MOV, DNXHR_HQ_MXF)
     fun container(format: String) = format.substringBefore(':')
     fun codecMime(format: String) = format.substringAfter(':')
+    /** ProRes and DNxHR are encoded by FFmpeg from the platform H.264 export (a second generation). */
+    fun isTranscoded(format: String) = codecMime(format) == "prores422" || codecMime(format) == "dnxhr_hq"
+    /** The codec the platform Transformer encodes. Transcoded formats start from H.264. */
+    fun encoderMime(format: String) = if (isTranscoded(format)) "video/avc" else codecMime(format)
     fun publishMime(format: String) = when (container(format)) {
         "mov" -> "video/quicktime"
         "mkv" -> "video/x-matroska"

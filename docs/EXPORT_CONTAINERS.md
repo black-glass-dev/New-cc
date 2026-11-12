@@ -13,7 +13,9 @@ native FFmpeg remux of the finished MP4 export (`FfmpegRemux`, `ffmpeg_remux_jni
 | MXF + H.264 | Offered, file save only | Video stream copy; AAC decoded and resampled to 48 kHz 16-bit PCM | Decodes; audio level matches source; refused for B-frame H.264 |
 | MXF + HEVC | Not offered | The FFmpeg MXF muxer has no HEVC essence mapping | - |
 | WEBM | Not offered | VP8/VP9/AV1 only. Needs a VP9/AV1 encoder, which this build does not have | - |
-| ProRes, DNxHR | Not offered | `prores_ks` and `dnxhd` exist in FFmpeg but are not enabled. Needs decode and encode of graded frames | - |
+| MOV + ProRes 422 HQ | Offered | H.264 export decoded, then `prores_ks` (profile `hq`, `yuv422p10le`), audio stream-copied AAC | Decodes; ffprobe reports `apch`; Y PSNR 63 dB vs source (320x240) |
+| MOV + DNxHR HQ | Offered | H.264 export decoded, then `dnxhd` (`dnxhr_hq`, `yuv422p`), audio AAC copy | Decodes, 60 frames; Y PSNR about 26 dB on detailed content (encoder limit, see below) |
+| MXF + DNxHR HQ | Offered, file save only | As MOV DNxHR, audio 48 kHz PCM | Decodes; audio 48 kHz PCM; no audio input decodes |
 | AV1 | Not offered | No AV1 encoder enabled | - |
 | 10-bit HEVC | Not offered | Needs 10-bit encoder configuration and device tests | - |
 
@@ -38,3 +40,9 @@ run against a generated MP4 (H.264 + AAC, or H.264 without B-frames). The device
 - MXF is not published to the gallery. The save dialog is used.
 - Cancellation is not checked during the remux. It is a fast stream copy, but a long file is not interruptible.
 - Device playback, MediaStore publishing, and colour in the remuxed files are not verified.
+
+- ProRes and DNxHR are a second-generation encode of the H.264 export, so they are not lossless
+  with respect to the Media3 export. The source must be H.264 (other sources are refused).
+- DNxHR PSNR on detailed content (mandelbrot test, 29 dB) is much lower than ProRes (53 dB) with
+  FFmpeg's `dnxhd` encoder. A flat source gives 48 dB. Not yet resolved; device output is to be checked.
+- Transcodes run on the device CPU through FFmpeg. Large clips take time.

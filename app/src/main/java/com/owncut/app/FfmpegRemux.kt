@@ -2,7 +2,7 @@ package com.owncut.app
 
 import java.io.File
 
-/** Stream-copy remux only: no decode and no re-encode. The LGPL FFmpeg build is linked into owncut_android. */
+/** LGPL FFmpeg in owncut_android. remux stream-copies (MOV, MKV, MXF); transcode encodes ProRes or DNxHR. */
 internal object FfmpegRemux {
     init { System.loadLibrary("owncut_android") }
 
@@ -16,6 +16,21 @@ internal object FfmpegRemux {
         }
     }
 
+    /** codec: "prores422" (MOV only) or "dnxhr_hq" (MOV or MXF). The input must be H.264. */
+    fun transcode(input: File, output: File, container: String, codec: String) {
+        require(container == "mov" || container == "mxf") { "unsupported container: $container" }
+        require(codec == "prores422" || codec == "dnxhr_hq") { "unsupported codec: $codec" }
+        require(codec != "prores422" || container == "mov") { "ProRes is written to MOV only" }
+        val error = nativeTranscode(input.absolutePath, output.absolutePath, container, codec)
+        if (error != null) {
+            output.delete()
+            throw IllegalStateException("Transcode failed: $error")
+        }
+    }
+
     /** Returns null on success, otherwise a short diagnostic. */
     private external fun nativeRemux(input: String, output: String, container: String): String?
+
+    /** Returns null on success, otherwise a short diagnostic. */
+    private external fun nativeTranscode(input: String, output: String, container: String, codec: String): String?
 }

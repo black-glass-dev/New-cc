@@ -1633,7 +1633,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         cancelExportButton.text = AppLanguage.text(R.string.message_90f2b63925)
         cancelExportButton.isEnabled = true
         statusText.text = AppLanguage.text(R.string.message_d7e376c6eb)
-        val codecMime = ExportVideoFormat.codecMime(videoFormat)
+        val codecMime = ExportVideoFormat.encoderMime(videoFormat)
         exportExecutor.execute {
             var temporary = File(cacheDir, "owncut-export-${System.nanoTime()}.mp4")
             var resultMessage = if (plan.omittedGapFrames > 0L) {
@@ -1687,7 +1687,11 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                 if (container != "mp4") {
                     // Stream copy of the finished MP4 into MOV or Matroska; no re-encode.
                     val remuxed = File(cacheDir, "owncut-remux-${System.nanoTime()}.$container")
-                    FfmpegRemux.remux(temporary, remuxed, container)
+                    if (ExportVideoFormat.isTranscoded(videoFormat)) {
+                        FfmpegRemux.transcode(temporary, remuxed, container, ExportVideoFormat.codecMime(videoFormat))
+                    } else {
+                        FfmpegRemux.remux(temporary, remuxed, container)
+                    }
                     temporary.delete()
                     temporary = remuxed
                 }
@@ -1757,6 +1761,9 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         ExportVideoFormat.MOV_HEVC -> R.string.export_format_mov_hevc
         ExportVideoFormat.MKV_H264 -> R.string.export_format_mkv_h264
         ExportVideoFormat.MXF_H264 -> R.string.export_format_mxf_h264
+        ExportVideoFormat.PRORES_422_MOV -> R.string.export_format_mov_prores422
+        ExportVideoFormat.DNXHR_HQ_MOV -> R.string.export_format_mov_dnxhr_hq
+        ExportVideoFormat.DNXHR_HQ_MXF -> R.string.export_format_mxf_dnxhr_hq
         else -> R.string.export_format_mkv_hevc
     }
 
