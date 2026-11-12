@@ -1,0 +1,5 @@
+{
+  "graphite": {"background":"101113","surface":"191B1F","raised":"24272C","border":"353A42","text":"F0F1F3","muted":"B5BAC3","accent":"A8D6E8","selection":"28414B"},
+  "midnight": {"background":"0C111B","surface":"151D2B","raised":"202B3D","border":"344259","text":"F0F4FC","muted":"AABAD0","accent":"AFC8FF","selection":"283D60"},
+  "ember": {"background":"151210","surface":"211C18","raised":"2E2721","border":"4B4036","text":"F5F0E9","muted":"C4B8A9","accent":"EAC294","selection":"493725"}
+}

@@ -1,0 +1,511 @@
+<resources>
+    <string name="app_name">Owncut</string>
+    <string name="action_pause" formatted="false">বিরতি</string>
+    <string name="language" formatted="false">ভাষা</string>
+    <string name="message_027434fe36" formatted="false">Project document খোলা হয়েছে</string>
+    <string name="message_02a0ab04a0">নতুন media কমপক্ষে %1$s ms হতে হবে; একই source-এর সব split clip relink হবে</string>
+    <string name="message_0336fc9f6e">Seek হয়নি: %1$s</string>
+    <string name="message_03862c58d4" formatted="false">Source video বদলেছে বা ছোট হয়েছে; Media বদল দিয়ে relink করুন</string>
+    <string name="message_0463a65e49" formatted="false">সংরক্ষিত ভিডিওর size সঠিক নয়</string>
+    <string name="message_04e2fb0e61" formatted="false">Project library পড়া যাচ্ছে না</string>
+    <string name="message_0582bad777" formatted="false">Clip source range-এ video sample পাওয়া যায়নি</string>
+    <string name="message_05b0f1f053" formatted="false">Project import হচ্ছে…</string>
+    <string name="message_05bda35a9b" formatted="false">Gap / timeline শেষ · clip-এ ট্যাপ করে preview করুন; project বদলায়নি</string>
+    <string name="message_0766a0344b" formatted="false">Unsupported project metadata</string>
+    <string name="message_083723004b">Timeline · %1$s clips · gap / কোনো clip নির্বাচিত নয়</string>
+    <string name="message_08be239204" formatted="false">Engine বন্ধ</string>
+    <string name="message_0a0b1b77c1" formatted="false">তালিকা refresh করুন</string>
+    <string name="message_0a1e880c02" formatted="false">ডান ছাঁটুন</string>
+    <string name="message_0a8e43ec87" formatted="false">তৈরি MP4-তে video timestamp সঠিক নয়</string>
+    <string name="message_0b5dee2ad4" formatted="false">ভিডিওতে বৈধ duration নেই</string>
+    <string name="message_0d444672e0" formatted="false">Choose your language\nভাষা নির্বাচন করুন</string>
+    <string name="message_0d4c2e3e06">%1$s · অসম্পূর্ণ Gallery item সরানো যায়নি</string>
+    <string name="message_0e20aaa694" formatted="false">Selected source clip seek bar; red timeline playhead shows project time</string>
+    <string name="message_0eaf8169fc" formatted="false">ভিডিও চালু, কিন্তু frame আসেনি। 1080p SDR ভিডিও দিয়ে চেষ্টা করুন; 4K/HDR/codec support ফোনভেদে আলাদা।</string>
+    <string name="message_0ec264cf76">নাম বদল · %1$s</string>
+    <string name="message_0f4c747ce7" formatted="false">ভিডিও render হচ্ছে…</string>
+    <string name="message_11e7c90ac5">কাজ হয়নি: %1$s</string>
+    <string name="message_12ef116cca" formatted="false">ভিডিও decode হচ্ছে…</string>
+    <string name="message_136066f1d5" formatted="false">Project file পড়া যাচ্ছে না</string>
+    <string name="message_13801b7401" formatted="false">ইমপোর্ট করা প্রজেক্ট</string>
+    <string name="message_1452bfda9c" formatted="false">Render বাতিল করা হয়েছে</string>
+    <string name="message_15341f178d" formatted="false">প্রজেক্ট খুলুন…</string>
+    <string name="message_15d58dd451" formatted="false">প্রজেক্ট অন্যত্র রাখুন…</string>
+    <string name="message_18689bdb66" formatted="false">Project ফাইলে লেখা হচ্ছে…</string>
+    <string name="message_19c5867f0e" formatted="false">সংরক্ষণ করার মতো video data নেই</string>
+    <string name="message_19dafc9927">Timeline পড়া যায়নি: %1$s</string>
+    <string name="message_1a9f905eb4">Project save ব্যর্থ: %1$s</string>
+    <string name="message_1ac6986001">Preview seek হয়নি: %1$s</string>
+    <string name="message_1c025b7a2c" formatted="false">মুছুন</string>
+    <string name="message_1e9ea62c75" formatted="false">সংরক্ষিত কাজ খুলুন</string>
+    <string name="message_1f7073c78b" formatted="false">Audio sample timestamp order এই file-এ stream-copy export-এর উপযোগী নয়</string>
+    <string name="message_2045e197ce">ভিডিও চলছে · %1$s / %2$s</string>
+    <string name="message_2086b19f67" formatted="false">প্লেহেড অনুসরণ</string>
+    <string name="message_20c86043bf">Project তৈরি হয়নি (%1$s); original অপরিবর্তিত আছে</string>
+    <string name="message_21bed82a7e" formatted="false">Export সম্পন্ন · ফাঁকা timeline gap বাদ দেওয়া হয়েছে</string>
+    <string name="message_22b4d27a73" formatted="false">এডিটিং ইঞ্জিন তৈরি হয়নি</string>
+    <string name="message_2313bf0ccc" formatted="false">যে clip-টি relink করতে চেয়েছেন সেটি আর নেই</string>
+    <string name="message_24c6921f1f" formatted="false">ভিডিওর duration পড়া যায়নি</string>
+    <string name="message_2668d112c9">ভিডিও decode হয়নি (%1$s/%2$s)। 1080p SDR ফাইল দিয়ে চেষ্টা করুন; 4K/HDR/codec support ফোনভেদে আলাদা।</string>
+    <string name="message_2762c8b9a2" formatted="false">রাখুন</string>
+    <string name="message_279f0e3cdf" formatted="false">অনুসরণ: চালু</string>
+    <string name="message_28ccb137ab" formatted="false">Clip-এর শুরু sync frame-এ নেই; সঠিকভাবে export করতে keyframe-এ trim/split করুন</string>
+    <string name="message_29b7d7e952" formatted="false">Export ব্যর্থ</string>
+    <string name="message_2b042e5a6c" formatted="false">Export বাতিল করা হয়েছে</string>
+    <string name="message_2b7a3b470e" formatted="false">ভিডিও copy অসম্পূর্ণ</string>
+    <string name="message_2c34f0e27b" formatted="false">Project-এর নাম</string>
+    <string name="message_2cd5fdd10c" formatted="false">ভাবনা থেকে শেষ ফ্রেম। আপনার পরবর্তী গল্প এখানেই।</string>
+    <string name="message_2d4b4eb369" formatted="false">বর্তমান editor session বদলে যাবে। আগে unsaved পরিবর্তন autosave করা হবে।</string>
+    <string name="message_2f1b3a4ea9" formatted="false">বাম ছাঁটুন</string>
+    <string name="message_3119322927" formatted="false">Autosave recover হয়েছে; local project-এ রাখতে Save বা Projects চাপুন</string>
+    <string name="message_315688be7e" formatted="false">Project document পড়া হচ্ছে…</string>
+    <string name="message_323a11800b" formatted="false">MP4 এক্সপোর্ট</string>
+    <string name="message_32ba7b117e" formatted="false">Export বাতিল; provider খালি/অসম্পূর্ণ document সরাতে পারেনি</string>
+    <string name="message_34d403c213">ভিডিও render হচ্ছে · %1$s%%</string>
+    <string name="message_35d6f4944d" formatted="false">Projects: আলাদা local project, নাম বদল, file import।\nEdit: preview, timeline, playhead, split/trim/move/delete, Undo/Redo।\nMedia: source তথ্য ও relink।\nDeliver: বর্তমান 720-high SDR MP4 render ও Gallery save।\nFlow: বর্তমান preview/export route-এর read-only ব্যাখ্যা।\n\nপরিকল্পিত: editable typed nodes, effects, compositing, grading, keyframes, audio graph ও RAW। এগুলো এই build-এ চালু নয়।\n\nLocal library app-private; uninstall/data clear করলে হারাবে। গুরুত্বপূর্ণ project file বাইরে Save as করুন; original media-ও রাখুন।</string>
+    <string name="message_360e86bda3" formatted="false"> · অসম্পূর্ণ document সরানো যায়নি</string>
+    <string name="message_36aba39eed" formatted="false">Edit operation ব্যর্থ</string>
+    <string name="message_36eb3c2094" formatted="false">তৈরি MP4-তে video track খোলা যাচ্ছে না</string>
+    <string name="message_37b13021f8" formatted="false">Timeline clip-এর source range বৈধ নয়</string>
+    <string name="message_38516603a3">Export ব্যর্থ: %1$s</string>
+    <string name="message_392a697579" formatted="false">Gallery-তে output প্রকাশ করা যায়নি</string>
+    <string name="message_39fc721248" formatted="false">পূর্বাবস্থায় ফিরুন</string>
+    <string name="message_3cbf4f8e3e" formatted="false">Project খোলা হয়েছে</string>
+    <string name="message_3d1d8c290a" formatted="false">Relink করার clip পাওয়া যায়নি</string>
+    <string name="message_3df8193901" formatted="false">Timeline-এ export করার মতো clip নেই</string>
+    <string name="message_3ea73f3e83" formatted="false">Project library পড়া হচ্ছে…</string>
+    <string name="message_3f5bcb7685" formatted="false">Gallery output-এ লেখা যাচ্ছে না</string>
+    <string name="message_4087ee8fbc" formatted="false">Original media-তে video track নেই</string>
+    <string name="message_411b41bacc" formatted="false">Original media থেকে encoded sample পড়া যায়নি বা buffer সীমা ছাড়িয়েছে</string>
+    <string name="message_413c4a66bd" formatted="false">Project ফাইল 96 MiB সীমা ছাড়িয়েছে</string>
+    <string name="message_422600b830">এই ভিডিও খোলা যায়নি: %1$s</string>
+    <string name="message_42f3763acb" formatted="false">বর্তমান session বদলে যাবে। আগে বর্তমান কাজ autosave করে তারপর saved project load হবে।</string>
+    <string name="message_43d6f66acd" formatted="false">মিডিয়া বদল</string>
+    <string name="message_4651a020c4" formatted="false">Recovery snapshot নেই</string>
+    <string name="message_46d696486d" formatted="false">Project save সম্পন্ন</string>
+    <string name="message_471b94d402" formatted="false">আবার করুন</string>
+    <string name="message_485965e2a5" formatted="false">Render সম্পন্ন · MP4 যাচাই হচ্ছে…</string>
+    <string name="message_48a2f4125e" formatted="false">Export সম্পন্ন · Gallery / Movies/Owncut-এ সংরক্ষিত</string>
+    <string name="message_493010d9f8" formatted="false">Render সময়সীমা শেষ; আবার চেষ্টা করুন</string>
+    <string name="message_49396f3024" formatted="false">এখনো project নেই। নতুন project তৈরি করুন অথবা আগের .owncut file import করুন।</string>
+    <string name="message_4983402399" formatted="false">তৈরি MP4-র duration পড়া যাচ্ছে না</string>
+    <string name="message_4bb961786b" formatted="false">সব source clip-এ একই audio track layout থাকতে হবে</string>
+    <string name="message_4cebb485c3" formatted="false">Recovery snapshot আছে — editor-এ Recover autosave দিয়ে দেখুন।</string>
+    <string name="message_4f099c46c1" formatted="false">Flow · বর্তমান route (Read-only)\n\nSource → Native clip range / timeline position → MediaPlayer preview\nSource + timeline snapshot → Media3 decode/render/encode → validated MP4 → Gallery\n\nএখন preview ও export আলাদা pipeline। এটি editable node graph নয়; effects যোগ বা wire বদলানো এখন চালু নেই। Typed nodes, shared evaluator, keyframes ও compositing পরের ধাপের architecture-এ নির্ধারিত।</string>
+    <string name="message_50b34fb08a" formatted="false">Project save করবেন?</string>
+    <string name="message_51d6ad5eff" formatted="false">Export বাতিল হয়েছে; নতুন output রাখা হয়নি</string>
+    <string name="message_521ec4f4e0" formatted="false">Project তৈরি হচ্ছে…</string>
+    <string name="message_522d3a1484" formatted="false">আগের session-এর জন্য Recover autosave চাপুন, অথবা media আবার নির্বাচন করুন।</string>
+    <string name="message_53e890d5f0" formatted="false">প্রজেক্টসমূহ</string>
+    <string name="message_545b6f2b51" formatted="false">একাধিক video track এই export সংস্করণে সমর্থিত নয়</string>
+    <string name="message_5656245819" formatted="false">প্রতিটি clip-এর জন্য original media reference দরকার</string>
+    <string name="message_5714916d16" formatted="false">Render বন্ধ করা হয়েছে</string>
+    <string name="message_59b7d93902" formatted="false">Project Documents-এ save হয়েছে</string>
+    <string name="message_5a994fce3b" formatted="false">তৈরি MP4-র duration শূন্য</string>
+    <string name="message_5afa17a3d6" formatted="false">প্রজেক্ট ফাইল ইমপোর্ট…</string>
+    <string name="message_5b44580b10" formatted="false">লাইব্রেরিতে ১০০০টির বেশি এন্ট্রি; কোনো ফাইল বদলানো হয়নি</string>
+    <string name="message_5bd8db9fcd">টাইমলাইন · %1$s · সোর্স %2$s–%3$s</string>
+    <string name="message_5e5162c1fe" formatted="false">Redo history খালি</string>
+    <string name="message_5fa6a967dd" formatted="false">Timeline-এর এই স্থানে কোনো clip নেই</string>
+    <string name="message_6354e4e3d6" formatted="false">Project folder তৈরি হয়নি</string>
+    <string name="message_63fa0fce55" formatted="false">Saved project খোলা হয়েছে</string>
+    <string name="message_65a0c3462d" formatted="false">MP4 যাচাই হচ্ছে…</string>
+    <string name="message_67854d2c0b" formatted="false">টাইমলাইনের অবস্থান</string>
+    <string name="message_687e9c4466" formatted="false">Recovery snapshot আছে। চাইলে Recover autosave করুন; নতুন edit করলে পুরোনো snapshot বদলাবে।</string>
+    <string name="message_6ad7121692">প্লেব্যাক ত্রুটি: %1$s</string>
+    <string name="message_6b104d83c9">শেষ খোলা/রাখা: %1$s</string>
+    <string name="message_6b876b131b" formatted="false">Timeline clip সরানো হয়েছে</string>
+    <string name="message_6cf81c7ca3" formatted="false">Project name ১–৮০ অক্ষর হতে হবে</string>
+    <string name="message_71dafd7a01" formatted="false">Video sample timestamp order এই file-এ stream-copy export-এর উপযোগী নয়</string>
+    <string name="message_725e31767e" formatted="false">Project save হচ্ছে…</string>
+    <string name="message_72c1407ecc" formatted="false">Selected clip-এর original media পুনরায় নির্বাচন করুন</string>
+    <string name="message_72f825c0e0" formatted="false">Preview-র নির্বাচিত clip আর নেই</string>
+    <string name="message_73a9853a46">%1$s frame (%2$s ms) ফাঁকা অংশ বাদ দিয়ে clips পাশাপাশি জোড়া দিয়ে export হবে। Timeline project বদলাবে না। চালিয়ে যাবেন?</string>
+    <string name="message_7496096196">Project খোলা যায়নি: %1$s</string>
+    <string name="message_7833cc82ff" formatted="false">ভিডিও এখনো প্রস্তুত নয়—clip নির্বাচন করে একটু অপেক্ষা করুন।</string>
+    <string name="message_79e2cae0eb">খুলুন · %1$s</string>
+    <string name="message_7c02a3426b" formatted="false">এই export সংস্করণে একটি video track সমর্থিত</string>
+    <string name="message_7c49e6e92c" formatted="false">Seek শেষ হতে অপেক্ষা করুন</string>
+    <string name="message_7d95b4d830">Encoded samples export হচ্ছে · %1$s/%2$s</string>
+    <string name="message_7fdc670a3b" formatted="false">একাধিক audio track এই export সংস্করণে সমর্থিত নয়</string>
+    <string name="message_80236dfc68" formatted="false">Autosave সংরক্ষিত হয়েছে</string>
+    <string name="message_81764a5673" formatted="false">Split point নির্বাচিত clip-এর ভেতরে হতে হবে</string>
+    <string name="message_831513c165" formatted="false">তৈরি MP4-তে audio sample নেই</string>
+    <string name="message_85149b860c" formatted="false">লাল রেখা timeline playhead। Ruler/clip-এ ট্যাপ করে seek; লাল মাথা ধরে scrub করুন। Clip সরাতে long-press; নিচের bar শুধু নির্বাচিত source-এর position। Gap-এ playback থামে।</string>
+    <string name="message_8586291d13">ভিডিও timeline-এ যোগ হয়নি: %1$s</string>
+    <string name="message_86474f5303" formatted="false">ভিডিও প্রিভিউ</string>
+    <string name="message_865e38304e" formatted="false">ভিডিও নিন · Import</string>
+    <string name="message_871c85ca8f" formatted="false">নতুন project</string>
+    <string name="message_88e5aebc23">ট্র্যাক · %1$s</string>
+    <string name="message_895cdbe3da" formatted="false">গ্যাপ বাদ</string>
+    <string name="message_896bcfa0b6" formatted="false">Render duration timeline-এর সঙ্গে মিলছে না; অসম্পূর্ণ output সেভ হয়নি</string>
+    <string name="message_89fb9c0b30" formatted="false">তৈরি MP4-র শুরু/শেষ video frame Android decoder খুলতে পারেনি</string>
+    <string name="message_8a2e50b708" formatted="false">নাম বদল হচ্ছে…</string>
+    <string name="message_8bd7483212" formatted="false">Invalid project ID</string>
+    <string name="message_8be8c7f189" formatted="false">Imported project-এর নাম</string>
+    <string name="message_8c5e3ee801" formatted="false">অপেক্ষা করুন…</string>
+    <string name="message_8c9b5fc4b7" formatted="false">SAF read access সংরক্ষিত; Original media অপরিবর্তিত থাকবে।</string>
+    <string name="message_8ccdf8c183" formatted="false">Muxer কোনো বৈধ MP4 output তৈরি করেনি</string>
+    <string name="message_8cee3592bb" formatted="false">Gap বাদ দিয়ে export</string>
+    <string name="message_8edbd70ad6" formatted="false">Saved project খুলবেন?</string>
+    <string name="message_8f2c8b3266" formatted="false">Timeline clip-গুলো overlap করছে; overlap সরিয়ে আবার export করুন</string>
+    <string name="message_8f454e8f99" formatted="false">Invalid project date</string>
+    <string name="message_90f2b63925" formatted="false">Export বাতিল</string>
+    <string name="message_94375196f5">একাধিক source export করতে সব clip-এর %1$s codec, dimensions ও codec configuration একই হতে হবে</string>
+    <string name="message_97096c364c" formatted="false">Preview surface প্রস্তুত নয়; ভিডিও screen খুলতে অপেক্ষা করুন।</string>
+    <string name="message_97a400a822">টাইমলাইন প্লেহেড %1$s</string>
+    <string name="message_98746c7c59" formatted="false">চলমান save/load/export শেষ করুন বা export বাতিল করুন</string>
+    <string name="message_9909c1b640" formatted="false">Timeline; ruler-এ ট্যাপ বা লাল playhead ধরে seek করুন</string>
+    <string name="message_9a98a6e051" formatted="false">পরের clip প্রস্তুত হচ্ছে…</string>
+    <string name="message_9c49f1f1b6" formatted="false">নির্বাচিত document-এ লেখা যাচ্ছে না</string>
+    <string name="message_9c5367b9dd" formatted="false">সতর্কতা: স্থায়ী access পাওয়া যায়নি; পরে media relink লাগতে পারে।</string>
+    <string name="message_a038b9bbf4" formatted="false">Clip-এর শুরু keyframe-এ নেই; সঠিক export-এর জন্য keyframe-এ split/trim করুন</string>
+    <string name="message_a3ec0cc398" formatted="false">Clip সংঘর্ষ এড়াতে নিকটতম ফাঁকা স্থানে বসানো হয়েছে</string>
+    <string name="message_a6dbb03662" formatted="false">ভিডিওর metadata পড়া হচ্ছে…</string>
+    <string name="message_a77e61169d" formatted="false">এডিটিং ইঞ্জিন পাওয়া যাচ্ছে না</string>
+    <string name="message_a7f8686836" formatted="false">স্বয়ংক্রিয় সেভ উদ্ধার</string>
+    <string name="message_a821f95ecf" formatted="false">বাংলা</string>
+    <string name="message_a82ee6e5ca" formatted="false">তৈরি MP4-তে video sample নেই</string>
+    <string name="message_a89bb287f6" formatted="false">Timeline · কোনো clip নির্বাচিত নয়</string>
+    <string name="message_a94f180f47" formatted="false">Recovery snapshot পরীক্ষা হচ্ছে…</string>
+    <string name="message_ab6daf2ef3" formatted="false">একটি ভিডিও নির্বাচন করে preview শুরু করুন</string>
+    <string name="message_ac16e106a4" formatted="false">Clip-এর source duration timeline-এর কাছাকাছি frame boundary-তে round হয় না; trim range যাচাই করুন</string>
+    <string name="message_aef7617ee6">Preview চালু হয়নি: %1$s</string>
+    <string name="message_b0ed78beaa" formatted="false">আগের workspace</string>
+    <string name="message_b266d68863">Owncut চালু হতে পারেনি। এই পর্দার screenshot পাঠান।\n\n%1$s: %2$s\n\n%3$s</string>
+    <string name="message_b3e7f770ff" formatted="false">Preview surface পুনরায় যুক্ত করা যায়নি; clip আবার নির্বাচন করুন।</string>
+    <string name="message_b4c2e22ddc" formatted="false">সমর্থিত SDR ভিডিও নির্বাচন করে আবার চেষ্টা করুন।</string>
+    <string name="message_b4ce151ed6" formatted="false">You can change this later in Settings.\nপরে সেটিংস থেকে বদলাতে পারবেন।</string>
+    <string name="message_b4ff35a2fa" formatted="false">Fragmented sample stream-copy-তে সমর্থিত নয়</string>
+    <string name="message_b5cdf40ef5" formatted="false">ভিডিও চালান</string>
+    <string name="message_b7592acd38" formatted="false">ভিডিও track-এর dimensions পাওয়া যায়নি</string>
+    <string name="message_b7722d9327" formatted="false">বুঝেছি</string>
+    <string name="message_b7dd6d731a">Save হয়নি; editor খোলা আছে: %1$s</string>
+    <string name="message_b89067ce69" formatted="false">নির্বাচিত document পড়া যাচ্ছে না</string>
+    <string name="message_b9cbcc0505" formatted="false">Undo history খালি</string>
+    <string name="message_ba90d21bbd" formatted="false">Selected media প্রস্তুত হচ্ছে</string>
+    <string name="message_bcef4ffd8a" formatted="false">কোনো বিবরণ নেই</string>
+    <string name="message_be209c24bc">Preview seek/start হয়নি: %1$s</string>
+    <string name="message_bf30911ad7" formatted="false">DRM/encrypted sample stream-copy-তে সমর্থিত নয়</string>
+    <string name="message_bf5f0d21b6" formatted="false">ইঞ্জিন সেশন বন্ধ</string>
+    <string name="message_bf7889b7b2" formatted="false">ভিডিও চালান বা বিরতি দিন</string>
+    <string name="message_c088ab45ec">ইঞ্জিন ত্রুটি: %1$s</string>
+    <string name="message_c2c36977a7" formatted="false">আগের saved project প্রতিস্থাপিত হবে। সফল save-এর পরে autosave snapshot-ও clear হবে।</string>
+    <string name="message_c3dbf41a1e" formatted="false">অনুসরণ: বন্ধ</string>
+    <string name="message_c5cffea976" formatted="false">বাতিল হচ্ছে…</string>
+    <string name="message_c684969e0e" formatted="false">Project name (১–৮০ অক্ষর)</string>
+    <string name="message_c82ca42c8d" formatted="false">Owncut ওয়ার্কস্পেস</string>
+    <string name="message_ca21daf138" formatted="false">বাতিল</string>
+    <string name="message_ca488e2680">খোলা যায়নি: %1$s। Original file বদলানো হয়নি।</string>
+    <string name="message_cb75968fda" formatted="false">Clip-এর শুরুতে নির্ভরযোগ্য video keyframe পাওয়া যায়নি</string>
+    <string name="message_ccdca32722" formatted="false">Project operation চলছে</string>
+    <string name="message_ce04a46ef1" formatted="false">১–৮০ অক্ষরের নাম দিন</string>
+    <string name="message_cf9b77061f" formatted="false">খুলুন</string>
+    <string name="message_cfa6f3d5ab" formatted="false">এই track-এ clip রাখার ফাঁকা জায়গা নেই।</string>
+    <string name="message_d10c8a8dd8" formatted="false">সেটিংস · ভাষা</string>
+    <string name="message_d2046a8d8f">পুরোনো workspace migration হয়নি: %1$s; original রাখা আছে</string>
+    <string name="message_d20e0c1b30" formatted="false">Timeline-এ কোনো clip নেই</string>
+    <string name="message_d36d2b9e2d" formatted="false">Project খোলা হচ্ছে…</string>
+    <string name="message_d579843004" formatted="false">Timeline playback শেষ</string>
+    <string name="message_d766471f27" formatted="false">অসমর্থিত মিডিয়া</string>
+    <string name="message_d795d2fb3e" formatted="false">Recovery snapshot বর্তমান in-memory project-কে প্রতিস্থাপন করবে। আগে আলাদা project save করুন যদি বর্তমান কাজ রাখতে চান।</string>
+    <string name="message_d7e376c6eb" formatted="false">Export প্রস্তুত হচ্ছে…</string>
+    <string name="message_dcc08d209e">Source: %1$s / %2$s</string>
+    <string name="message_dd7aff38a4">Media relink হয়নি: %1$s</string>
+    <string name="message_ddc4d8e4bd" formatted="false">কাজ রেখে Projects-এ ফেরা হচ্ছে…</string>
+    <string name="message_de5c2380cd" formatted="false">Timeline-এ ফাঁকা অংশ আছে</string>
+    <string name="message_df54d9e4da" formatted="false">Export বাতিল হয়েছে</string>
+    <string name="message_e3c1664426" formatted="false">Preview প্রস্তুত · timeline-এ লাল playhead / ভিডিও চালান চাপুন</string>
+    <string name="message_e5c32c0cb4" formatted="false">Workflow ও ক্ষমতা</string>
+    <string name="message_e5cd36b000" formatted="false">ভিডিও frame preview-তে এসেছে</string>
+    <string name="message_e653e09701">টাইমলাইন %1$s</string>
+    <string name="message_e73f93c4f2" formatted="false">Project নিরাপদ রাখা হয়েছে</string>
+    <string name="message_e78d6626c8" formatted="false">MP4 stream তৈরি হয়েছে</string>
+    <string name="message_e8a5c38200" formatted="false">‹ Projects · কাজ রেখে ফিরুন</string>
+    <string name="message_ea1cce60a0">%1$s: metadata পড়া যায়নি; কোনো ফাইল মুছে দেওয়া হয়নি</string>
+    <string name="message_ebab316ada" formatted="false">Gallery export-এর জন্য Android 10 বা নতুন সংস্করণ দরকার</string>
+    <string name="message_ee066bee3d" formatted="false">Library পূর্ণ; নতুন project তৈরির আগে backup/পরিচর্যা প্রয়োজন</string>
+    <string name="message_eeae4b4c38">Autosave ব্যর্থ: %1$s</string>
+    <string name="message_ef1f98dae3" formatted="false">কাটুন (Split)</string>
+    <string name="message_ef9732b90d">%1$sটি প্রজেক্ট</string>
+    <string name="message_efc007a393" formatted="false">সংরক্ষণ</string>
+    <string name="message_f019870b11">প্রজেক্ট ফাইল %1$s MiB সীমা ছাড়িয়েছে</string>
+    <string name="message_f04897b60d" formatted="false">ভিডিও নিন</string>
+    <string name="message_f07be40718">Project ফাইলে save ব্যর্থ: %1$s</string>
+    <string name="message_f118417f6a" formatted="false">তৈরি MP4-তে audio track অসম্পূর্ণ</string>
+    <string name="message_f13c794447" formatted="false">ভিডিও import করলে timeline এখানে দেখা যাবে</string>
+    <string name="message_f13c98fc70" formatted="false">Project খুলবেন?</string>
+    <string name="message_f1a8e5b456">Native engine চালু হয়নি: %1$s: %2$s</string>
+    <string name="message_f4693deac0" formatted="false">আপনার কাজের জায়গা</string>
+    <string name="message_f4e00f9522" formatted="false">আগে timeline clip নির্বাচন করুন</string>
+    <string name="message_f5a66453bc" formatted="false">Export সম্পন্ন · MP4 Documents-এ সংরক্ষিত</string>
+    <string name="message_f836b31adb" formatted="false">ভিডিও frame-এর অপেক্ষা করছি…</string>
+    <string name="message_fac2a9f7ec" formatted="false">তৈরি MP4-তে audio timestamp সঠিক নয়</string>
+    <string name="message_fbb1b3c9d7" formatted="false">Gallery-তে output তৈরি করা যায়নি</string>
+    <string name="message_fc80eb0ad5" formatted="false">Autosave recover করবেন?</string>
+    <string name="message_fd76f9371a" formatted="false">Deliver · H.264/AAC · 720-high SDR\nএকটি sequential video track। Gap বাদ দিতে আপনার সম্মতি লাগে। Android 10+ এ Movies/Owncut Gallery-তে save হয়।</string>
+    <string name="message_fea64f9a12" formatted="false">ডিকোডার ত্রুটি</string>
+    <string name="message_ff3186302b">Autosave recover ব্যর্থ: %1$s</string>
+    <string name="page_deliver" formatted="false">এক্সপোর্ট</string>
+    <string name="page_edit" formatted="false">সম্পাদনা</string>
+    <string name="page_flow" formatted="false">ফ্লো</string>
+    <string name="page_media" formatted="false">মিডিয়া</string>
+    <string name="recent_projects" formatted="false">সাম্প্রতিক প্রজেক্ট</string>
+    <string name="settings" formatted="false">সেটিংস</string>
+    <string name="timeline_empty" formatted="false">আপনার টাইমলাইন প্রস্তুত। শুরু করতে মিডিয়া ইমপোর্ট করুন।</string>
+    <string name="workspace_name">ওয়ার্কস্পেস</string>
+    <string name="generic_video">ভিডিও</string>
+    <string name="tools">টুল ও প্রজেক্ট</string>
+    <string name="appearance">থিম ও রং</string>
+    <string name="theme_graphite">গ্রাফাইট · নিরপেক্ষ / হালকা নীল</string>
+    <string name="theme_midnight">মিডনাইট · নীল / পেরিউইঙ্কল</string>
+    <string name="theme_ember">এম্বার · উষ্ণ / অ্যাম্বার</string>
+    <string name="project_conflict">সংরক্ষিত প্রজেক্ট অন্য সেশন থেকে বদলেছে। আলাদা ফাইলে Save As করুন; original overwrite হয়নি।</string>
+    <string name="project_not_loaded">প্রজেক্ট লোড হয়নি; সংরক্ষণ বন্ধ রাখা হয়েছে।</string>
+    <string name="project_already_open">এই প্রজেক্ট অন্য এডিটরে খোলা আছে। আগে সেই এডিটর বন্ধ করুন।</string>
+    <string name="unsupported_repair">অজানা ক্যাটালগ সংস্করণ; repair করা হয়নি। কোনো প্রজেক্ট বদলায়নি।</string>
+    <string name="repair_catalog">প্রজেক্ট এন্ট্রি মেরামত · %1$s</string>
+    <string name="repair_catalog_title">লাইব্রেরি এন্ট্রি মেরামত (পুরোনো metadata রেখে)</string>
+    <string name="external_saved_only">সতর্কতা: বাইরের প্রজেক্ট ফাইল সেভ হয়েছে, কিন্তু local checkpoint সম্পূর্ণ হয়নি; recovery মোছা হয়নি: %1$s</string>
+    <string name="media_sources">টাইমলাইনের সোর্স দেখুন</string>
+    <string name="media_sources_title">টাইমলাইনের সোর্স · %1$d</string>
+    <string name="media_sources_empty">ক্লিপে ব্যবহৃত সোর্স এখানে দেখা যাবে। অব্যবহৃত imported asset এই তালিকায় রাখা হয় না।</string>
+    <string name="media_source_item">%1$d · %2$s\n%3$dটি ক্লিপ · %4$s পর্যন্ত সোর্স প্রয়োজন</string>
+    <string name="media_sources_next">পরের সোর্স</string>
+    <string name="media_sources_previous">আগের সোর্স</string>
+    <string name="checkpoint_repair">চেকপয়েন্ট রেকর্ড মেরামত</string>
+    <string name="checkpoint_repair_explanation">শুধু নষ্ট চেকপয়েন্ট রেকর্ডের মূল bytes রেখে archive করা হবে। Project ও recovery বদলাবে না। অজানা নতুন সংস্করণের রেকর্ড মেরামত করা হবে না।</string>
+    <string name="checkpoint_repair_accept">নষ্ট রেকর্ড archive করুন</string>
+    <string name="checkpoint_repaired">নষ্ট চেকপয়েন্ট রেকর্ড archive হয়েছে। Project ও recovery বদলায়নি; আবার সেভ করা যাবে।</string>
+    <string name="checkpoint_no_repair">মেরামতের প্রয়োজন এমন নষ্ট চেকপয়েন্ট রেকর্ড নেই।</string>
+    <string name="color_grade_export_pending">লুক হারানো ঠেকাতে সাধারণ graded export এখনও সুরক্ষিত রাখা হয়েছে। Android 10+ হলে এই বিস্তারিত dialog থেকে আলাদা সম্মতিসহ পরীক্ষামূলক graded export বেছে নেওয়া যাবে।</string>
+    <string name="color_grade_preview_pending">সংরক্ষিত গ্রেড guarded main viewer ব্যবহার করে। decoder ব্যর্থ হলে ungraded ছবি সফল ফল হিসেবে না দেখিয়ে সমস্যা জানানো হবে।</string>
+    <string name="color_editor_title">ক্লিপের কালার গ্রেড</string>
+    <string name="color_still_notice">শুধু স্থির ফ্রেমের editor preview। সাধারণ timeline playback ungraded; সাধারণ graded export এখনো চালু নয়। Apply করার আগে draft render করুন। Cancel করলে সংরক্ষিত grade বদলাবে না।</string>
+    <string name="color_enabled">সংরক্ষিত গ্রেড সক্রিয়</string>
+    <string name="color_render_still">ড্রাফট রেন্ডার</string>
+    <string name="color_before">আগে</string>
+    <string name="color_after">পরে</string>
+    <string name="color_reset_draft">ড্রাফট রিসেট</string>
+    <string name="color_apply">ক্লিপে প্রয়োগ</string>
+    <string name="color_cancel">বাতিল</string>
+    <string name="color_processing">নেটিভ কালার ইঞ্জিনে প্রসেস হচ্ছে…</string>
+    <string name="color_error">কালার প্রসেস ব্যর্থ: %1$s</string>
+    <string name="page_color">কালার</string>
+    <string-array name="color_parameter_names">
+        <item>এক্সপোজার (−৮…৮ স্টপ)</item>
+        <item>কনট্রাস্ট (০…৪)</item>
+        <item>স্যাচুরেশন (০…৪)</item>
+        <item>পিভট (০.০০১…১)</item>
+        <item>প্রয়োগের মাত্রা (০…১)</item>
+        <item>লাল ব্যালান্স (−২…২ স্টপ)</item>
+        <item>সবুজ ব্যালান্স (−২…২ স্টপ)</item>
+        <item>নীল ব্যালান্স (−২…২ স্টপ)</item>
+        <item>লাল লিফট (−১…১)</item>
+        <item>সবুজ লিফট (−১…১)</item>
+        <item>নীল লিফট (−১…১)</item>
+        <item>লাল গামা (০.১…৪)</item>
+        <item>সবুজ গামা (০.১…৪)</item>
+        <item>নীল গামা (০.১…৪)</item>
+        <item>লাল গেইন (০…৪)</item>
+        <item>সবুজ গেইন (০…৪)</item>
+        <item>নীল গেইন (০…৪)</item>
+    </string-array>
+    <string name="color_source_changed">সম্পাদনার সময়ে ক্লিপ বদলেছে। Color বন্ধ করে আবার খুলুন।</string>
+    <string name="color_live_title">লাইভ গ্রেড প্রিভিউ (পরীক্ষামূলক)</string>
+    <string name="color_module_title">কালার মডিউল স্ব-পরীক্ষা (CPU)</string>
+    <string name="color_module_ok">ঠিক আছে</string>
+    <string name="color_module_dialog_title">কালার মডিউল স্ব-পরীক্ষা</string>
+    <string name="color_live_loading">সোর্স metadata যাচাই ও graded playback প্রস্তুত হচ্ছে…</string>
+    <string name="color_live_notice">ক্লিপের অপরিবর্তনীয় গ্রেড স্ন্যাপশটের পরীক্ষামূলক প্লেব্যাক; এটি সেভ না করা ড্রাফটও হতে পারে। আগে অপশন গ্রেড ছাড়া তুলনা করে। লুপ ক্লিপের ট্রিমের মধ্যেই থাকে। এই প্রিভিউ পরিবর্তন সেভ করে না। সাধারণ টাইমলাইন প্লেব্যাক ও গ্রেডেড এক্সপোর্ট অপরিবর্তিত; Android/ডিভাইসে যাচাই বাকি।</string>
+    <string name="color_live_before">আগে (playback চলার সময়ে)</string>
+    <string name="color_scaled_preview_requires_27">বড় স্থির প্রিভিউর জন্য Android 8.1 বা নতুন দরকার। Android 8.0-এ পুরো resolution-এর bitmap allocation বন্ধ রাখা হয়েছে; clip ও grade অপরিবর্তিত।</string>
+    <string name="color_preview_draft">ড্রাফট চালিয়ে দেখুন (পরীক্ষামূলক)</string>
+    <string name="color_draft_changed">সেটিংস বদলেছে। স্থির প্রিভিউ নিজে আপডেট হচ্ছে…</string>
+    <string name="color_group_primary">প্রাইমারি</string>
+    <string name="color_group_balance">RGB ব্যালান্স</string>
+    <string name="color_group_tonal">টোন · LGG</string>
+    <string name="color_slider_help">হুইল বা সংখ্যা টেনে মান বদলান; স্লাইডার বা টাইপ করার দরকার নেই। প্রয়োগে সেটিংস সেভ হবে; সাধারণ গ্রেডেড টাইমলাইন প্লেব্যাক ও এক্সপোর্ট এখনো চালু নয়।</string>
+    <string name="color_preview_unavailable">প্রিভিউ পাওয়া যায়নি। বৈধ সেটিংস তবুও সেভ করতে পারবেন। বিস্তারিত: %1$s</string>
+    <string name="color_auto_preview_ready">স্থির প্রিভিউ আপডেট হয়েছে। প্রয়োগ করলে এই সেটিংস সেভ হবে। এটি গ্রেডসহ টাইমলাইন প্লেব্যাক নয়।</string>
+    <string name="color_saved_notice">গ্রেড সেভ হয়েছে। main viewer সংরক্ষিত গ্রেড লোড করবে; source বা decoder ব্যর্থ হলে তা জানানো হবে।</string>
+    <string name="color_frame_viewer">ক্লিপ ফ্রেম ভিউয়ার</string>
+    <string name="color_frame_loading">ক্লিপের ফ্রেম লোড হচ্ছে…</string>
+    <string name="color_frame_reference">শুধু রেফারেন্স · গ্রেড ছাড়া</string>
+    <string name="color_frame_empty">ফ্রেম পাওয়া যায়নি। কারণ জানতে বিস্তারিত খুলুন। বৈধ সেটিংস তবুও সেভ করা যাবে।</string>
+    <string name="color_frame_before">আগে · সোর্সের স্থির ফ্রেম</string>
+    <string name="color_frame_graded">গ্রেডেড স্থির ফ্রেম · টাইমলাইন প্লেব্যাক নয়</string>
+    <string name="color_frame_updating">আগের ফ্রেম · গ্রেড আপডেট হচ্ছে…</string>
+    <string name="color_error_details">বিস্তারিত</string>
+    <string name="color_refresh_frame">রিফ্রেশ</string>
+    <string name="color_live_short">চালান</string>
+    <string name="color_fine_minus">সূক্ষ্মভাবে কমান</string>
+    <string name="color_fine_plus">সূক্ষ্মভাবে বাড়ান</string>
+    <string name="color_step_down">%1$s এক ধাপ কমান</string>
+    <string name="color_step_up">%1$s এক ধাপ বাড়ান</string>
+    <string name="color_precision_hint">রঙের ব্যালান্স বদলাতে হুইল টানুন, অথবা সংখ্যাটি পাশে টানুন। সূক্ষ্ম পরিবর্তনে − / + চাপুন। চ্যানেল ট্যাবে প্রতিটি হুইলের keyboard ও TalkBack বিকল্প আছে। প্রিভিউ ৮-বিট প্রক্সি; 4K/10-bit/HDR সম্পূর্ণ আউটপুট যাচাই হয়নি। মূল মিডিয়া অপরিবর্তিত থাকবে।</string>
+    <string name="color_source_time">সোর্স · %1$s</string>
+    <string name="color_details_close">বিস্তারিত বন্ধ করুন</string>
+    <string name="color_group_wheels">হুইল</string>
+    <string name="color_group_channels">চ্যানেল</string>
+    <string name="color_wheel_balance">ব্যালান্স</string>
+    <string name="color_wheel_lift">লিফট</string>
+    <string name="color_wheel_gamma">গামা</string>
+    <string name="color_wheel_gain">গেইন</string>
+    <string name="color_live_stopped">প্লেব্যাক বন্ধ হয়েছে। সোর্স, ডিকোডার বা প্রসেসিংয়ের ত্রুটি জানতে বিস্তারিত খুলুন। শুধু ১০-বিট হলেই HDR নয়।</string>
+    <string name="color_inline_loading">স্থির ফ্রেম পাওয়া যায়নি। সুরক্ষিত ভিডিও প্রিভিউ তৈরি হচ্ছে…</string>
+    <string name="color_inline_frame">গ্রেডেড ভিডিও · প্ল্যাটফর্ম ডিকোডার</string>
+    <string name="color_inline_ready">ভিডিও প্রিভিউ চালু। এখানেই মান বদলান; ড্রাফট চালান দিয়ে প্লে/পজ করুন। পজ অবস্থায় পরিবর্তনে নতুন ফ্রেম চাওয়া হবে।</string>
+    <string name="color_input_short">ইনপুট</string>
+    <string name="color_input_title">প্রিভিউর ইনপুট রং</string>
+    <string name="color_input_warning">রঙের তথ্য না থাকলেই Rec.709 বা SDR প্রমাণ হয় না। শুধু এই প্রিভিউতে অনুপস্থিত primaries-কে Rec.709, transfer-কে SDR ও range-কে limited ধরে দেখার অনুমতি দিতে পারেন। ভিন্ন primaries, PQ/HLG, HDR বা বিরোধপূর্ণ তথ্য বাধা থাকবে। এটি নিশ্চিত সঠিক রং, ১০-বিট আউটপুট বা এক্সপোর্টের সেটিং নয়। শুধু ট্যাগ ব্যবহার করলে কঠোর যাচাই ফিরবে।</string>
+    <string name="color_input_assume">অনুপস্থিত ট্যাগ ধরে দেখুন</string>
+    <string name="color_input_tagged">শুধু ট্যাগ ব্যবহার</string>
+    <string name="color_assumed_frame">প্রিভিউ · অনুমিত Rec.709 SDR</string>
+    <string name="color_assumed_before">আগে · অনুমিত Rec.709 SDR</string>
+    <string name="color_grade_short">গ্রেড</string>
+    <string name="color_copy_report">রিপোর্ট কপি করুন</string>
+    <string name="export_error_details">এক্সপোর্ট ব্যর্থতার বিস্তারিত</string>
+    <string name="export_candidate_title">পরীক্ষামূলক গ্রেডেড এক্সপোর্ট</string>
+    <string name="export_candidate_start">পরীক্ষামূলক এক্সপোর্ট শুরু</string>
+    <string name="export_candidate_warning">নতুন decoder দিয়ে বর্তমান timeline-এর সংরক্ষিত grade-সহ render হবে। পরীক্ষার preset: 720p H.264/AAC SDR—4K বা যাচাইকৃত 10-bit output নয়। ফোন/GPU-তে সঠিক ফল এখনও নিশ্চিত নয়। অসমর্থিত geometry, color বা codec হলে এক্সপোর্ট থামবে; grade বাদ দিয়ে বিকল্প export হবে না। শুধু যাচাইকৃত ফাইল Gallery-তে সেভ হবে। এগোবেন?</string>
+    <string name="color_input_detected">নিচে শনাক্ত করা source color tags দেওয়া আছে। এই input-এ missing-tag interpretation প্রয়োজন নেই, তাই সেই বিকল্প দেখানো হচ্ছে না। অসমর্থিত বা পরস্পরবিরোধী tags এখনও আটকাবে; এই তথ্য 10-bit output-এর প্রমাণ নয়।</string>
+    <string name="color_saved_grade_viewer">সংরক্ষিত কালার গ্রেড</string>
+    <string name="color_input_blocked">কিছু color tag অনুপস্থিত, কিন্তু পরিচিত HDR বা অসমর্থিত color তথ্যের কারণে নিরাপদ SDR interpretation করা যায় না। এই input override করা যাবে না।</string>
+    <string name="action_speed">গতি ও রিটাইম</string>
+    <string name="action_audio">অডিও ও মিক্স</string>
+    <string name="action_transform">ট্রান্সফর্ম ও ক্রোমা</string>
+    <string name="action_text">টেক্সট ওভারলে</string>
+    <string name="action_subtitles">সাবটাইটেল ও SRT</string>
+    <string name="action_transition">ট্রানজিশন</string>
+    <string name="action_tracks">ট্র্যাক ও PiP</string>
+    <string name="timeline_zoom_out">জুম কমান</string>
+    <string name="timeline_zoom_in">জুম বাড়ান</string>
+    <string name="timeline_keyframe_toggle">প্লেহেডে ট্রান্সফর্ম কীফ্রেম যোগ বা সরান</string>
+    <string name="timeline_text_lane">টেক্সট ওভারলে</string>
+    <string name="timeline_subtitle_lane">সাবটাইটেল</string>
+    <string name="timeline_speed_keyframe_toggle">প্লেহেডে স্পিড-র‍্যাম্প পয়েন্ট যোগ বা সরান</string>
+    <string name="timeline_track_mute">%1$s ট্র্যাক নীরব করুন</string>
+    <string name="timeline_track_unmute">%1$s ট্র্যাকের শব্দ চালু করুন</string>
+    <string name="timeline_track_unlock">%1$s ট্র্যাক আনলক করুন</string>
+    <string name="timeline_track_lock">%1$s ট্র্যাক লক করুন</string>
+    <string name="timeline_add_video_track">ভিডিও ট্র্যাক যোগ করুন</string>
+    <string name="timeline_add_audio_track">অডিও ট্র্যাক যোগ করুন</string>
+    <string name="action_detach_audio">অডিও আলাদা করুন</string>
+    <string name="action_voiceover">ভয়েসওভার</string>
+    <string name="action_jl_cut">জে/এল কাট</string>
+    <string name="action_slip">স্লিপ</string>
+    <string name="action_roll">রোল এডিট</string>
+    <string name="action_slide">স্লাইড এডিট</string>
+    <string name="timeline_jog_dial">ভার্চুয়াল জগ ডায়াল; এক পূর্ণ ঘোরায় এক সেকেন্ড এগোয়</string>
+    <string name="timeline_offset_choice">%2$d মিলিসেকেন্ড %1$s</string>
+    <string name="timeline_earlier">আগে</string>
+    <string name="timeline_later">পরে</string>
+    <string name="timeline_roll_requires_adjacent">রোল করতে একই ট্র্যাকে সংলগ্ন ক্লিপ থাকতে হবে।</string>
+    <string name="jl_cut_option">%1$s কাট · %2$d মিলিসেকেন্ড</string>
+    <string name="voiceover_recording">ভয়েসওভার রেকর্ড হচ্ছে… থামাতে ট্যাপ করুন</string>
+    <string name="voiceover_saved">ভয়েসওভার %1$s ট্র্যাকে যোগ হয়েছে</string>
+    <string name="voiceover_permission">ভয়েসওভার রেকর্ড করতে মাইক্রোফোন অনুমতি প্রয়োজন।</string>
+    <string name="timeline_detached_audio">অডিও %1$s ট্র্যাকে আলাদা হয়েছে; মূল ক্লিপের অডিও নীরব করা হয়েছে</string>
+    <string name="action_beat_cut">বিট ও সিন-কাট</string>
+    <string name="action_snap">ম্যাগনেটিক স্ন্যাপ</string>
+    <string name="action_marker">মার্কার যোগ</string>
+    <string name="action_duplicate">ক্লিপ ডুপ্লিকেট</string>
+    <string name="action_freeze">ফ্রিজ ফ্রেম</string>
+    <string name="pro_speed_title">গতি, রিভার্স ও ফ্রিজ</string>
+    <string name="pro_speed_value">গতি · %1$s</string>
+    <string name="pro_reverse_clip">ক্লিপ রিভার্স</string>
+    <string name="pro_freeze_frame">প্লেহেডে ফ্রিজ ফ্রেম</string>
+    <string name="pro_speed_applied">ক্লিপের সময় সেট হয়েছে: %1$s</string>
+    <string name="pro_audio_title">অডিও মিক্স ও ওয়েভফর্ম</string>
+    <string name="pro_volume_label">ভলিউম · %1$d%%</string>
+    <string name="pro_fade_in_label">ফেড-ইন · %1$d মি.সে.</string>
+    <string name="pro_fade_out_label">ফেড-আউট · %1$d মি.সে.</string>
+    <string name="pro_mute_clip">ক্লিপ মিউট</string>
+    <string name="pro_ducking_toggle">ভয়েসের নিচে অটো-ডাকিং (−10 dB)</string>
+    <string name="pro_analyze_waveform">ওয়েভফর্ম ও BPM বিশ্লেষণ</string>
+    <string name="pro_audio_stats">লাউডনেস: %1$.1f LUFS · টেম্পো: %2$.0f BPM</string>
+    <string name="pro_eq_band_label">%1$d Hz · %2$d dB</string>
+    <string name="pro_compressor_toggle">কম্প্রেসর চালু করুন</string>
+    <string name="pro_compressor_threshold">কম্প্রেসর থ্রেশহোল্ড · %1$d dB</string>
+    <string name="pro_compressor_ratio">কম্প্রেসর অনুপাত · %1$d:1</string>
+    <string name="pro_limiter_toggle">লিমিটার চালু করুন</string>
+    <string name="pro_limiter_ceiling">লিমিটার সিলিং · %1$d dB</string>
+    <string name="pro_gate_toggle">নয়েজ গেট চালু করুন</string>
+    <string name="pro_gate_threshold">গেট থ্রেশহোল্ড · %1$d dB</string>
+    <string name="pro_audio_dsp_export_note">EQ, কম্প্রেশন, লিমিটিং ও গেটিং rich export-এর সময় প্রয়োগ হয়; লাইভ প্রিভিউতে এখনো প্রসেস হয় না।</string>
+    <string name="pro_transform_title">রিফ্রেম, ট্রান্সফর্ম ও ক্রোমা-কি</string>
+    <string name="reframe_auto_action">অফলাইন অটো রিফ্রেম</string>
+    <string name="reframe_choose_title">আউটপুট ফ্রেমিং বেছে নিন</string>
+    <string name="reframe_guide">স্যালিয়েন্সি ও অপটিক্যাল-ফ্লো ট্র্যাকিং ডিভাইসেই চলে; নেটওয়ার্ক বা ক্লাউড মডেল লাগে না। নির্বাচিত আউটপুট অ্যাসপেক্ট রেশিও পুরো প্রকল্পে প্রযোজ্য। এটি দৃশ্যমান ফোকাস অনুসরণ করে, নিশ্চিত ব্যক্তি/বস্তু শনাক্তকারী নয়। প্রয়োগ করলে এই ক্লিপের transform keyframe প্রতিস্থাপিত হবে।</string>
+    <string name="reframe_aspect_original">মূল সোর্স রেশিও (ফ্রেমিং রিসেট)</string>
+    <string name="reframe_aspect_vertical">ভার্টিক্যাল ৯:১৬</string>
+    <string name="reframe_aspect_square">স্কয়ার ১:১</string>
+    <string name="reframe_aspect_portrait">পোর্ট্রেট ৪:৫</string>
+    <string name="reframe_aspect_landscape">ল্যান্ডস্কেপ ১৬:৯</string>
+    <string name="reframe_aspect_standard">স্ট্যান্ডার্ড ৪:৩</string>
+    <string name="reframe_aspect_photo">ফটো ৩:২</string>
+    <string name="reframe_aspect_wide">ওয়াইড ২:১</string>
+    <string name="reframe_aspect_cinema">সিনেমা ২.৩৯:১</string>
+    <string name="reframe_aspect_classic_portrait">পোর্ট্রেট ৫:৪</string>
+    <string name="reframe_aspect_tall">লম্বা ৯:২১</string>
+    <string name="reframe_custom_resolution">কাস্টম রেজোলিউশন…</string>
+    <string name="reframe_custom_title">কাস্টম আউটপুট রেজোলিউশন</string>
+    <string name="reframe_width_hint">পিক্সেলে প্রস্থ (জোড়, ১৪৪–৩৮৪০)</string>
+    <string name="reframe_height_hint">পিক্সেলে উচ্চতা (জোড়, ১৪৪–৩৮৪০)</string>
+    <string name="reframe_custom_invalid">১৪৪–৩৮৪০ পিক্সেলের জোড় মাত্রা দিন; আউটপুট UHD পিক্সেল সীমা ও সমর্থিত অ্যাসপেক্ট রেশিওর মধ্যে থাকতে হবে।</string>
+    <string name="stabilize_action">অফলাইন স্ট্যাবিলাইজ</string>
+    <string name="stabilize_choose_title">স্ট্যাবিলাইজেশন বেছে নিন</string>
+    <string name="stabilize_guide">সীমাবদ্ধ কম-রেজোলিউশনের নমুনায় ডিভাইসেই optical-flow বিশ্লেষণ চলে। প্রয়োগ করলে এই ক্লিপের transform keyframe বদলাবে; Undo করা যাবে। স্ট্যাবিলাইজেশনে সামান্য crop/zoom হতে পারে; এটি semantic AI নয়।</string>
+    <string name="stabilize_mode_smooth">মসৃণ</string>
+    <string name="stabilize_mode_strong">শক্তিশালী (বেশি crop)</string>
+    <string name="stabilize_mode_lock">ক্যামেরা লক</string>
+    <string name="stabilize_applied">অফলাইন স্ট্যাবিলাইজেশন প্রয়োগ হয়েছে। প্লেব্যাক দেখে নিন; দরকার হলে Undo করুন।</string>
+    <string name="reframe_analyzing">এই ডিভাইসেই কম রেজোলিউশনের নমুনা বিশ্লেষণ হচ্ছে…</string>
+    <string name="reframe_applied">অফলাইন রিফ্রেম প্রয়োগ হয়েছে। ক্রপ দেখে নিন; দরকার হলে Undo করুন।</string>
+    <string name="reframe_failed">এই ক্লিপের রিফ্রেম বিশ্লেষণ করা যায়নি।</string>
+    <string name="reframe_requires_api27">সীমাবদ্ধ আকারে ফ্রেম নমুনার জন্য অফলাইন রিফ্রেমে Android 8.1 বা পরের সংস্করণ দরকার।</string>
+    <string name="pro_scale_label">স্কেল · %1$d%%</string>
+    <string name="pro_pan_x_label">প্যান X · %1$d%%</string>
+    <string name="pro_pan_y_label">প্যান Y · %1$d%%</string>
+    <string name="pro_rotation_label">ঘূর্ণন · %1$d°</string>
+    <string name="pro_opacity_label">স্বচ্ছতা · %1$d%%</string>
+    <string name="pro_ken_burns_label">Ken Burns ডায়নামিক জুম</string>
+    <string name="pro_chroma_key_label">গ্রিন-স্ক্রিন ক্রোমা-কি</string>
+    <string name="pro_chroma_tol_label">কি টলারেন্স · %1$d%%</string>
+    <string name="pro_text_title">টেক্সট ওভারলে</string>
+    <string name="pro_text_hint">টাইটেল বা ক্যাপশন লিখুন</string>
+    <string name="pro_text_style_label">স্টাইল: %1$s</string>
+    <string name="pro_text_add">প্লেহেডে যোগ করুন</string>
+    <string name="pro_text_remove_all">সব ওভারলে মুছুন</string>
+    <string name="pro_text_added">ওভারলে যুক্ত হয়েছে; প্রিভিউতে টেনে সরান।</string>
+    <string name="pro_subtitles_title">সাবটাইটেল ও SRT</string>
+    <string name="pro_subtitle_add_at_playhead">প্লেহেডে ২ সে. লাইন যোগ</string>
+    <string name="pro_subtitle_import_srt">SRT পেস্ট / ইম্পোর্ট</string>
+    <string name="pro_subtitle_export_srt">SRT কপি করুন</string>
+    <string name="pro_subtitle_clear">সাবটাইটেল মুছুন</string>
+    <string name="pro_subtitle_imported">%1$dটি সাবটাইটেল যুক্ত হয়েছে।</string>
+    <string name="pro_subtitle_exported">SRT কপি হয়েছে (%1$d লাইন)।</string>
+    <string name="pro_transition_title">ক্লিপ ট্রানজিশন</string>
+    <string name="pro_transition_none">কোনোটি নয়</string>
+    <string name="pro_transition_dissolve">ক্রস-ডিজলভ</string>
+    <string name="pro_transition_fade_black">ব্ল্যাক ফেড</string>
+    <string name="pro_transition_duration">সময়কাল · %1$d মি.সে.</string>
+    <string name="pro_tracks_title">মাল্টি-ট্র্যাক ও PiP</string>
+    <string name="pro_add_to_v2">নির্বাচিত/পরবর্তী মিডিয়া V2 (PiP)-তে যোগ</string>
+    <string name="pro_add_to_a1">A1 (মিউজিক)-এ মিডিয়া যোগ</string>
+    <string name="pro_add_to_a2">A2 (SFX / ভয়েস)-এ মিডিয়া যোগ</string>
+    <string name="pro_track_mute_toggle">মিউট টগল</string>
+    <string name="pro_track_lock_toggle">লক টগল</string>
+    <string name="pro_beat_cut_title">বিট গ্রিড ও স্মার্ট সিন-কাট</string>
+    <string name="pro_beat_bpm_label">বিট গ্রিড · %1$d BPM</string>
+    <string name="pro_detect_bpm">ক্লিপ থেকে BPM শনাক্ত</string>
+    <string name="pro_auto_scene_cut">স্বয়ংক্রিয় সিন-কাট ও স্প্লিট</string>
+    <string name="pro_scene_cuts_found">%1$dটি সিন পরিবর্তন শনাক্ত করে কাটা হয়েছে।</string>
+    <string name="pro_marker_added">%1$s-এ মার্কার যোগ হয়েছে</string>
+    <string name="pro_snap_toggled">ম্যাগনেটিক স্ন্যাপ: %1$s</string>
+    <string name="pro_apply">প্রয়োগ করুন</string>
+    <string name="pro_reset">রিসেট</string>
+    <string name="pro_close">বন্ধ করুন</string>
+    <string name="pro_select_clip_first">প্রথমে টাইমলাইনে একটি ক্লিপ নির্বাচন করুন।</string>
+</resources>

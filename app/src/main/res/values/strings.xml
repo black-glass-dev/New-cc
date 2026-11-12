@@ -1,0 +1,511 @@
+<resources>
+    <string name="app_name">Owncut</string>
+    <string name="action_pause" formatted="false">Pause</string>
+    <string name="language" formatted="false">Language</string>
+    <string name="message_027434fe36" formatted="false">Project document opened</string>
+    <string name="message_02a0ab04a0">Replacement media must be at least %1$s ms; all split clips using this source will be relinked</string>
+    <string name="message_0336fc9f6e">Seek failed: %1$s</string>
+    <string name="message_03862c58d4" formatted="false">The source video has changed or is shorter; use Relink media</string>
+    <string name="message_0463a65e49" formatted="false">Saved video size does not match</string>
+    <string name="message_04e2fb0e61" formatted="false">Cannot read the project library</string>
+    <string name="message_0582bad777" formatted="false">No video sample was found in the clip source range</string>
+    <string name="message_05b0f1f053" formatted="false">Importing project…</string>
+    <string name="message_05bda35a9b" formatted="false">Gap / end of timeline · tap a clip to preview; the project was not changed</string>
+    <string name="message_0766a0344b" formatted="false">Unsupported project metadata</string>
+    <string name="message_083723004b">Timeline · %1$s clips · gap / no clip selected</string>
+    <string name="message_08be239204" formatted="false">Engine closed</string>
+    <string name="message_0a0b1b77c1" formatted="false">Refresh projects</string>
+    <string name="message_0a1e880c02" formatted="false">Trim right</string>
+    <string name="message_0a8e43ec87" formatted="false">The output MP4 video timestamps are invalid</string>
+    <string name="message_0b5dee2ad4" formatted="false">The video does not have a valid duration</string>
+    <string name="message_0d444672e0" formatted="false">Choose your language\nভাষা নির্বাচন করুন</string>
+    <string name="message_0d4c2e3e06">%1$s · Could not remove the incomplete Gallery item</string>
+    <string name="message_0e20aaa694" formatted="false">Selected source seek bar; the red playhead shows project time</string>
+    <string name="message_0eaf8169fc" formatted="false">Playback started but no frame arrived. Try a 1080p SDR video; 4K/HDR/codec support varies by phone.</string>
+    <string name="message_0ec264cf76">Rename · %1$s</string>
+    <string name="message_0f4c747ce7" formatted="false">Rendering video…</string>
+    <string name="message_11e7c90ac5">Operation failed: %1$s</string>
+    <string name="message_12ef116cca" formatted="false">Decoding video…</string>
+    <string name="message_136066f1d5" formatted="false">Cannot read the project file</string>
+    <string name="message_13801b7401" formatted="false">Imported project</string>
+    <string name="message_1452bfda9c" formatted="false">Render cancelled</string>
+    <string name="message_15341f178d" formatted="false">Open project…</string>
+    <string name="message_15d58dd451" formatted="false">Save project as…</string>
+    <string name="message_18689bdb66" formatted="false">Writing project file…</string>
+    <string name="message_19c5867f0e" formatted="false">There is no video data to save</string>
+    <string name="message_19dafc9927">Could not read the timeline: %1$s</string>
+    <string name="message_1a9f905eb4">Could not save project: %1$s</string>
+    <string name="message_1ac6986001">Could not seek preview: %1$s</string>
+    <string name="message_1c025b7a2c" formatted="false">Delete</string>
+    <string name="message_1e9ea62c75" formatted="false">Open saved</string>
+    <string name="message_1f7073c78b" formatted="false">Audio sample timestamps in this file are unsuitable for stream-copy export</string>
+    <string name="message_2045e197ce">Playing · %1$s / %2$s</string>
+    <string name="message_2086b19f67" formatted="false">Follow playhead</string>
+    <string name="message_20c86043bf">Could not create project (%1$s); the original was not changed</string>
+    <string name="message_21bed82a7e" formatted="false">Export complete · empty timeline gaps were removed</string>
+    <string name="message_22b4d27a73" formatted="false">Could not create native editor engine</string>
+    <string name="message_2313bf0ccc" formatted="false">The clip you wanted to relink no longer exists</string>
+    <string name="message_24c6921f1f" formatted="false">Could not read video duration</string>
+    <string name="message_2668d112c9">Could not decode video (%1$s/%2$s). Try a 1080p SDR file; 4K/HDR/codec support varies by phone.</string>
+    <string name="message_2762c8b9a2" formatted="false">Keep</string>
+    <string name="message_279f0e3cdf" formatted="false">Follow playhead: on</string>
+    <string name="message_28ccb137ab" formatted="false">The clip does not start on a sync frame; trim/split at a keyframe for stream-copy export</string>
+    <string name="message_29b7d7e952" formatted="false">Export failed</string>
+    <string name="message_2b042e5a6c" formatted="false">Export cancelled</string>
+    <string name="message_2b7a3b470e" formatted="false">Video copy is incomplete</string>
+    <string name="message_2c34f0e27b" formatted="false">Project name</string>
+    <string name="message_2cd5fdd10c" formatted="false">From the first idea to the final frame. Your next story starts here.</string>
+    <string name="message_2d4b4eb369" formatted="false">This will replace the editor session. Unsaved changes will be autosaved first.</string>
+    <string name="message_2f1b3a4ea9" formatted="false">Trim left</string>
+    <string name="message_3119322927" formatted="false">Autosave recovered; use Save or Projects to keep it in the local project</string>
+    <string name="message_315688be7e" formatted="false">Reading project document…</string>
+    <string name="message_323a11800b" formatted="false">Export MP4</string>
+    <string name="message_32ba7b117e" formatted="false">Export cancelled; the provider could not remove the empty/incomplete document</string>
+    <string name="message_34d403c213">Rendering video · %1$s%%</string>
+    <string name="message_35d6f4944d" formatted="false">Projects: independent local projects, rename, file import.\nEdit: preview, timeline, playhead, split/trim/move/delete, Undo/Redo.\nMedia: source information and relink.\nDeliver: current 720-high SDR MP4 rendering and Gallery saving.\nFlow: a read-only explanation of the current preview/export route.\n\nPlanned: editable typed nodes, effects, compositing, grading, keyframes, audio graphs and RAW. These are not enabled in this build.\n\nThe local library is app-private and is lost on uninstall/data clear. Save important project documents externally and keep original media.</string>
+    <string name="message_360e86bda3" formatted="false"> · Could not remove the incomplete document</string>
+    <string name="message_36aba39eed" formatted="false">Edit operation failed</string>
+    <string name="message_36eb3c2094" formatted="false">Could not open the output MP4 video track</string>
+    <string name="message_37b13021f8" formatted="false">The clip source range is invalid</string>
+    <string name="message_38516603a3">Export failed: %1$s</string>
+    <string name="message_392a697579" formatted="false">Could not publish the Gallery output</string>
+    <string name="message_39fc721248" formatted="false">Undo</string>
+    <string name="message_3cbf4f8e3e" formatted="false">Project opened</string>
+    <string name="message_3d1d8c290a" formatted="false">The clip to relink was not found</string>
+    <string name="message_3df8193901" formatted="false">There are no timeline clips to export</string>
+    <string name="message_3ea73f3e83" formatted="false">Reading the project library…</string>
+    <string name="message_3f5bcb7685" formatted="false">Cannot write to the Gallery output</string>
+    <string name="message_4087ee8fbc" formatted="false">Original media has no video track</string>
+    <string name="message_411b41bacc" formatted="false">Could not read an encoded sample from the original media, or the buffer limit was exceeded</string>
+    <string name="message_413c4a66bd" formatted="false">Project file exceeds the 96 MiB limit</string>
+    <string name="message_422600b830">Could not open this video: %1$s</string>
+    <string name="message_42f3763acb" formatted="false">This will replace the current session. Your current work will be autosaved before loading the saved project.</string>
+    <string name="message_43d6f66acd" formatted="false">Relink media</string>
+    <string name="message_4651a020c4" formatted="false">No recovery snapshot found</string>
+    <string name="message_46d696486d" formatted="false">Project saved</string>
+    <string name="message_471b94d402" formatted="false">Redo</string>
+    <string name="message_485965e2a5" formatted="false">Render complete · validating MP4…</string>
+    <string name="message_48a2f4125e" formatted="false">Export complete · saved to Gallery / Movies/Owncut</string>
+    <string name="message_493010d9f8" formatted="false">Render timed out; try again</string>
+    <string name="message_49396f3024" formatted="false">No projects yet. Create a project or import an existing .owncut file.</string>
+    <string name="message_4983402399" formatted="false">Could not read the output MP4 duration</string>
+    <string name="message_4bb961786b" formatted="false">All source clips must use the same audio track layout</string>
+    <string name="message_4cebb485c3" formatted="false">Recovery snapshot available — use Recover autosave in the editor.</string>
+    <string name="message_4f099c46c1" formatted="false">Flow · current route (read-only)\n\nSource → native clip range / timeline position → MediaPlayer preview\nSource + timeline snapshot → Media3 decode/render/encode → validated MP4 → Gallery\n\nPreview and export currently use separate pipelines. This is not an editable node graph. Effects and rewiring are not available yet. Typed nodes, a shared evaluator, keyframes and compositing are planned in the architecture.</string>
+    <string name="message_50b34fb08a" formatted="false">Save project?</string>
+    <string name="message_51d6ad5eff" formatted="false">Export cancelled; no new output was kept</string>
+    <string name="message_521ec4f4e0" formatted="false">Creating project…</string>
+    <string name="message_522d3a1484" formatted="false">Use Recover autosave for the previous session, or select media again.</string>
+    <string name="message_53e890d5f0" formatted="false">Projects</string>
+    <string name="message_545b6f2b51" formatted="false">This export version does not support multiple video tracks</string>
+    <string name="message_5656245819" formatted="false">Every clip needs its original media reference</string>
+    <string name="message_5714916d16" formatted="false">Render stopped</string>
+    <string name="message_59b7d93902" formatted="false">Project saved to Documents</string>
+    <string name="message_5a994fce3b" formatted="false">The output MP4 duration is zero</string>
+    <string name="message_5afa17a3d6" formatted="false">Project file import…</string>
+    <string name="message_5b44580b10" formatted="false">Library exceeds 1000 entries; files were not changed</string>
+    <string name="message_5bd8db9fcd">Timeline · %1$s · source %2$s–%3$s</string>
+    <string name="message_5e5162c1fe" formatted="false">Redo history is empty</string>
+    <string name="message_5fa6a967dd" formatted="false">There is no clip at this timeline position</string>
+    <string name="message_6354e4e3d6" formatted="false">Could not create the project folder</string>
+    <string name="message_63fa0fce55" formatted="false">Saved project opened</string>
+    <string name="message_65a0c3462d" formatted="false">Validating MP4…</string>
+    <string name="message_67854d2c0b" formatted="false">Timeline position</string>
+    <string name="message_687e9c4466" formatted="false">A recovery snapshot is available. Recover it if needed; new edits will replace the old snapshot.</string>
+    <string name="message_6ad7121692">Playback state error: %1$s</string>
+    <string name="message_6b104d83c9">Last opened/saved: %1$s</string>
+    <string name="message_6b876b131b" formatted="false">Timeline clip moved</string>
+    <string name="message_6cf81c7ca3" formatted="false">Project names must contain 1–80 characters</string>
+    <string name="message_71dafd7a01" formatted="false">Video sample timestamps in this file are unsuitable for stream-copy export</string>
+    <string name="message_725e31767e" formatted="false">Saving project…</string>
+    <string name="message_72c1407ecc" formatted="false">Select the original media for the selected clip again</string>
+    <string name="message_72f825c0e0" formatted="false">The selected preview clip no longer exists</string>
+    <string name="message_73a9853a46">Export will remove %1$s empty frames (%2$s ms) and join the clips together. Your timeline project will not change. Continue?</string>
+    <string name="message_7496096196">Could not open project: %1$s</string>
+    <string name="message_7833cc82ff" formatted="false">The video is not ready yet. Select a clip and wait a moment.</string>
+    <string name="message_79e2cae0eb">Open · %1$s</string>
+    <string name="message_7c02a3426b" formatted="false">This export version supports one video track</string>
+    <string name="message_7c49e6e92c" formatted="false">Wait for the seek to finish</string>
+    <string name="message_7d95b4d830">Exporting encoded samples · %1$s/%2$s</string>
+    <string name="message_7fdc670a3b" formatted="false">This export version does not support multiple audio tracks</string>
+    <string name="message_80236dfc68" formatted="false">Autosave stored</string>
+    <string name="message_81764a5673" formatted="false">The split point must be inside the selected clip</string>
+    <string name="message_831513c165" formatted="false">The output MP4 has no audio samples</string>
+    <string name="message_85149b860c" formatted="false">Tap the ruler or a clip to seek. Drag the red head to scrub. Long-press a clip to move it. The lower bar seeks within the selected source. Playback stops at gaps.</string>
+    <string name="message_8586291d13">Could not add video to the timeline: %1$s</string>
+    <string name="message_86474f5303" formatted="false">Video preview</string>
+    <string name="message_865e38304e" formatted="false">Import video</string>
+    <string name="message_871c85ca8f" formatted="false">New project</string>
+    <string name="message_88e5aebc23">TRACK · %1$s</string>
+    <string name="message_895cdbe3da" formatted="false">Ripple delete</string>
+    <string name="message_896bcfa0b6" formatted="false">Render duration does not match the timeline; incomplete output was not saved</string>
+    <string name="message_89fb9c0b30" formatted="false">The Android decoder could not open the first/last output MP4 frame</string>
+    <string name="message_8a2e50b708" formatted="false">Renaming…</string>
+    <string name="message_8bd7483212" formatted="false">Invalid project ID</string>
+    <string name="message_8be8c7f189" formatted="false">Imported project name</string>
+    <string name="message_8c5e3ee801" formatted="false">Please wait…</string>
+    <string name="message_8c9b5fc4b7" formatted="false">SAF read access stored. Original media will remain unchanged.</string>
+    <string name="message_8ccdf8c183" formatted="false">The muxer did not create a valid MP4 output</string>
+    <string name="message_8cee3592bb" formatted="false">Remove gaps and export</string>
+    <string name="message_8edbd70ad6" formatted="false">Open saved project?</string>
+    <string name="message_8f2c8b3266" formatted="false">Timeline clips overlap; remove the overlap and try exporting again</string>
+    <string name="message_8f454e8f99" formatted="false">Invalid project date</string>
+    <string name="message_90f2b63925" formatted="false">Cancel export</string>
+    <string name="message_94375196f5">Multi-source export requires matching %1$s codec, dimensions and codec configuration</string>
+    <string name="message_97096c364c" formatted="false">The preview surface is not ready; wait for the video screen to open.</string>
+    <string name="message_97a400a822">Timeline playhead %1$s</string>
+    <string name="message_98746c7c59" formatted="false">Finish the current save/load/export, or cancel the export</string>
+    <string name="message_9909c1b640" formatted="false">Timeline; tap the ruler or drag the red playhead to seek</string>
+    <string name="message_9a98a6e051" formatted="false">Preparing the next clip…</string>
+    <string name="message_9c49f1f1b6" formatted="false">Cannot write to the selected document</string>
+    <string name="message_9c5367b9dd" formatted="false">Warning: permanent access was not granted; you may need to relink media later.</string>
+    <string name="message_a038b9bbf4" formatted="false">The clip does not start on a keyframe; split/trim at a keyframe for stream-copy export</string>
+    <string name="message_a3ec0cc398" formatted="false">Clip placed in the nearest free slot to avoid a collision</string>
+    <string name="message_a6dbb03662" formatted="false">Reading video metadata…</string>
+    <string name="message_a77e61169d" formatted="false">Editor engine is unavailable</string>
+    <string name="message_a7f8686836" formatted="false">Recover autosave</string>
+    <string name="message_a821f95ecf" formatted="false">বাংলা</string>
+    <string name="message_a82ee6e5ca" formatted="false">The output MP4 has no video samples</string>
+    <string name="message_a89bb287f6" formatted="false">Timeline · no clip selected</string>
+    <string name="message_a94f180f47" formatted="false">Checking the recovery snapshot…</string>
+    <string name="message_ab6daf2ef3" formatted="false">Import a video to start your preview</string>
+    <string name="message_ac16e106a4" formatted="false">The source duration does not round to a nearby timeline frame boundary; check the trim range</string>
+    <string name="message_aef7617ee6">Could not start preview: %1$s</string>
+    <string name="message_b0ed78beaa" formatted="false">Previous workspace</string>
+    <string name="message_b266d68863">Owncut could not start. Please share a screenshot of this screen.\n\n%1$s: %2$s\n\n%3$s</string>
+    <string name="message_b3e7f770ff" formatted="false">Could not reattach the preview surface; select the clip again.</string>
+    <string name="message_b4c2e22ddc" formatted="false">Select a supported SDR video and try again.</string>
+    <string name="message_b4ce151ed6" formatted="false">You can change this later in Settings.\nপরে সেটিংস থেকে বদলাতে পারবেন।</string>
+    <string name="message_b4ff35a2fa" formatted="false">Stream-copy does not support fragmented samples</string>
+    <string name="message_b5cdf40ef5" formatted="false">Play video</string>
+    <string name="message_b7592acd38" formatted="false">Could not read video track dimensions</string>
+    <string name="message_b7722d9327" formatted="false">Got it</string>
+    <string name="message_b7dd6d731a">Save failed; the editor is still open: %1$s</string>
+    <string name="message_b89067ce69" formatted="false">Cannot read the selected document</string>
+    <string name="message_b9cbcc0505" formatted="false">Undo history is empty</string>
+    <string name="message_ba90d21bbd" formatted="false">Preparing selected media</string>
+    <string name="message_bcef4ffd8a" formatted="false">No details available</string>
+    <string name="message_be209c24bc">Could not seek/start preview: %1$s</string>
+    <string name="message_bf30911ad7" formatted="false">Stream-copy does not support DRM/encrypted samples</string>
+    <string name="message_bf5f0d21b6" formatted="false">Engine session is closed</string>
+    <string name="message_bf7889b7b2" formatted="false">Play or pause video</string>
+    <string name="message_c088ab45ec">Engine error: %1$s</string>
+    <string name="message_c2c36977a7" formatted="false">This will replace the saved project. The recovery snapshot will be cleared after a successful save.</string>
+    <string name="message_c3dbf41a1e" formatted="false">Follow playhead: off</string>
+    <string name="message_c5cffea976" formatted="false">Cancelling…</string>
+    <string name="message_c684969e0e" formatted="false">Project name (1–80 characters)</string>
+    <string name="message_c82ca42c8d" formatted="false">Owncut workspace</string>
+    <string name="message_ca21daf138" formatted="false">Cancel</string>
+    <string name="message_ca488e2680">Could not open: %1$s. The original file was not changed.</string>
+    <string name="message_cb75968fda" formatted="false">Could not find a reliable video keyframe at the clip start</string>
+    <string name="message_ccdca32722" formatted="false">A project operation is in progress</string>
+    <string name="message_ce04a46ef1" formatted="false">Enter a name with 1–80 characters</string>
+    <string name="message_cf9b77061f" formatted="false">Open</string>
+    <string name="message_cfa6f3d5ab" formatted="false">There is no free space for this clip on the track.</string>
+    <string name="message_d10c8a8dd8" formatted="false">Settings · language</string>
+    <string name="message_d2046a8d8f">Could not migrate the previous workspace: %1$s; the original was preserved</string>
+    <string name="message_d20e0c1b30" formatted="false">There are no clips in the timeline</string>
+    <string name="message_d36d2b9e2d" formatted="false">Opening project…</string>
+    <string name="message_d579843004" formatted="false">Timeline playback finished</string>
+    <string name="message_d766471f27" formatted="false">unsupported media</string>
+    <string name="message_d795d2fb3e" formatted="false">The recovery snapshot will replace the current in-memory project. Save your current work separately first if you want to keep it.</string>
+    <string name="message_d7e376c6eb" formatted="false">Preparing export…</string>
+    <string name="message_dcc08d209e">Source: %1$s / %2$s</string>
+    <string name="message_dd7aff38a4">Could not relink media: %1$s</string>
+    <string name="message_ddc4d8e4bd" formatted="false">Saving your work and returning to Projects…</string>
+    <string name="message_de5c2380cd" formatted="false">The timeline contains gaps</string>
+    <string name="message_df54d9e4da" formatted="false">Export cancelled</string>
+    <string name="message_e3c1664426" formatted="false">Preview ready · use the red playhead or press Play</string>
+    <string name="message_e5c32c0cb4" formatted="false">Workflow and capabilities</string>
+    <string name="message_e5cd36b000" formatted="false">A video frame has reached the preview</string>
+    <string name="message_e653e09701">Timeline %1$s</string>
+    <string name="message_e73f93c4f2" formatted="false">Your project was preserved</string>
+    <string name="message_e78d6626c8" formatted="false">MP4 stream created</string>
+    <string name="message_e8a5c38200" formatted="false">Projects · save and return</string>
+    <string name="message_ea1cce60a0">%1$s: could not read metadata; no files were deleted</string>
+    <string name="message_ebab316ada" formatted="false">Gallery export requires Android 10 or later</string>
+    <string name="message_ee066bee3d" formatted="false">The library is full; back up and maintain your projects before creating another</string>
+    <string name="message_eeae4b4c38">Autosave failed: %1$s</string>
+    <string name="message_ef1f98dae3" formatted="false">Split</string>
+    <string name="message_ef9732b90d">%1$s projects</string>
+    <string name="message_efc007a393" formatted="false">Save</string>
+    <string name="message_f019870b11">Project file exceeds the %1$s MiB limit</string>
+    <string name="message_f04897b60d" formatted="false">Import video</string>
+    <string name="message_f07be40718">Could not save project file: %1$s</string>
+    <string name="message_f118417f6a" formatted="false">The output MP4 audio track is incomplete</string>
+    <string name="message_f13c794447" formatted="false">Your timeline will appear here after importing video</string>
+    <string name="message_f13c98fc70" formatted="false">Open project?</string>
+    <string name="message_f1a8e5b456">Native engine could not start: %1$s: %2$s</string>
+    <string name="message_f4693deac0" formatted="false">Your creative workspace</string>
+    <string name="message_f4e00f9522" formatted="false">Select a timeline clip first</string>
+    <string name="message_f5a66453bc" formatted="false">Export complete · MP4 saved to Documents</string>
+    <string name="message_f836b31adb" formatted="false">Waiting for a video frame…</string>
+    <string name="message_fac2a9f7ec" formatted="false">The output MP4 audio timestamps are invalid</string>
+    <string name="message_fbb1b3c9d7" formatted="false">Could not create the Gallery output</string>
+    <string name="message_fc80eb0ad5" formatted="false">Recover autosave?</string>
+    <string name="message_fd76f9371a" formatted="false">Deliver · H.264/AAC · 720-high SDR\nOne sequential video track. Removing gaps needs your approval. On Android 10+, output is saved to Movies/Owncut in Gallery.</string>
+    <string name="message_fea64f9a12" formatted="false">decoder error</string>
+    <string name="message_ff3186302b">Could not recover autosave: %1$s</string>
+    <string name="page_deliver" formatted="false">Deliver</string>
+    <string name="page_edit" formatted="false">Edit</string>
+    <string name="page_flow" formatted="false">Flow</string>
+    <string name="page_media" formatted="false">Media</string>
+    <string name="recent_projects" formatted="false">Recent projects</string>
+    <string name="settings" formatted="false">Settings</string>
+    <string name="timeline_empty" formatted="false">Your timeline is ready. Import media to begin.</string>
+    <string name="workspace_name">Workspace</string>
+    <string name="generic_video">Video</string>
+    <string name="tools">Tools &amp; project</string>
+    <string name="appearance">Appearance</string>
+    <string name="theme_graphite">Graphite · neutral / ice</string>
+    <string name="theme_midnight">Midnight · blue / periwinkle</string>
+    <string name="theme_ember">Ember · warm / amber</string>
+    <string name="project_conflict">The saved project changed outside this session. Save As to a separate file; the original was not overwritten.</string>
+    <string name="project_not_loaded">Project was not loaded; saving is blocked.</string>
+    <string name="project_already_open">This project is already open in another editor. Close that editor first.</string>
+    <string name="unsupported_repair">Unknown catalog version; repair was refused. No project was changed.</string>
+    <string name="repair_catalog">Repair project entry · %1$s</string>
+    <string name="repair_catalog_title">Repair library entry (original metadata is preserved)</string>
+    <string name="external_saved_only">Warning: External project saved, but the local checkpoint did not complete; recovery was not cleared: %1$s</string>
+    <string name="media_sources">Browse timeline sources</string>
+    <string name="media_sources_title">Timeline sources · %1$d</string>
+    <string name="media_sources_empty">Sources currently used by clips appear here. Unused imported assets are not stored in this list.</string>
+    <string name="media_source_item">%1$d · %2$s\n%3$d clips · required through %4$s</string>
+    <string name="media_sources_next">Next sources</string>
+    <string name="media_sources_previous">Previous sources</string>
+    <string name="checkpoint_repair">Repair checkpoint record</string>
+    <string name="checkpoint_repair_explanation">Archive only a damaged checkpoint record, keeping the original bytes. Project and recovery are not changed. Unknown future versions are refused.</string>
+    <string name="checkpoint_repair_accept">Archive damaged record</string>
+    <string name="checkpoint_repaired">Damaged checkpoint record archived. Project and recovery were not changed; saving can be retried.</string>
+    <string name="checkpoint_no_repair">No damaged checkpoint record needs repair.</string>
+    <string name="color_grade_export_pending">Standard graded export remains gated to avoid losing your look. On Android 10+, this Details dialog offers a separate experimental graded export with explicit consent.</string>
+    <string name="color_grade_preview_pending">Saved color grade uses the guarded main viewer. A decoder failure is reported instead of displaying an ungraded success.</string>
+    <string name="color_editor_title">Clip color grade</string>
+    <string name="color_still_notice">Still-frame editor preview only. Normal timeline playback is ungraded; normal graded export is not enabled. Render the draft before Apply. Cancel leaves the saved grade unchanged.</string>
+    <string name="color_enabled">Enable saved grade</string>
+    <string name="color_render_still">Render draft</string>
+    <string name="color_before">Before</string>
+    <string name="color_after">After</string>
+    <string name="color_reset_draft">Reset draft</string>
+    <string name="color_apply">Apply to clip</string>
+    <string name="color_cancel">Cancel</string>
+    <string name="color_processing">Processing with native color engine…</string>
+    <string name="color_error">Color processing failed: %1$s</string>
+    <string name="page_color">Color</string>
+    <string-array name="color_parameter_names">
+        <item>Exposure (−8…8 stops)</item>
+        <item>Contrast (0…4)</item>
+        <item>Saturation (0…4)</item>
+        <item>Pivot (0.001…1)</item>
+        <item>Strength (0…1)</item>
+        <item>Red balance (−2…2 stops)</item>
+        <item>Green balance (−2…2 stops)</item>
+        <item>Blue balance (−2…2 stops)</item>
+        <item>Red lift (−1…1)</item>
+        <item>Green lift (−1…1)</item>
+        <item>Blue lift (−1…1)</item>
+        <item>Red gamma (0.1…4)</item>
+        <item>Green gamma (0.1…4)</item>
+        <item>Blue gamma (0.1…4)</item>
+        <item>Red gain (0…4)</item>
+        <item>Green gain (0…4)</item>
+        <item>Blue gain (0…4)</item>
+    </string-array>
+    <string name="color_source_changed">Clip changed while editing. Close and reopen Color.</string>
+    <string name="color_live_title">Live grade preview (experimental)</string>
+    <string name="color_module_title">Color module self-test (CPU)</string>
+    <string name="color_module_ok">OK</string>
+    <string name="color_module_dialog_title">Color module self-test</string>
+    <string name="color_live_loading">Checking source metadata and preparing graded playback…</string>
+    <string name="color_live_notice">Experimental playback of an immutable clip-grade snapshot, which may be an unsaved draft. Before compares without the grade. Loop stays inside clip trims. This preview does not save changes. Normal timeline playback and graded export remain unchanged; Android/device validation is pending.</string>
+    <string name="color_live_before">Before (during playback)</string>
+    <string name="color_scaled_preview_requires_27">Large still previews need Android 8.1 or newer. This Android 8.0 preview refuses a full-resolution bitmap allocation; your clip and grade are unchanged.</string>
+    <string name="color_preview_draft">Play draft (experimental)</string>
+    <string name="color_draft_changed">Settings changed. Updating still preview automatically…</string>
+    <string name="color_group_primary">Primary</string>
+    <string name="color_group_balance">RGB balance</string>
+    <string name="color_group_tonal">Tone · LGG</string>
+    <string name="color_slider_help">Adjust with wheels or drag numeric values; no sliders or typing required. Apply saves settings; normal graded timeline playback and export remain unavailable.</string>
+    <string name="color_preview_unavailable">Preview unavailable. You can still save valid settings. Details: %1$s</string>
+    <string name="color_auto_preview_ready">Still preview updated. Apply saves these settings. This is not graded timeline playback.</string>
+    <string name="color_saved_notice">Grade saved. The main viewer will load the saved grade; any source or decoder failure will be shown.</string>
+    <string name="color_frame_viewer">Clip frame viewer</string>
+    <string name="color_frame_loading">Loading clip frame…</string>
+    <string name="color_frame_reference">REFERENCE ONLY · not graded</string>
+    <string name="color_frame_empty">No frame available. Open Details for the reason. Valid settings can still be saved.</string>
+    <string name="color_frame_before">BEFORE · source still</string>
+    <string name="color_frame_graded">GRADED STILL · not timeline playback</string>
+    <string name="color_frame_updating">LAST FRAME · updating grade…</string>
+    <string name="color_error_details">Details</string>
+    <string name="color_refresh_frame">Refresh</string>
+    <string name="color_live_short">Play</string>
+    <string name="color_fine_minus">Fine decrease</string>
+    <string name="color_fine_plus">Fine increase</string>
+    <string name="color_step_down">Decrease %1$s one step</string>
+    <string name="color_step_up">Increase %1$s one step</string>
+    <string name="color_precision_hint">Drag a wheel for color balance, or drag numeric values sideways. Use − / + for a fine step. Channels provides keyboard and TalkBack alternatives to every wheel. Preview is an 8-bit proxy; 4K/10-bit/HDR end-to-end output is not verified. Source media stays unchanged.</string>
+    <string name="color_source_time">SOURCE · %1$s</string>
+    <string name="color_details_close">Close details</string>
+    <string name="color_group_wheels">Wheels</string>
+    <string name="color_group_channels">Channels</string>
+    <string name="color_wheel_balance">Balance</string>
+    <string name="color_wheel_lift">Lift</string>
+    <string name="color_wheel_gamma">Gamma</string>
+    <string name="color_wheel_gain">Gain</string>
+    <string name="color_live_stopped">Playback stopped. Open Details to see the source, decoder or processing error. 10-bit alone does not mean HDR.</string>
+    <string name="color_inline_loading">Still retriever unavailable. Preparing guarded video preview…</string>
+    <string name="color_inline_frame">GRADED VIDEO · platform decoder</string>
+    <string name="color_inline_ready">Video preview active. Adjust controls here; Play draft toggles playback. Paused adjustments request a fresh frame.</string>
+    <string name="color_input_short">Input</string>
+    <string name="color_input_title">Preview color interpretation</string>
+    <string name="color_input_warning">Missing color tags are not proof of Rec.709 or SDR. For this preview only, you may explicitly interpret missing primaries as Rec.709, transfer as SDR and range as limited. Known non-709, PQ/HLG, HDR or conflicting tags remain blocked. This is not a verified color match, 10-bit output or export setting. Tagged only restores strict checks.</string>
+    <string name="color_input_assume">Interpret missing tags</string>
+    <string name="color_input_tagged">Tagged only</string>
+    <string name="color_assumed_frame">PREVIEW · assumed Rec.709 SDR</string>
+    <string name="color_assumed_before">BEFORE · assumed Rec.709 SDR</string>
+    <string name="color_grade_short">Grade</string>
+    <string name="color_copy_report">Copy report</string>
+    <string name="export_error_details">Export failure details</string>
+    <string name="export_candidate_title">Experimental graded export</string>
+    <string name="export_candidate_start">Start test export</string>
+    <string name="export_candidate_warning">Render the current timeline with its saved grades using the new decoder. Test preset: 720p H.264/AAC SDR, not 4K or verified 10-bit output. Device/GPU correctness is not yet confirmed. Unsupported geometry, color or codec will stop export; no ungraded fallback. Only a validated file is saved to Gallery. Continue?</string>
+    <string name="color_input_detected">Detected source color tags are listed below. No missing-tag interpretation is needed or offered for this input. Unsupported or conflicting tags remain blocked; these tags do not prove 10-bit output.</string>
+    <string name="color_saved_grade_viewer">Saved color grade</string>
+    <string name="color_input_blocked">Some color tags are missing, but known HDR or unsupported color information prevents a safe SDR interpretation. This input cannot be overridden.</string>
+    <string name="action_speed">Speed &amp; retime</string>
+    <string name="action_audio">Audio &amp; mix</string>
+    <string name="action_transform">Transform &amp; chroma</string>
+    <string name="action_text">Text overlay</string>
+    <string name="action_subtitles">Subtitles &amp; SRT</string>
+    <string name="action_transition">Transitions</string>
+    <string name="action_tracks">Tracks &amp; PiP</string>
+    <string name="timeline_zoom_out">Zoom out</string>
+    <string name="timeline_zoom_in">Zoom in</string>
+    <string name="timeline_keyframe_toggle">Add or remove transform keyframe at playhead</string>
+    <string name="timeline_text_lane">Text overlays</string>
+    <string name="timeline_subtitle_lane">Subtitles</string>
+    <string name="timeline_speed_keyframe_toggle">Add or remove speed-ramp point at playhead</string>
+    <string name="timeline_track_mute">Mute track %1$s</string>
+    <string name="timeline_track_unmute">Unmute track %1$s</string>
+    <string name="timeline_track_unlock">Unlock track %1$s</string>
+    <string name="timeline_track_lock">Lock track %1$s</string>
+    <string name="timeline_add_video_track">Add video track</string>
+    <string name="timeline_add_audio_track">Add audio track</string>
+    <string name="action_detach_audio">Detach audio</string>
+    <string name="action_voiceover">Voiceover</string>
+    <string name="action_jl_cut">J/L cut</string>
+    <string name="action_slip">Slip</string>
+    <string name="action_roll">Roll edit</string>
+    <string name="action_slide">Slide edit</string>
+    <string name="timeline_jog_dial">Virtual jog dial; one full turn moves one second</string>
+    <string name="timeline_offset_choice">%1$s by %2$d ms</string>
+    <string name="timeline_earlier">Earlier</string>
+    <string name="timeline_later">Later</string>
+    <string name="timeline_roll_requires_adjacent">Roll requires an adjacent clip on the same track.</string>
+    <string name="jl_cut_option">%1$s cut · %2$d ms</string>
+    <string name="voiceover_recording">Recording voiceover… tap to stop</string>
+    <string name="voiceover_saved">Voiceover added to %1$s</string>
+    <string name="voiceover_permission">Microphone permission is required to record a voiceover.</string>
+    <string name="timeline_detached_audio">Audio detached to %1$s; original clip audio muted</string>
+    <string name="action_beat_cut">Beat &amp; scene cut</string>
+    <string name="action_snap">Magnetic snap</string>
+    <string name="action_marker">Add marker</string>
+    <string name="action_duplicate">Duplicate clip</string>
+    <string name="action_freeze">Freeze frame</string>
+    <string name="pro_speed_title">Speed, reverse &amp; freeze</string>
+    <string name="pro_speed_value">Speed · %1$s</string>
+    <string name="pro_reverse_clip">Reverse clip</string>
+    <string name="pro_freeze_frame">Freeze frame at playhead</string>
+    <string name="pro_speed_applied">Updated clip timing to %1$s</string>
+    <string name="pro_audio_title">Audio mix &amp; waveform</string>
+    <string name="pro_volume_label">Volume · %1$d%%</string>
+    <string name="pro_fade_in_label">Fade in · %1$d ms</string>
+    <string name="pro_fade_out_label">Fade out · %1$d ms</string>
+    <string name="pro_mute_clip">Mute clip audio</string>
+    <string name="pro_ducking_toggle">Auto-duck under voice/overlay (−10 dB)</string>
+    <string name="pro_analyze_waveform">Analyze waveform &amp; BPM</string>
+    <string name="pro_audio_stats">Loudness: %1$.1f LUFS · Tempo: %2$.0f BPM</string>
+    <string name="pro_eq_band_label">%1$d Hz · %2$d dB</string>
+    <string name="pro_compressor_toggle">Enable compressor</string>
+    <string name="pro_compressor_threshold">Compressor threshold · %1$d dB</string>
+    <string name="pro_compressor_ratio">Compressor ratio · %1$d:1</string>
+    <string name="pro_limiter_toggle">Enable limiter</string>
+    <string name="pro_limiter_ceiling">Limiter ceiling · %1$d dB</string>
+    <string name="pro_gate_toggle">Enable noise gate</string>
+    <string name="pro_gate_threshold">Gate threshold · %1$d dB</string>
+    <string name="pro_audio_dsp_export_note">EQ, compression, limiting, and gating are applied during rich export; live preview does not process them yet.</string>
+    <string name="pro_transform_title">Reframe, transform &amp; chroma key</string>
+    <string name="reframe_auto_action">Auto reframe (offline)</string>
+    <string name="reframe_choose_title">Choose output framing</string>
+    <string name="reframe_guide">Runs locally with saliency and optical-flow tracking; no network or cloud model. The chosen output aspect ratio applies to the whole project. Tracking follows a visual focus, not a guaranteed person/object detector. Apply replaces this clip’s transform keyframes.</string>
+    <string name="reframe_aspect_original">Original source ratio (reset framing)</string>
+    <string name="reframe_aspect_vertical">Vertical 9:16</string>
+    <string name="reframe_aspect_square">Square 1:1</string>
+    <string name="reframe_aspect_portrait">Portrait 4:5</string>
+    <string name="reframe_aspect_landscape">Landscape 16:9</string>
+    <string name="reframe_aspect_standard">Standard 4:3</string>
+    <string name="reframe_aspect_photo">Photo 3:2</string>
+    <string name="reframe_aspect_wide">Wide 2:1</string>
+    <string name="reframe_aspect_cinema">Cinema 2.39:1</string>
+    <string name="reframe_aspect_classic_portrait">Portrait 5:4</string>
+    <string name="reframe_aspect_tall">Tall 9:21</string>
+    <string name="reframe_custom_resolution">Custom resolution…</string>
+    <string name="reframe_custom_title">Custom output resolution</string>
+    <string name="reframe_width_hint">Width in pixels (even, 144–3840)</string>
+    <string name="reframe_height_hint">Height in pixels (even, 144–3840)</string>
+    <string name="reframe_custom_invalid">Enter even dimensions from 144 to 3840 pixels; output must stay within the UHD pixel budget and supported aspect range.</string>
+    <string name="stabilize_action">Stabilize (offline)</string>
+    <string name="stabilize_choose_title">Choose stabilization</string>
+    <string name="stabilize_guide">Runs local optical-flow analysis on bounded low-resolution samples. Applying replaces this clip’s transform keyframes; undo is available. Stabilization may crop/zoom slightly and is not a semantic AI feature.</string>
+    <string name="stabilize_mode_smooth">Smooth</string>
+    <string name="stabilize_mode_strong">Strong (more crop)</string>
+    <string name="stabilize_mode_lock">Camera lock</string>
+    <string name="stabilize_applied">Offline stabilization applied. Review playback and undo if needed.</string>
+    <string name="reframe_analyzing">Analyzing low-resolution samples on this device…</string>
+    <string name="reframe_applied">Offline reframe applied. Review the crop and undo if needed.</string>
+    <string name="reframe_failed">Could not analyze this clip for reframe.</string>
+    <string name="reframe_requires_api27">Offline reframe needs Android 8.1 or later for bounded-size frame sampling.</string>
+    <string name="pro_scale_label">Scale · %1$d%%</string>
+    <string name="pro_pan_x_label">Pan X · %1$d%%</string>
+    <string name="pro_pan_y_label">Pan Y · %1$d%%</string>
+    <string name="pro_rotation_label">Rotation · %1$d°</string>
+    <string name="pro_opacity_label">Opacity · %1$d%%</string>
+    <string name="pro_ken_burns_label">Ken Burns dynamic zoom</string>
+    <string name="pro_chroma_key_label">Green screen chroma key</string>
+    <string name="pro_chroma_tol_label">Key tolerance · %1$d%%</string>
+    <string name="pro_text_title">Text overlay</string>
+    <string name="pro_text_hint">Enter title or caption text</string>
+    <string name="pro_text_style_label">Style: %1$s</string>
+    <string name="pro_text_add">Add at playhead</string>
+    <string name="pro_text_remove_all">Clear overlays</string>
+    <string name="pro_text_added">Overlay placed; drag on preview to reposition.</string>
+    <string name="pro_subtitles_title">Subtitles &amp; SRT</string>
+    <string name="pro_subtitle_add_at_playhead">Add 2s cue at playhead</string>
+    <string name="pro_subtitle_import_srt">Paste / import SRT</string>
+    <string name="pro_subtitle_export_srt">Copy SRT</string>
+    <string name="pro_subtitle_clear">Clear subtitles</string>
+    <string name="pro_subtitle_imported">Imported %1$d subtitle cues.</string>
+    <string name="pro_subtitle_exported">Copied SRT (%1$d cues).</string>
+    <string name="pro_transition_title">Clip entry transition</string>
+    <string name="pro_transition_none">None</string>
+    <string name="pro_transition_dissolve">Cross-dissolve</string>
+    <string name="pro_transition_fade_black">Fade through black</string>
+    <string name="pro_transition_duration">Duration · %1$d ms</string>
+    <string name="pro_tracks_title">Multi-track &amp; PiP</string>
+    <string name="pro_add_to_v2">Add selected/next media to V2 (PiP)</string>
+    <string name="pro_add_to_a1">Add media to A1 (Music)</string>
+    <string name="pro_add_to_a2">Add media to A2 (SFX / Voice)</string>
+    <string name="pro_track_mute_toggle">Toggle mute</string>
+    <string name="pro_track_lock_toggle">Toggle lock</string>
+    <string name="pro_beat_cut_title">Beat grid &amp; smart scene cut</string>
+    <string name="pro_beat_bpm_label">Beat grid · %1$d BPM</string>
+    <string name="pro_detect_bpm">Detect BPM from clip</string>
+    <string name="pro_auto_scene_cut">Detect &amp; split scene cuts</string>
+    <string name="pro_scene_cuts_found">Split %1$d detected scene cuts.</string>
+    <string name="pro_marker_added">Marker added at %1$s</string>
+    <string name="pro_snap_toggled">Magnetic snap: %1$s</string>
+    <string name="pro_apply">Apply</string>
+    <string name="pro_reset">Reset</string>
+    <string name="pro_close">Close</string>
+    <string name="pro_select_clip_first">Select a clip on the timeline first.</string>
+</resources>
