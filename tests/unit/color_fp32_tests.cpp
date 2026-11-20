@@ -1,6 +1,7 @@
 // FP32 reference colour path: precision of intermediates, Rec.709 transfer, exposure, display conversion.
 // Host CPU only. Not a GPU, Vulkan, device or codec result.
 #include "editor/color_fp32.hpp"
+#include "editor/color_output.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -152,6 +153,23 @@ void display_conversion_is_the_only_clamp() {
     fails([] { to_rgba8_display(std::vector<RgbaF32>{{std::numeric_limits<float>::infinity(), 0, 0, 1}}); });
 }
 
+void output_16bit_clamps_rounds_and_rejects_bad_input() {
+    namespace fp32 = editor::color::fp32;
+    using editor::color::output::to_rgba16;
+    const std::vector<fp32::RgbaF32> p{{0.0f, 1.0f, 0.5f, 1.0f}, {1.5f, -0.2f, 0.25f, 0.0f}};
+    const auto out = to_rgba16(p);
+    check(out.size() == 8);
+    check(out[0] == 0 && out[1] == 65535 && out[3] == 65535);
+    check(out[2] == 32768);            // 0.5 * 65535 = 32767.5 -> nearest even 32768
+    check(out[4] == 65535);            // 1.5 clamps to 1.0
+    check(out[5] == 0);                // -0.2 clamps to 0
+    check(out[6] == 16384);            // 0.25 * 65535 = 16383.75 -> 16384
+    check(out[7] == 0);
+    fails([&] { to_rgba16(std::vector<fp32::RgbaF32>{{std::numeric_limits<float>::quiet_NaN(), 0, 0, 1}}); });
+    std::vector<std::uint16_t> short_dst(3);
+    fails([&] { to_rgba16(p, short_dst); });
+}
+
 } // namespace
 
 int main() {
@@ -162,6 +180,7 @@ int main() {
         transfer_round_trip_and_reference();
         exposure_matches_double_reference_and_keeps_highlights();
         display_conversion_is_the_only_clamp();
+        output_16bit_clamps_rounds_and_rejects_bad_input();
         std::cout << "FP32 colour reference: format, intermediate patch, FP16 control, Rec.709 transfer, exposure and display conversion tests passed\n";
     } catch (const std::exception& error) {
         std::cerr << error.what() << '\n';

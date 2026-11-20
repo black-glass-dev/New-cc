@@ -8,6 +8,7 @@ add_library(owncut_engine
     engine/color/src/color_gpu.cpp
     engine/color/src/color.cpp
     engine/color/src/color_fp32.cpp
+    engine/color/src/color_output.cpp
     engine/session/src/session_registry.cpp
     engine/session/src/session_coordinator.cpp
     engine/graph/src/graph.cpp
@@ -76,7 +77,7 @@ if(ANDROID)
         set_target_properties(ffmpeg_${ffmpeg_lib} PROPERTIES
             IMPORTED_LOCATION "${OWNCUT_FFMPEG_ABI_DIR}/lib/lib${ffmpeg_lib}.a")
     endforeach()
-    target_sources(owncut_android PRIVATE platform/android/jni/ffmpeg_remux_jni.cpp)
+    target_sources(owncut_android PRIVATE platform/android/jni/ffmpeg_remux_jni.cpp platform/android/jni/ffv1_writer_jni.cpp)
     target_include_directories(owncut_android PRIVATE "${OWNCUT_FFMPEG_ABI_DIR}/include")
     target_link_libraries(owncut_android PRIVATE ffmpeg_avformat ffmpeg_avcodec ffmpeg_kvazaar ffmpeg_swresample ffmpeg_swscale ffmpeg_avutil)
 endif()

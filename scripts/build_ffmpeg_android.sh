@@ -145,7 +145,7 @@ for ABI in "${ABIS[@]}"; do
       --enable-muxer=mov,matroska,mp4,mxf \
       --enable-parser=h264,hevc \
       --enable-decoder=aac,h264 \
-      --enable-encoder=prores_ks,dnxhd,libkvazaar \
+      --enable-encoder=prores_ks,dnxhd,libkvazaar,ffv1 \
       --enable-libkvazaar \
       --enable-bsf=h264_mp4toannexb \
       "${EXTRA[@]}" > configure.log 2>&1 || { tail -n 80 configure.log; false; }

@@ -1368,3 +1368,26 @@ NO_COMPRESSION, data window (0,0)-(4,2). A 5x3 image with values from -1.0 to 2.
 NOT done yet: FFV1 16-bit encoder (the app FFmpeg build has no ffv1 encoder; needs a config change and a JNI encode
 path), the Vulkan call inside the export loop, the source frame decode loop for export, and the bit-depth selector UI.
 Export is unchanged in this step, so no user-facing behaviour changed.
+
+## Bit-depth export step 1 — 16-bit FFV1 MKV path (native writer, host verified)
+
+Changes: `scripts/build_ffmpeg_android.sh` adds `ffv1` to `--enable-encoder` (this changes the FFmpeg cache key, so CI
+rebuilds FFmpeg). `engine/color/src/color_output.cpp` converts FP32 to RGBA64 (clamp to [0,1], nearest 1/65535).
+`platform/android/jni/ffv1_writer_jni.cpp` is the native FFmpeg FFV1 writer (MKV, RGBA64LE), built only in the FFmpeg
+block of CMake. `app/src/main/java/com/owncut/app/Ffv1Writer.kt` is the Kotlin wrapper (errors throw
+IllegalStateException). Writer code: a half-built object frees its FFmpeg objects in the constructor.
+
+Verified locally:
+- `color_fp32_tests` now includes 16-bit clamp/round/reject checks: PASS, also with `-Wconversion -Wsign-conversion -Werror`.
+- Native writer, host check `tests/native/run_ffv1_host_check.py`: compiled with a minimal host FFmpeg 8.1.3 (FFV1 +
+  Matroska only, `--disable-x86asm`, no nasm here). 3 frames 64x48 with values -0.5..1.5 were written by the real
+  `Ffv1Writer`, decoded by FFmpeg as rgba64le, and compared with an independent NumPy computation: PASS, all 36,864
+  samples identical.
+- JNI file syntax-checked against FFmpeg 8.1.3 headers and the JDK `jni.h`: PASS (`-Wall -Wextra -Wpedantic`).
+- `Ffv1Writer.kt` compiled with Kotlin 2.3.21 `-Werror`: PASS.
+- CMake host build and `ctest` (13 tests, Vulkan test not configured on this run): PASS. `make test` PASS.
+- `check_ui_resources.py`, Python unit tests, `progress.py`, `build_color_shaders.py --check`: PASS.
+
+NOT run here: the Android NDK build of `ffv1_writer_jni.cpp` and the Android FFmpeg with ffv1 (CI), and any phone
+run. Known limit of this format: 16-bit integer output cannot hold values above display white, so they clamp (32-bit EXR
+keeps them).
