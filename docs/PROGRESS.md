@@ -1326,3 +1326,29 @@ Run locally on this commit:
 NOT run here: Vulkan GPU path (no Vulkan runtime, no glslc/glslangValidator, no Android SDK/NDK); the GPU still writes
 8-bit output; Android Gradle compile/lint and androidTest `GradedExportParityTest` (needs a device or emulator);
 JNI host tests. Device and GPU results are unverified and user-owned (ADR 0014).
+
+## Colour pipeline step 2 — Vulkan FP32 exposure compute (host build, device run pending CI)
+
+Scope: `engine/color/shaders/exposure_fp32.comp` (GLSL compute, Rec.709 decode, exposure, encode, RGBA32F storage
+image, no clamp); `scripts/build_color_shaders.py` (glslang to SPIR-V, Vulkan 1.0 target, SHA-256 of source embedded;
+`--check` fails when the source changed without regenerating); `engine/color/shaders/generated/exposure_fp32_spv.inc`;
+`engine/color/include/editor/color_vulkan.hpp` and `engine/color/src/color_vulkan.cpp` (`ExposureCompute`: RGBA8 in,
+RGBA32F out, throws `NoVulkanDevice` when no compute device with RGBA32F storage and transfer support exists);
+`tests/unit/color_vulkan_tests.cpp` (device result vs FP32 CPU reference, tolerance 1e-4, above-1.0 survival,
+identity at 0 stops, fail-closed input validation; exit 77 = skipped, no device).
+CMake builds the wrapper and test only when `find_package(Vulkan)` succeeds. CI `host-tests` now installs
+`libvulkan-dev` and `mesa-vulkan-drivers` (lavapipe software driver), so the device test executes there.
+
+Run locally on this commit (sandbox, no GPU driver):
+- glslang 16.3.0 built from source at tag vulkan-sdk-1.4.350.1: shader compiles to SPIR-V with no errors.
+- `build_color_shaders.py --check`: PASS.
+- Vulkan-Headers and Vulkan-Loader 1.4.350.1 built from source; wrapper and test compile and link with `-Wall -Wextra -Wpedantic`
+  (`-Wno-missing-field-initializers` only; Vulkan `{STRUCTURE_TYPE}` idiom).
+- Test run: instance returns VK_ERROR_INCOMPATIBLE_DRIVER (no ICD), test exits 77 (skipped). This is NOT a GPU result.
+- Full CMake build and `ctest`: 14 passed, 1 skipped (`owncut_color_vulkan_tests`).
+- `scripts/progress.py` PASS.
+
+NOT run here: any Vulkan device execution (no driver in the sandbox; apt and Mesa sources not reachable). The device
+result comes only from CI lavapipe on the next run. Not wired into the Android preview or export path yet. The GPU
+output on phones is unverified. Phone testing is user-owned (ADR 0014).
+Known limits: one buffer and image allocation per `render()` call (correctness reference, not a performance path).

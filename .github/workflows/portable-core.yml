@@ -18,10 +18,13 @@ jobs:
           python3 tests/test_signing_preflight.py
           python3 tests/test_install_over_guard.py
           python3 scripts/progress.py
+          python3 scripts/build_color_shaders.py --check
       - name: Install CMake and Ninja
         run: sudo apt-get update && sudo apt-get install --yes cmake ninja-build
       - name: Install host software GLES (not Android/device validation)
         run: sudo apt-get install --yes libegl1 libegl-mesa0 libgles2 libgl1-mesa-dri
+      - name: Install host Vulkan loader and software driver (lavapipe, not device validation)
+        run: sudo apt-get install --yes libvulkan-dev mesa-vulkan-drivers
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
       - name: Build
