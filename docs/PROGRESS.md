@@ -1489,7 +1489,8 @@ What changed:
 - Lint: Android CI on `b4d4341` failed in `:app:lintDebug` with four Media3 opt-in usages (no file paths in the
   annotations). Commit `753eb09` added a class-level `@UnstableApi` to `TimelineFp32Exporter.kt`, and its Android CI passed
   (run `44730175942`). This step uses a file-level `androidx.annotation.OptIn` instead, which is the same opt-in at the
-  usage site. This step's Android lint has not been run yet.
+  usage site. CI on `87934bf`: Android `44753381479` success (Kotlin compile, NDK build of the JNI files, lint, APK),
+  Portable `44753381484` success (host tests).
 - Android compile fix (found by CI run `44752238066`): `ByteBuffer.clear()` returns `Buffer` on Android API levels, so the
   chained `duplicate().clear().get(...)` in `Fp32FrameLoop.kt` did not compile there. The host JDK hides this. The calls are
   now split into statements. The host Kotlin suite cannot catch this kind of error, so Android CI is the check.
@@ -1513,10 +1514,10 @@ Verified locally (host only):
 - `scripts/build_color_shaders.py --check`: PASS. `scripts/progress.py`: ran. `tests/test_*.py`: PASS.
 
 NOT verified here:
-- The Android build of the new Kotlin (`TimelineFp32Exporter.kt`, `AacTrackSource.kt`, `GradeEngine.kt`, `Ffv1Writer.kt`,
-  `Ffv1FrameSink.kt`, `SourceFrameDecoder.kt`) and the NDK build of the JNI files. CI is the only compile check for these.
-- Android lint (the Android SDK is not in the sandbox).
-- Any real decode, AAC copy from a phone file, Vulkan device result, or phone run.
+- Android compile, NDK build, lint and APK assembly. The Android SDK is not in the sandbox. CI `44753381479` (success)
+  is the only check for these.
+- Any real decode, AAC copy from a phone file, Vulkan device result, or phone run. Output quality and speed on a device
+  have not been measured.
 
 Known limits (fail closed, not silent):
 - Audio timing follows the video frame count per clip. The audio of a clip is cut to its source range; AAC frame
