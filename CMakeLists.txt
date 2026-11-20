@@ -9,6 +9,7 @@ add_library(owncut_engine
     engine/color/src/color.cpp
     engine/color/src/color_fp32.cpp
     engine/color/src/color_output.cpp
+    engine/color/src/yuv_convert.cpp
     engine/session/src/session_registry.cpp
     engine/session/src/session_coordinator.cpp
     engine/graph/src/graph.cpp
@@ -97,6 +98,9 @@ if(OWNCUT_BUILD_TESTS)
     add_executable(owncut_color_fp32_tests tests/unit/color_fp32_tests.cpp)
     target_link_libraries(owncut_color_fp32_tests PRIVATE owncut_engine)
     add_test(NAME owncut_color_fp32_tests COMMAND owncut_color_fp32_tests)
+    add_executable(owncut_yuv_convert_tests tests/unit/yuv_convert_tests.cpp)
+    target_link_libraries(owncut_yuv_convert_tests PRIVATE owncut_engine)
+    add_test(NAME owncut_yuv_convert_tests COMMAND owncut_yuv_convert_tests)
     # Vulkan compute exposure (step 2). Host-only, built when a Vulkan loader and headers exist (CI installs them).
     # The test exits 77 (skipped) when no Vulkan device is present; that is not a GPU result.
     find_package(Vulkan QUIET)

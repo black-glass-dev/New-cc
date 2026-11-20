@@ -2499,7 +2499,10 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         statusText.text = AppLanguage.text(R.string.message_d7e376c6eb)
         val codecMime = ExportVideoFormat.encoderMime(videoFormat)
         exportExecutor.execute {
-            var temporary = File(cacheDir, "owncut-export-${System.nanoTime()}.mp4")
+            // FP32 formats write their own container (MKV or zip); everything else starts as MP4.
+            val fp32Format = ExportVideoFormat.isFp32(videoFormat)
+            var temporary = File(cacheDir, "owncut-export-${System.nanoTime()}." +
+                (if (fp32Format) ExportVideoFormat.container(videoFormat) else "mp4"))
             var resultMessage = if (plan.omittedGapFrames > 0L) {
                 AppLanguage.text(R.string.message_21bed82a7e)
             } else {
@@ -2531,7 +2534,14 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                         fx.hasVideoTransformOrFx() || fx.hasAudioEnvelope()
                     }
                 val renderWith: (String) -> Unit = { mime ->
-                    if(route!=ExportRoute.SHIPPING) {
+                    if (fp32Format) {
+                        // 16/32-bit: FP32 frame loop. Plain timelines only, to the file the user picked.
+                        require(route == ExportRoute.SHIPPING) { AppLanguage.text(R.string.export_fp32_route_unsupported) }
+                        require(!useRichPipeline) { AppLanguage.text(R.string.export_fp32_rich_unsupported) }
+                        require(destination != null) { AppLanguage.text(R.string.export_fp32_gallery_unsupported) }
+                        TimelineFp32Exporter.export(this@MainActivity, plan, videoFormat, temporary, cancellation,
+                            interpretMissing, onProgress)
+                    } else if(route!=ExportRoute.SHIPPING) {
                         if (useRichPipeline) {
                             TimelineRenderExporter.exportRichGraded(
                                 this@MainActivity, plan, "explicit-candidate-${System.nanoTime()}",
@@ -2581,7 +2591,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                     temporary = encoded
                     resultMessage = AppLanguage.text(R.string.hevc_software_note) + " " + resultMessage
                 }
-                if (container != "mp4") {
+                if (container != "mp4" && !fp32Format) {
                     // Stream copy of the finished MP4 into MOV or Matroska; no re-encode.
                     val remuxed = File(cacheDir, "owncut-remux-${System.nanoTime()}.$container")
                     if (ExportVideoFormat.isTranscoded(videoFormat)) {
@@ -2662,6 +2672,8 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         ExportVideoFormat.PRORES_422_MOV -> R.string.export_format_mov_prores422
         ExportVideoFormat.DNXHR_HQ_MOV -> R.string.export_format_mov_dnxhr_hq
         ExportVideoFormat.DNXHR_HQ_MXF -> R.string.export_format_mxf_dnxhr_hq
+        ExportVideoFormat.FFV1_16_MKV -> R.string.export_format_mkv_ffv1_16
+        ExportVideoFormat.EXR_32_ZIP -> R.string.export_format_zip_exr_32
         ExportVideoFormat.MP4_HEVC10 -> R.string.export_format_mp4_hevc10
         ExportVideoFormat.MOV_HEVC10 -> R.string.export_format_mov_hevc10
         ExportVideoFormat.MKV_HEVC10 -> R.string.export_format_mkv_hevc10

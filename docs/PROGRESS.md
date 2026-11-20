@@ -1423,3 +1423,45 @@ NOT done / NOT run:
 - No bit-depth selector in the UI yet.
 - Vulkan device path: not run here (no ICD, `VkResult -9`, test exits 77). The Vulkan result is not a GPU result.
 - Android NDK build of `fp32_render_jni.cpp` and `owncut_android` (CI only). No phone run.
+
+## Bit-depth export step 3 — frame decoder, bit-depth choice, 16/32-bit export (video only)
+
+What is in the export list now: `MKV · FFV1 16-bit` (`mkv:ffv1`) and `ZIP · float EXR 32-bit` (`zip:exr`). They use the
+FP32 frame loop. 8-bit and 10-bit formats are unchanged.
+
+Pipeline (plain timelines only):
+- `SourceFrameDecoder.kt`: MediaExtractor + hardware MediaCodec decode into an ImageReader (YUV_420_888). No GL.
+  Frames in [sourceIn, sourceOut) are delivered in presentation order. A stall of 60 s fails the export.
+- `engine/color/src/yuv_convert.cpp` (+ JNI in `fp32_render_jni.cpp`, `YuvFrameConverter.kt`): BT.709 YUV 4:2:0 to RGBA8,
+  limited or full range, any plane stride, clockwise rotation (phone rotation metadata).
+- `Fp32FrameLoop.kt` (push model): RGBA8 → FP32 exposure (`ExposureRenderer`: Vulkan when present, otherwise the CPU
+  reference) → sink. 16-bit: `Ffv1FrameSink`. 32-bit: `ExrZipSink` (one float EXR per frame in a zip).
+- `TimelineFp32Exporter.kt`: probes every clip first and refuses before any output: grades, audio, rich features
+  (overlays, subtitles, transforms, speed, extra tracks, custom size), non-SDR-Rec.709 sources, missing frame rate,
+  mixed sizes or frame rates, odd sizes, gallery destination. Checks the zip entry count after writing.
+- `MainActivity.kt`: the FP32 branch is used only for the two new formats; the temporary file ends in `.mkv`/`.zip`; the MP4
+  remux step is skipped for them.
+
+Verified locally:
+- `make test`: PASS, includes `yuv_convert_tests` (BT.709 limited/full, red reference, padded and interleaved planes,
+  all four rotations against an independent inverse mapping, and refusals).
+- CMake host build (Ninja, Debug, `OWNCUT_BUILD_TESTS=ON`) and `ctest`: 14/14 PASS.
+- `tests/run_host_kotlin.py` with Kotlin 2.3.21 and JDK 21 (jdk4py): rc=0. `Fp32FrameLoopTest` covers bit-depth and
+  container rules, the new format ids, route decisions, in-order frames, FP32 exposure (no clamp), cancel, bad input,
+  and the EXR zip (entry names and EXR magic read back with `ZipInputStream`).
+- `fp32_render_jni.cpp` syntax-checked with `-Wall -Wextra -Wpedantic`: PASS.
+- `Ffv1Writer.kt`, `Ffv1FrameSink.kt`, `Fp32FrameLoop.kt`, `ExrFloatWriter.kt`, `ExportRoutePolicy.kt`: Kotlin `-Werror`: PASS.
+- `check_ui_resources.py`: 522 bilingual strings, parity PASS.
+
+NOT verified here (the Android SDK is not in the sandbox):
+- Compile of `SourceFrameDecoder.kt`, `YuvFrameConverter.kt`, `TimelineFp32Exporter.kt`, `MainActivity.kt` and the NDK build
+  of the JNI file. CI is the only compile check for these.
+- Any real decode, Vulkan device result, or phone run. The 16/32-bit output has never been produced on a device.
+
+Known limits (fail closed, not silent):
+- Output is not graded: no grade stage is in this path yet. Graded clips are refused.
+- No audio: clips with sound are refused. The FFV1 MKV and zip outputs carry video only.
+- Frame rate is an integer from the source (`KEY_FRAME_RATE`). For 29.97 sources the timebase is approximate.
+- Speed: CPU decode and conversion, then a per-frame copy into the renderer. Long clips are slow; phones with
+  faster decoders finish sooner.
+- 16-bit output clamps values above display white. 32-bit keeps them.

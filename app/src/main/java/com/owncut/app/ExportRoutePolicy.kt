@@ -22,8 +22,22 @@ internal object ExportVideoFormat {
     const val MP4_HEVC10 = "mp4:video/hevc10"
     const val MOV_HEVC10 = "mov:video/hevc10"
     const val MKV_HEVC10 = "mkv:video/hevc10"
+    /** 16-bit: FFV1 in MKV, from the FP32 frame loop (codec id "ffv1"). */
+    const val FFV1_16_MKV = "mkv:ffv1"
+    /** 32-bit: zip of uncompressed float EXR frames, from the FP32 frame loop (codec id "exr"). */
+    const val EXR_32_ZIP = "zip:exr"
     val ALL = listOf(MP4_H264, MP4_HEVC, MOV_H264, MOV_HEVC, MKV_H264, MKV_HEVC, MXF_H264,
-        PRORES_422_MOV, DNXHR_HQ_MOV, DNXHR_HQ_MXF, MP4_HEVC10, MOV_HEVC10, MKV_HEVC10)
+        PRORES_422_MOV, DNXHR_HQ_MOV, DNXHR_HQ_MXF, MP4_HEVC10, MOV_HEVC10, MKV_HEVC10,
+        FFV1_16_MKV, EXR_32_ZIP)
+    /** True for the formats written by the FP32 frame loop instead of the Media3 Transformer. */
+    fun isFp32(format: String) = codecMime(format).let { it == "ffv1" || it == "exr" }
+    /** Output bit depth of a format id. */
+    fun bitDepth(format: String): OutputBitDepth = when (codecMime(format)) {
+        "ffv1" -> OutputBitDepth.SIXTEEN
+        "exr" -> OutputBitDepth.THIRTY_TWO
+        Hevc10Codec.HEVC10_MIME -> OutputBitDepth.TEN
+        else -> OutputBitDepth.EIGHT
+    }
     fun container(format: String) = format.substringBefore(':')
     fun codecMime(format: String) = format.substringAfter(':')
     /** ProRes and DNxHR are encoded by FFmpeg from the platform H.264 export (a second generation). */
@@ -38,6 +52,7 @@ internal object ExportVideoFormat {
         "mov" -> "video/quicktime"
         "mkv" -> "video/x-matroska"
         "mxf" -> "application/mxf"
+        "zip" -> "application/zip"
         else -> "video/mp4"
     }
 }

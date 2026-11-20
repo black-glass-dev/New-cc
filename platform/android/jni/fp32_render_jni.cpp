@@ -16,6 +16,7 @@
 
 #include "editor/color_fp32.hpp"
 #include "editor/color_vulkan.hpp"
+#include "editor/yuv_convert.hpp"
 
 namespace {
 
@@ -103,4 +104,41 @@ Java_com_owncut_app_ExposureRenderer_nativeRender(JNIEnv* env, jclass, jlong han
 extern "C" JNIEXPORT void JNICALL
 Java_com_owncut_app_ExposureRenderer_nativeClose(JNIEnv*, jclass, jlong handle) {
     delete as_renderer(handle);
+}
+
+// YUV 4:2:0 planes from android.media.Image (direct buffers, any chroma pixel stride) to rotated RGBA8.
+extern "C" JNIEXPORT void JNICALL
+Java_com_owncut_app_YuvFrameConverter_nativeConvert(JNIEnv* env, jclass, jobject y_buf, jint y_row, jint y_pix,
+                                                    jobject u_buf, jint u_row, jint u_pix, jobject v_buf, jint v_row,
+                                                    jint v_pix, jint width, jint height, jint rotation,
+                                                    jboolean full_range, jobject out) {
+    const auto* y = static_cast<const std::uint8_t*>(env->GetDirectBufferAddress(y_buf));
+    const auto* u = static_cast<const std::uint8_t*>(env->GetDirectBufferAddress(u_buf));
+    const auto* v = static_cast<const std::uint8_t*>(env->GetDirectBufferAddress(v_buf));
+    auto* dst = static_cast<std::uint8_t*>(env->GetDirectBufferAddress(out));
+    if (y == nullptr || u == nullptr || v == nullptr || dst == nullptr) {
+        throw_java(env, "YUV convert needs direct plane and output buffers");
+        return;
+    }
+    const auto rot = static_cast<editor::color::yuv::Rotation>(rotation);
+    if (rot != editor::color::yuv::Rotation::Deg0 && rot != editor::color::yuv::Rotation::Deg90 &&
+        rot != editor::color::yuv::Rotation::Deg180 && rot != editor::color::yuv::Rotation::Deg270) {
+        throw_java(env, "YUV convert rotation must be 0, 90, 180 or 270");
+        return;
+    }
+    try {
+        editor::color::yuv::Frame420 frame;
+        frame.width = width;
+        frame.height = height;
+        frame.y = {std::span<const std::uint8_t>(y, static_cast<std::size_t>(env->GetDirectBufferCapacity(y_buf))), y_row, y_pix};
+        frame.u = {std::span<const std::uint8_t>(u, static_cast<std::size_t>(env->GetDirectBufferCapacity(u_buf))), u_row, u_pix};
+        frame.v = {std::span<const std::uint8_t>(v, static_cast<std::size_t>(env->GetDirectBufferCapacity(v_buf))), v_row, v_pix};
+        const std::size_t bytes = static_cast<std::size_t>(editor::color::yuv::output_width(width, height, rot)) *
+                                  static_cast<std::size_t>(editor::color::yuv::output_height(width, height, rot)) * 4;
+        editor::color::yuv::bt709_to_rgba8(frame,
+                                           full_range ? editor::color::yuv::Range::Full : editor::color::yuv::Range::Limited,
+                                           rot, std::span<std::uint8_t>(dst, bytes));
+    } catch (const std::exception& error) {
+        throw_java(env, std::string("YUV convert failed: ") + error.what());
+    }
 }
