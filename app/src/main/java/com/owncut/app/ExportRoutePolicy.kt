@@ -59,3 +59,16 @@ internal object ExportRoutePolicy {
         }
     }
 }
+
+/** Which pipeline a bit-depth choice uses. TRANSFORMER = existing Media3/HEVC path (8 and 10 bit).
+ * FP32_LOOP = the FP32 frame loop with a 16-bit FFV1 MKV or 32-bit EXR sequence sink. */
+internal enum class BitDepthRoute { TRANSFORMER, FP32_LOOP }
+
+internal object ExportBitDepthRoute {
+    /** Refuses incompatible container/depth pairs, then returns the pipeline. Pure: no Android dependency. */
+    fun of(depth: OutputBitDepth, container: String): BitDepthRoute {
+        OutputBitDepthPolicy.requireCompatible(depth, container)
+        return if (OutputBitDepthPolicy.writerFor(depth) == Fp32Writer.NONE) BitDepthRoute.TRANSFORMER
+        else BitDepthRoute.FP32_LOOP
+    }
+}

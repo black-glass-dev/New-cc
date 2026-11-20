@@ -344,7 +344,14 @@ internal object TimelineRenderExporter {
 
     private fun exportComposition(context: Context, plan: TimelineRemuxExporter.Plan, output: File,
         cancelled: AtomicBoolean, progress: (String) -> Unit, composition: Composition, candidate: Candidate?,
-        videoMime: String) {
+        videoMime: String, bitDepth: OutputBitDepth = OutputBitDepth.EIGHT) {
+        // 8/10-bit stay on the Transformer. 16/32-bit must use the FP32 loop, which has no decode source yet:
+        // refuse before any output file is created. Never silently downgrade the requested depth.
+        if (bitDepth != OutputBitDepth.EIGHT && bitDepth != OutputBitDepth.TEN) {
+            check(ExportBitDepthRoute.of(bitDepth, output.extension.lowercase()) == BitDepthRoute.TRANSFORMER) {
+                AppLanguage.text(R.string.export_fp32_frame_source_pending)
+            }
+        }
         val thread = HandlerThread("OwncutRender").apply { start() }
         val handler = Handler(thread.looper)
         val finished = CountDownLatch(1)

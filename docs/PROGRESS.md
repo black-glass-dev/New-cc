@@ -1391,3 +1391,35 @@ Verified locally:
 NOT run here: the Android NDK build of `ffv1_writer_jni.cpp` and the Android FFmpeg with ffv1 (CI), and any phone
 run. Known limit of this format: 16-bit integer output cannot hold values above display white, so they clamp (32-bit EXR
 keeps them).
+
+## Bit-depth export step 2 — FP32 frame loop, CPU fallback, bit-depth policy (host verified only)
+
+Changes:
+- `platform/android/jni/fp32_render_jni.cpp` + `app/.../ExposureRenderer.kt`: FP32 Rec.709 exposure. Uses the Vulkan
+  compute path (`color_vulkan.cpp`) when the phone has a device, otherwise the CPU FP32 reference (`fp32::rec709_exposure`).
+  Both produce the same float layout, so every phone can export; only speed depends on hardware. `owncut_android` links
+  the NDK `vulkan` library.
+- `app/.../Fp32FrameLoop.kt`: one FP32 frame loop for all bit depths (decode RGBA8 → FP32 exposure → sink), with
+  cancellation, progress, size and range checks. `OutputBitDepth` (8/10/16/32), `OutputBitDepthPolicy`,
+  `ExrSequenceSink` (32-bit, one float EXR per frame). `app/.../Ffv1FrameSink.kt` is the 16-bit FFV1 MKV sink.
+- `app/.../ExportRoutePolicy.kt`: `ExportBitDepthRoute.of` gives TRANSFORMER for 8/10-bit and FP32_LOOP for 16/32-bit,
+  and refuses mismatched containers (16-bit only in MKV, 32-bit only as EXR, 8/10-bit never EXR).
+- `TimelineRenderExporter.exportComposition`: refuses 16/32-bit with a bilingual message before any output file is
+  created (`export_fp32_frame_source_pending`). No caller passes a bit depth yet, so 8-bit export is unchanged.
+
+Verified locally:
+- `tests/kotlin/Fp32FrameLoopTest.kt` via `tests/run_host_kotlin.py` (pinned Kotlin 2.3.21, `-Werror`): PASS. Covers the
+  bit-depth and container matrix, route decisions, in-order frames, FP32 exposure (values above 1.0 and negatives kept),
+  cancellation, rejected bad input, and the EXR sequence written to disk. The full runner rc=0.
+- `fp32_render_jni.cpp` syntax-checked with `g++ -std=c++20 -Wall -Wextra -Wpedantic`: PASS.
+- `Ffv1Writer.kt`, `Ffv1FrameSink.kt`, `Fp32FrameLoop.kt`, `ExrFloatWriter.kt`, `ExposureRenderer.kt` type-checked with
+  Kotlin 2.3.21 `-Werror`: PASS (compile only, not run).
+- CMake host build and `ctest` 13/13: PASS. `make test`: PASS. `check_ui_resources.py` (511 bilingual strings): PASS.
+  Python unit tests, `progress.py`, `build_color_shaders.py --check`: PASS.
+
+NOT done / NOT run:
+- No decode source for the FP32 loop. The export still lacks a frame decoder (MediaCodec) that feeds RGBA8 frames with
+  speed ramps, transforms and text burn, so 16/32-bit export is refused, not produced.
+- No bit-depth selector in the UI yet.
+- Vulkan device path: not run here (no ICD, `VkResult -9`, test exits 77). The Vulkan result is not a GPU result.
+- Android NDK build of `fp32_render_jni.cpp` and `owncut_android` (CI only). No phone run.

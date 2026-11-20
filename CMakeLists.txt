@@ -45,7 +45,9 @@ if(ANDROID)
     set(OWNCUT_ANDROID_SOURCES
         platform/android/jni/editor_jni.cpp
         platform/android/jni/color_jni.cpp
-        platform/android/jni/color_module_jni.cpp)
+        platform/android/jni/color_module_jni.cpp
+        platform/android/jni/fp32_render_jni.cpp
+        engine/color/src/color_vulkan.cpp)
     if(OWNCUT_ENABLE_TIMELINE_ENGINE)
         list(APPEND OWNCUT_ANDROID_SOURCES
             modules/timeline_engine/bridge/android_jni.cpp
@@ -63,6 +65,8 @@ if(ANDROID)
     set(COLOR_WARNINGS_AS_ERRORS OFF)
     add_subdirectory(modules/color_engine)
     target_link_libraries(owncut_android PRIVATE color::engine)
+    # NDK Vulkan loader (API 24+). Exposure compute falls back to the CPU reference when no device exists.
+    target_link_libraries(owncut_android PRIVATE vulkan)
     target_compile_features(owncut_android PRIVATE cxx_std_20)
     # LGPL FFmpeg (scripts/build_ffmpeg_android.sh) for stream-copy MOV/MKV remux. Required for the APK.
     if(NOT DEFINED OWNCUT_FFMPEG_ROOT)
