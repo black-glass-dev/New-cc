@@ -90,7 +90,7 @@ internal object TimelineFp32Exporter {
         var audioPackets = 0
         val frames = try {
             val loop = Fp32FrameLoop(width, height, { rgba8, out ->
-                checkNotNull(currentGrade) { "no grade selected" }.apply(rgba8, out, width * height)
+                checkNotNull(currentGrade) { "no grade selected" }.grade(rgba8, out, width * height)
             }, sink)
             probes.forEachIndexed { index, probe ->
                 checkCancelled()

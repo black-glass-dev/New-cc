@@ -1486,9 +1486,13 @@ What changed:
 - Copies (3): the decoder hands its direct RGBA8 buffer to the loop (no per-frame ByteArray); the grade writes into a
   direct FloatBuffer; the FFV1 writer quantises straight from that buffer (`to_rgba16_interleaved`, no vector per frame);
   the EXR sink reuses one float array. Still one copy from the YUV converter to RGBA8 and one quantise in the writer.
-- Lint: `TimelineFp32Exporter.kt` now opts in to Media3 `UnstableApi` at file level (`androidx.annotation.OptIn`) and
-  drops the class-level annotation. Lint on `b4d4341` reported four Media3 opt-in usages with no file paths. This is the
-  likely cause, not confirmed: the Android lint job has not been re-run.
+- Lint: Android CI on `b4d4341` failed in `:app:lintDebug` with four Media3 opt-in usages (no file paths in the
+  annotations). Commit `753eb09` added a class-level `@UnstableApi` to `TimelineFp32Exporter.kt`, and its Android CI passed
+  (run `44730175942`). This step uses a file-level `androidx.annotation.OptIn` instead, which is the same opt-in at the
+  usage site. This step's Android lint has not been run yet.
+- Android compile fix (found by CI run `44752238066`): `ByteBuffer.clear()` returns `Buffer` on Android API levels, so the
+  chained `duplicate().clear().get(...)` in `Fp32FrameLoop.kt` did not compile there. The host JDK hides this. The calls are
+  now split into statements. The host Kotlin suite cannot catch this kind of error, so Android CI is the check.
 
 Verified locally (host only):
 - `tests/native/run_ffv1_host_check.py` (host FFmpeg n8.1.3, rebuilt with matroska/data/rawvideo, ffv1/rawvideo encoders):

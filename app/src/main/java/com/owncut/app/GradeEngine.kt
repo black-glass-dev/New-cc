@@ -8,7 +8,7 @@ import java.nio.FloatBuffer
  * The grade parameters are the same 17 values as the preview's shader parameters.
  */
 internal class GradeEngine private constructor(private var handle: Long) : AutoCloseable {
-    fun apply(rgba8: ByteBuffer, out: FloatBuffer, pixels: Int) {
+    fun grade(rgba8: ByteBuffer, out: FloatBuffer, pixels: Int) {
         check(handle != 0L) { "grade is closed" }
         require(rgba8.isDirect && out.isDirect) { "grade buffers must be direct" }
         require(pixels > 0 && rgba8.capacity() >= pixels * 4 && out.capacity() >= pixels * 4) {

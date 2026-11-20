@@ -58,7 +58,9 @@ internal class AdtsAudioSpool(private val asc: ByteArray, val file: File) : Auto
     fun write(packet: ByteBuffer, size: Int) {
         require(size > 0) { "empty AAC packet" }
         val payload = ByteArray(size)
-        packet.duplicate().clear().get(payload)
+        val view = packet.duplicate()
+        view.clear() // Buffer.clear() returns Buffer on Android API levels, so the call is not chained
+        view.get(payload)
         out.write(AdtsHeader.build(asc, size))
         out.write(payload)
         packets++
@@ -80,7 +82,9 @@ internal class ExrZipSink(
     private var closed = false
 
     override fun writeFrame(index: Int, rgba: FloatBuffer) {
-        rgba.duplicate().clear().get(values)
+        val view = rgba.duplicate()
+        view.clear() // see AdtsAudioSpool.write: not chained, for Android API compatibility
+        view.get(values)
         zip.putNextEntry(ZipEntry("frame_%06d.exr".format(index)))
         ExrFloatWriter.write(zip, width, height, values)
         zip.closeEntry()
