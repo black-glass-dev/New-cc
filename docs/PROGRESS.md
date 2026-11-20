@@ -1527,3 +1527,38 @@ Known limits (fail closed, not silent):
 - Grades on this route run on the CPU FP32 reference, one clip at a time. Long clips are still slow: CPU decode and
   conversion, then a native grade per frame.
 - Frame rate is still an integer from `KEY_FRAME_RATE`.
+
+## Vulkan FP32 grade shader and GPU export route (current branch work)
+
+What changed:
+- `engine/color/shaders/grade_fp32.comp`: new Vulkan compute shader for the FP32 Rec.709 grade. It applies the same
+  steps as `editor::color::Pipeline::linear` (exposure and balance, lift, gain, gamma, contrast, saturation, strength),
+  in binary32, with no clamp. A neutral grade uses an identity flag and copies the decoded RGBA8 bytes exactly.
+  Parameters arrive as push constants (96 bytes, within the Vulkan 1.0 minimum of 128).
+- `engine/color/src/color_vulkan.cpp`, `color_vulkan.hpp`: `ExposureCompute::grade(...)` added. Both shaders share one
+  buffer/image/submit path (`Impl::dispatch`). `grade` throws on a non-finite device output.
+- `platform/android/jni/grade_fp32_jni.cpp`, `GradeEngine.kt`: the export grade now opens the Vulkan backend when a
+  device exists and falls back to the CPU FP32 reference when it does not. The chosen backend is logged once per clip
+  grade (`OwnCutFp32Export`). A device error during apply throws; the export never switches backend mid-clip.
+  `grade(rgba8, out, width, height)` takes the frame size, because the image dispatch needs it.
+- `scripts/build_color_shaders.py`: `grade_fp32.comp` added to the list. Both committed SPIR-V headers were regenerated
+  with glslang 16.6.0 (built from the GitHub tag `16.6.0`). `--check` passes.
+
+Tests run here (host only):
+- `scripts/build_color_shaders.py --glslang .../glslangValidator`: both shaders compile to SPIR-V with no errors.
+- `scripts/build_color_shaders.py --check`: PASS.
+- `color_vulkan.cpp` and `tests/unit/color_vulkan_tests.cpp` syntax-checked with `g++ -std=c++20 -Wall -Wextra -Wpedantic`
+  against Vulkan-Headers `vulkan-sdk-1.4.350.1`: PASS. With `-Werror`, the check fails only on existing Vulkan struct
+  initialiser style (`-Wmissing-field-initializers`); the new code adds no other warning.
+- `tests/unit/color_grade_shader_mirror_tests.cpp` (new, host, no GPU): replays the shader's binary32 math operation by
+  operation and compares it with `fp32::Rec709Grader` on 120 random grades plus the neutral grade (165,120 pixels).
+  Worst channel error 3.49e-06, tolerance 1e-4: PASS. Wired into `make test` and CMake (`ctest` 9/9 PASS).
+- `make test`: PASS. `tests/check_ui_resources.py`: PASS. `tests/test_*.py`: PASS.
+
+NOT run here (so not claimed):
+- The Vulkan device test `owncut_color_vulkan_tests` (exposure and grade parity against the device). This sandbox has no
+  Vulkan loader or ICD, so the test cannot run here. It returns SKIP (77). The portable CI job installs lavapipe; the
+  device result is the CI result, not a local one. The test is extended to compare the grade with `Rec709Grader` at 1e-4.
+- The NDK build of the JNI files and the Kotlin compile of `GradeEngine.kt` and `TimelineFp32Exporter.kt`. No Android
+  SDK, NDK or `jni.h` in the sandbox. Android CI is the check.
+- Any phone or emulator run, GPU timing, or device output comparison. The export has not been run on a phone.

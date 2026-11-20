@@ -24,6 +24,7 @@ OUT_DIR = SHADER_DIR / 'generated'
 SHADERS = [
     # (source file, C++ identifier prefix)
     ('exposure_fp32.comp', 'kExposureFp32'),
+    ('grade_fp32.comp', 'kGradeFp32'),
 ]
 
 

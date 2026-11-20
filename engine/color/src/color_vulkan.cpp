@@ -10,12 +10,15 @@
 #include <utility>
 
 #include "../shaders/generated/exposure_fp32_spv.inc"
+#include "../shaders/generated/grade_fp32_spv.inc"
 
 namespace editor::color::vulkan {
 namespace {
 
 constexpr std::uint32_t kWorkgroupSize = 8; // must match local_size_x/y in exposure_fp32.comp
-constexpr std::uint32_t kPushConstantBytes = 16;
+// Exposure pushes 16 bytes; the shared layout reserves 96 for the grade block (<128 Vulkan 1.0 minimum).
+constexpr std::uint32_t kExposurePushBytes = 16;
+constexpr std::uint32_t kLayoutPushBytes = 96;
 constexpr VkFormat kFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
 
 [[noreturn]] void fail(const char* what, VkResult result) {
@@ -97,6 +100,8 @@ struct ExposureCompute::Impl {
     VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
     VkShaderModule shader = VK_NULL_HANDLE;
     VkPipeline pipeline = VK_NULL_HANDLE;
+    VkShaderModule grade_shader = VK_NULL_HANDLE;
+    VkPipeline grade_pipeline = VK_NULL_HANDLE;
     VkPhysicalDeviceMemoryProperties memory{};
     VkPhysicalDeviceLimits limits{};
     std::string name;
@@ -121,9 +126,17 @@ struct ExposureCompute::Impl {
 
     ~Impl() { destroy(); }
 
+    void validate_input(std::span<const std::uint8_t> rgba8, std::uint32_t width, std::uint32_t height) const;
+
+    // Shared buffer/image/submit path. Validation happens in the callers. push_size <= kLayoutPushBytes.
+    std::vector<fp32::RgbaF32> dispatch(VkPipeline target, std::span<const std::uint8_t> rgba8, std::uint32_t width,
+                                        std::uint32_t height, const void* push, std::uint32_t push_size);
+
     void destroy() noexcept {
         if (device) {
             vkDeviceWaitIdle(device);
+            if (grade_pipeline) vkDestroyPipeline(device, grade_pipeline, nullptr);
+            if (grade_shader) vkDestroyShaderModule(device, grade_shader, nullptr);
             if (pipeline) vkDestroyPipeline(device, pipeline, nullptr);
             if (shader) vkDestroyShaderModule(device, shader, nullptr);
             if (pipeline_layout) vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
@@ -137,6 +150,8 @@ struct ExposureCompute::Impl {
         instance = VK_NULL_HANDLE;
         pipeline = VK_NULL_HANDLE;
         shader = VK_NULL_HANDLE;
+        grade_pipeline = VK_NULL_HANDLE;
+        grade_shader = VK_NULL_HANDLE;
         pipeline_layout = VK_NULL_HANDLE;
         descriptor_pool = VK_NULL_HANDLE;
         set_layout = VK_NULL_HANDLE;
@@ -209,7 +224,7 @@ struct ExposureCompute::Impl {
 
         VkPushConstantRange range{};
         range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-        range.size = kPushConstantBytes;
+        range.size = kLayoutPushBytes;
         VkPipelineLayoutCreateInfo pipeline_info{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
         pipeline_info.setLayoutCount = 1;
         pipeline_info.pSetLayouts = &set_layout;
@@ -229,18 +244,22 @@ struct ExposureCompute::Impl {
         ds.pSetLayouts = &set_layout;
         check(vkAllocateDescriptorSets(device, &ds, &descriptor_set), "vkAllocateDescriptorSets");
 
-        VkShaderModuleCreateInfo shader_info{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-        shader_info.codeSize = sizeof(generated::kExposureFp32Spirv);
-        shader_info.pCode = generated::kExposureFp32Spirv;
-        check(vkCreateShaderModule(device, &shader_info, nullptr, &shader), "vkCreateShaderModule");
-
-        VkComputePipelineCreateInfo cp{VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
-        cp.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        cp.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-        cp.stage.module = shader;
-        cp.stage.pName = "main";
-        cp.layout = pipeline_layout;
-        check(vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &cp, nullptr, &pipeline), "vkCreateComputePipelines");
+        auto make_pipeline = [&](const std::uint32_t* code, std::size_t bytes, VkShaderModule& module,
+                                 VkPipeline& target) {
+            VkShaderModuleCreateInfo shader_info{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+            shader_info.codeSize = bytes;
+            shader_info.pCode = code;
+            check(vkCreateShaderModule(device, &shader_info, nullptr, &module), "vkCreateShaderModule");
+            VkComputePipelineCreateInfo cp{VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
+            cp.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+            cp.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+            cp.stage.module = module;
+            cp.stage.pName = "main";
+            cp.layout = pipeline_layout;
+            check(vkCreateComputePipelines(device, VK_NULL_HANDLE, 1, &cp, nullptr, &target), "vkCreateComputePipelines");
+        };
+        make_pipeline(generated::kExposureFp32Spirv, sizeof(generated::kExposureFp32Spirv), shader, pipeline);
+        make_pipeline(generated::kGradeFp32Spirv, sizeof(generated::kGradeFp32Spirv), grade_shader, grade_pipeline);
     }
 };
 
@@ -249,24 +268,29 @@ ExposureCompute::~ExposureCompute() = default;
 
 const std::string& ExposureCompute::device_name() const noexcept { return impl_->name; }
 
-std::vector<fp32::RgbaF32> ExposureCompute::render(std::span<const std::uint8_t> rgba8, std::uint32_t width,
-                                                   std::uint32_t height, float exposure_stops) {
+void ExposureCompute::Impl::validate_input(std::span<const std::uint8_t> rgba8, std::uint32_t width,
+                                          std::uint32_t height) const {
+    const Impl& d = *this;
     if (width == 0 || height == 0) throw std::invalid_argument("render: width and height must be positive");
     const std::uint64_t pixels = static_cast<std::uint64_t>(width) * height;
     if (rgba8.size() != pixels * 4) throw std::invalid_argument("render: input size must be width*height*4 bytes");
-    if (!std::isfinite(exposure_stops) || exposure_stops < -8.0f || exposure_stops > 8.0f) {
-        throw std::invalid_argument("render: exposure stops must be finite within [-8, 8]");
-    }
-    if (width > impl_->limits.maxImageDimension2D || height > impl_->limits.maxImageDimension2D) {
+    if (width > d.limits.maxImageDimension2D || height > d.limits.maxImageDimension2D) {
         throw std::invalid_argument("render: image exceeds device maxImageDimension2D");
     }
     const std::uint64_t input_bytes = pixels * 4;
-    const std::uint64_t output_bytes = pixels * sizeof(fp32::RgbaF32);
-    if (input_bytes > impl_->limits.maxStorageBufferRange || input_bytes > 0xFFFFFFFFull) {
+    if (input_bytes > d.limits.maxStorageBufferRange || input_bytes > 0xFFFFFFFFull) {
         throw std::invalid_argument("render: input exceeds device maxStorageBufferRange");
     }
+}
 
-    Impl& d = *impl_;
+std::vector<fp32::RgbaF32> ExposureCompute::Impl::dispatch(VkPipeline target, std::span<const std::uint8_t> rgba8,
+                                                              std::uint32_t width, std::uint32_t height,
+                                                              const void* push, std::uint32_t push_size) {
+    if (push_size > kLayoutPushBytes) throw std::invalid_argument("dispatch: push constants exceed layout");
+    Impl& d = *this;
+    const std::uint64_t pixels = static_cast<std::uint64_t>(width) * height;
+    const std::uint64_t input_bytes = pixels * 4;
+    const std::uint64_t output_bytes = pixels * sizeof(fp32::RgbaF32);
     Scratch s;
     s.device = d.device;
 
@@ -347,17 +371,10 @@ std::vector<fp32::RgbaF32> ExposureCompute::render(std::span<const std::uint8_t>
     vkCmdPipelineBarrier(s.command, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0,
                          0, nullptr, 0, nullptr, 1, &to_general);
 
-    vkCmdBindPipeline(s.command, VK_PIPELINE_BIND_POINT_COMPUTE, d.pipeline);
+    vkCmdBindPipeline(s.command, VK_PIPELINE_BIND_POINT_COMPUTE, target);
     vkCmdBindDescriptorSets(s.command, VK_PIPELINE_BIND_POINT_COMPUTE, d.pipeline_layout, 0, 1,
                             &d.descriptor_set, 0, nullptr);
-    struct PushConstants {
-        std::uint32_t width;
-        std::uint32_t height;
-        float exposure_scale;
-        float reserved;
-    } push{width, height, std::exp2(exposure_stops), 0.0f};
-    static_assert(sizeof(PushConstants) == kPushConstantBytes);
-    vkCmdPushConstants(s.command, d.pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(push), &push);
+    vkCmdPushConstants(s.command, d.pipeline_layout, VK_SHADER_STAGE_COMPUTE_BIT, 0, push_size, push);
     vkCmdDispatch(s.command, (width + kWorkgroupSize - 1) / kWorkgroupSize,
                   (height + kWorkgroupSize - 1) / kWorkgroupSize, 1);
 
@@ -400,6 +417,62 @@ std::vector<fp32::RgbaF32> ExposureCompute::render(std::span<const std::uint8_t>
     check(vkMapMemory(d.device, s.readback_memory, 0, output_bytes, 0, &mapped), "vkMapMemory(readback)");
     std::memcpy(out.data(), mapped, static_cast<std::size_t>(output_bytes));
     vkUnmapMemory(d.device, s.readback_memory);
+    return out;
+}
+
+
+std::vector<fp32::RgbaF32> ExposureCompute::render(std::span<const std::uint8_t> rgba8, std::uint32_t width,
+                                                   std::uint32_t height, float exposure_stops) {
+    impl_->validate_input(rgba8, width, height);
+    if (!std::isfinite(exposure_stops) || exposure_stops < -8.0f || exposure_stops > 8.0f) {
+        throw std::invalid_argument("render: exposure stops must be finite within [-8, 8]");
+    }
+    struct PushConstants {
+        std::uint32_t width;
+        std::uint32_t height;
+        float exposure_scale;
+        float reserved;
+    } push{width, height, std::exp2(exposure_stops), 0.0f};
+    static_assert(sizeof(PushConstants) == kExposurePushBytes);
+    return impl_->dispatch(impl_->pipeline, rgba8, width, height, &push, sizeof(push));
+}
+
+std::vector<fp32::RgbaF32> ExposureCompute::grade(std::span<const std::uint8_t> rgba8, std::uint32_t width,
+                                                  std::uint32_t height, const color::Grade& grade_in) {
+    // The Pipeline constructor validates the grade (color::validate) before any device work.
+    const color::Pipeline pipeline(grade_in);
+    impl_->validate_input(rgba8, width, height);
+    struct PushConstants {
+        float channel_scale[4];
+        float lift[4];
+        float gain[4];
+        float inverse_gamma[4];
+        float scalars[4]; // pivot, contrast, saturation, strength
+        std::uint32_t width;
+        std::uint32_t height;
+        std::uint32_t identity;
+        std::uint32_t reserved;
+    } push{};
+    static_assert(sizeof(PushConstants) == kLayoutPushBytes);
+    for (std::size_t c = 0; c < 3; ++c) {
+        push.channel_scale[c] = static_cast<float>(std::exp2(grade_in.exposure_stops + grade_in.balance_stops[c]));
+        push.lift[c] = static_cast<float>(grade_in.lift[c]);
+        push.gain[c] = static_cast<float>(grade_in.gain[c]);
+        push.inverse_gamma[c] = static_cast<float>(1.0 / grade_in.gamma[c]);
+    }
+    push.scalars[0] = static_cast<float>(grade_in.pivot);
+    push.scalars[1] = static_cast<float>(grade_in.contrast);
+    push.scalars[2] = static_cast<float>(grade_in.saturation);
+    push.scalars[3] = static_cast<float>(grade_in.strength);
+    push.width = width;
+    push.height = height;
+    push.identity = pipeline.identity() ? 1u : 0u;
+    auto out = impl_->dispatch(impl_->grade_pipeline, rgba8, width, height, &push, sizeof(push));
+    for (const fp32::RgbaF32& p : out) {
+        if (!std::isfinite(p.r) || !std::isfinite(p.g) || !std::isfinite(p.b) || !std::isfinite(p.a)) {
+            throw std::runtime_error("grade: device produced a non-finite FP32 value");
+        }
+    }
     return out;
 }
 

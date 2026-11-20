@@ -9,8 +9,11 @@
 //  * Matches editor::color::fp32::rec709_exposure up to float rounding of pow() on the device.
 //  * If no Vulkan device with the required features exists, the constructor throws NoVulkanDevice.
 //    Callers must treat that as "GPU path unavailable" and must not silently substitute another path.
-//  * This is NOT wired into the Android export or preview path yet.
+//  * grade(): the same Rec.709 grade as fp32::Rec709Grader (color::Pipeline::linear), evaluated in binary32
+//    on the device. Parameters are computed from the double-precision Grade on the host and stored as float.
+//  * Neither path is wired into the Android export or preview path by this header alone; see the JNI bridge.
 
+#include "editor/color.hpp"
 #include "editor/color_fp32.hpp"
 
 #include <cstddef>
@@ -39,6 +42,12 @@ public:
     // Requires rgba8.size() == width*height*4, width and height > 0, stops finite in [-8, 8].
     std::vector<fp32::RgbaF32> render(std::span<const std::uint8_t> rgba8, std::uint32_t width,
                                       std::uint32_t height, float exposure_stops);
+
+    // FP32 Rec.709 grade, same arithmetic as fp32::Rec709Grader. Validates the grade (color::validate) and
+    // dimensions before any device work. Throws std::invalid_argument on bad input and std::runtime_error when
+    // the device produces a non-finite value, so the caller never receives a silently corrupt frame.
+    std::vector<fp32::RgbaF32> grade(std::span<const std::uint8_t> rgba8, std::uint32_t width,
+                                     std::uint32_t height, const color::Grade& grade);
 
     const std::string& device_name() const noexcept;
 

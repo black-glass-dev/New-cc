@@ -5,6 +5,7 @@ package com.owncut.app
 import android.content.Context
 import android.net.Uri
 import android.os.Looper
+import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.CancellationException
@@ -19,6 +20,7 @@ import java.util.zip.ZipFile
  * Each clip is graded in FP32 (native CPU reference) before it is written. Frames are not clamped before the sink.
  */
 internal object TimelineFp32Exporter {
+    private const val TAG_FP32_EXPORT = "OwnCutFp32Export"
     private class ClipProbe(val clip: ClipSnapshot, val info: SourceVideoInfo, val fullRange: Boolean, val audio: AudioTrackInfo?)
 
     fun export(
@@ -90,12 +92,14 @@ internal object TimelineFp32Exporter {
         var audioPackets = 0
         val frames = try {
             val loop = Fp32FrameLoop(width, height, { rgba8, out ->
-                checkNotNull(currentGrade) { "no grade selected" }.grade(rgba8, out, width * height)
+                checkNotNull(currentGrade) { "no grade selected" }.grade(rgba8, out, width, height)
             }, sink)
             probes.forEachIndexed { index, probe ->
                 checkCancelled()
                 progress(AppLanguage.text(R.string.export_fp32_progress, index + 1, probes.size))
-                currentGrade = grades.getOrPut(probe.clip.grade) { GradeEngine.open(probe.clip.grade) }
+                currentGrade = grades.getOrPut(probe.clip.grade) {
+                    GradeEngine.open(probe.clip.grade).also { Log.i(TAG_FP32_EXPORT, "FP32 grade backend: ${it.backend}") }
+                }
                 val uri = Uri.parse(probe.clip.mediaId)
                 // Audio first for this clip: packets are small, and the muxer then holds at most one clip of audio.
                 if (probe.audio != null) {

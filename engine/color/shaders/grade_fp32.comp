@@ -1,0 +1,77 @@
+#version 450
+// FP32 Rec.709 SDR grade (step 2 GPU path, Vulkan compute). Mirrors editor::color::fp32::Rec709Grader, which
+// applies editor::color::Pipeline::linear after Rec.709 decode and before Rec.709 encode.
+// Input : packed RGBA8 bytes in memory order (byte0=R, byte1=G, byte2=B, byte3=A), one uint per pixel.
+// Output: RGBA32F storage image holding encoded Rec.709 values. NO clamp here, so values above 1.0 and
+//         below 0.0 survive until the explicit display conversion. Alpha is passed through (byte / 255).
+// Grade parameters are computed on the host from editor::color::Grade (double) and stored as float.
+// Compile to SPIR-V with scripts/build_color_shaders.py (Vulkan 1.0 target env).
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+layout(std430, set = 0, binding = 0) readonly buffer SourceRgba8 {
+    uint pixels[];
+} src;
+
+layout(set = 0, binding = 1, rgba32f) writeonly uniform image2D dst;
+
+// 96 bytes, well under the 128-byte Vulkan 1.0 minimum push-constant size.
+layout(push_constant) uniform Params {
+    vec4 channel_scale; // xyz = 2^(exposure + balance[c]), w unused
+    vec4 lift;          // xyz
+    vec4 gain;          // xyz
+    vec4 inverse_gamma; // xyz = 1 / gamma[c]
+    vec4 scalars;       // x = pivot, y = contrast, z = saturation, w = strength
+    uint width;
+    uint height;
+    uint identity;      // 1 = neutral grade: copy the decoded RGBA8 values exactly
+    uint reserved;
+} params;
+
+// Same constants as color_fp32.cpp. Linear segment 4.5*L below 0.081 encoded.
+float rec709_to_linear(float e) {
+    float a = abs(e);
+    float l = (a < 0.081) ? (a / 4.5) : pow((a + 0.099) / 1.099, 1.0 / 0.45);
+    return (e < 0.0) ? -l : l;
+}
+
+float rec709_from_linear(float l) {
+    float a = abs(l);
+    float e = (a < 0.018) ? (a * 4.5) : (1.099 * pow(a, 0.45) - 0.099);
+    return (l < 0.0) ? -e : e;
+}
+
+void main() {
+    uvec2 p = gl_GlobalInvocationID.xy;
+    if (p.x >= params.width || p.y >= params.height) {
+        return;
+    }
+    uint packed = src.pixels[p.y * params.width + p.x];
+    // Same scale as the CPU reference (1/255 as binary32).
+    const float kByte = 1.0 / 255.0;
+    float r = float(packed & 0xFFu) * kByte;
+    float g = float((packed >> 8) & 0xFFu) * kByte;
+    float b = float((packed >> 16) & 0xFFu) * kByte;
+    float a = float((packed >> 24) & 0xFFu) * kByte;
+
+    if (params.identity != 0u) {
+        imageStore(dst, ivec2(p), vec4(r, g, b, a));
+        return;
+    }
+
+    // Decode Rec.709 -> scene-linear.
+    vec3 original = vec3(rec709_to_linear(r), rec709_to_linear(g), rec709_to_linear(b));
+    // Pipeline::linear, in the same order: exposure/balance, lift, gain, gamma, contrast, saturation, strength.
+    vec3 x = original * params.channel_scale.xyz;
+    x = (x + params.lift.xyz * (vec3(1.0) - x)) * params.gain.xyz;
+    x = sign(x) * pow(abs(x), params.inverse_gamma.xyz);
+    float pivot = params.scalars.x;
+    x = vec3(pivot) + (x - vec3(pivot)) * params.scalars.y;
+    float y = dot(x, vec3(0.2126, 0.7152, 0.0722));
+    x = vec3(y) + params.scalars.z * (x - vec3(y));
+    x = original + params.scalars.w * (x - original);
+
+    // Encode back to Rec.709.
+    vec4 graded = vec4(rec709_from_linear(x.r), rec709_from_linear(x.g), rec709_from_linear(x.b), a);
+    imageStore(dst, ivec2(p), graded);
+}

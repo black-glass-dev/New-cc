@@ -10,6 +10,8 @@ test:
 	/tmp/owncut_grade_project_tests
 	$(CXX) $(CXXFLAGS) -Iengine/color/include engine/color/src/color.cpp engine/color/src/color_fp32.cpp engine/color/src/color_output.cpp tests/unit/color_fp32_tests.cpp -o /tmp/owncut_color_fp32_tests
 	/tmp/owncut_color_fp32_tests
+	$(CXX) $(CXXFLAGS) -Iengine/color/include engine/color/src/color.cpp engine/color/src/color_fp32.cpp engine/color/src/color_gpu.cpp tests/unit/color_grade_shader_mirror_tests.cpp -o /tmp/owncut_grade_shader_mirror_tests
+	/tmp/owncut_grade_shader_mirror_tests
 	$(CXX) $(CXXFLAGS) -Iengine/color/include engine/color/src/yuv_convert.cpp tests/unit/yuv_convert_tests.cpp -o /tmp/owncut_yuv_convert_tests
 	/tmp/owncut_yuv_convert_tests
 	$(CXX) $(CXXFLAGS) -Iengine/color/include engine/color/src/color_gpu.cpp engine/color/src/color.cpp tests/unit/color_tests.cpp -o /tmp/owncut_color_tests
@@ -21,4 +23,4 @@ test:
 	$(CXX) $(CXXFLAGS) -pthread $(INCLUDES) $(SOURCES) tests/unit/checkpoint_tests.cpp -o /tmp/owncut_checkpoint_tests
 	/tmp/owncut_checkpoint_tests
 clean:
-	rm -f /tmp/owncut_color_gpu_tests /tmp/owncut_grade_project_tests /tmp/owncut_color_tests /tmp/owncut_core_tests /tmp/owncut_session_tests /tmp/owncut_checkpoint_tests
+	rm -f /tmp/owncut_grade_shader_mirror_tests /tmp/owncut_color_gpu_tests /tmp/owncut_grade_project_tests /tmp/owncut_color_tests /tmp/owncut_core_tests /tmp/owncut_session_tests /tmp/owncut_checkpoint_tests
