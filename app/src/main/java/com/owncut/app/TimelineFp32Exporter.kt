@@ -3,6 +3,7 @@ package com.owncut.app
 import android.content.Context
 import android.net.Uri
 import android.os.Looper
+import androidx.media3.common.util.UnstableApi
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.ByteBuffer
@@ -15,6 +16,7 @@ import java.util.zip.ZipFile
  * SDR Rec.709 sources, the same frame size and frame rate for every clip, and no rich/overlay features (caller).
  * The decoded frames are not graded: the path has no grade stage yet, so grades stay on the 8/10-bit route.
  */
+@UnstableApi
 internal object TimelineFp32Exporter {
     private class ClipProbe(val clip: ClipSnapshot, val info: SourceVideoInfo, val fullRange: Boolean)
 
