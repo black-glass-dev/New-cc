@@ -47,6 +47,14 @@ with tempfile.TemporaryDirectory(prefix='owncut-rec709-oracle-') as directory:
         str(root/'tests/kotlin/Rec709OracleTest.kt'),'-Werror','-include-runtime','-d',str(jar)],env=env,check=True)
     subprocess.run([str(java_home/'bin/java'),'-jar',str(jar)],env=env,check=True)
 
+# 32-bit float EXR writer (uncompressed scanline). Writes a file; independent verification is documented in PROGRESS.md.
+with tempfile.TemporaryDirectory(prefix='owncut-exr-') as directory:
+    jar = Path(directory)/'exr-writer.jar'
+    subprocess.run(['bash',str(kotlin_home/'bin/kotlinc'),
+        str(root/'app/src/main/java/com/owncut/app/ExrFloatWriter.kt'),
+        str(root/'tests/kotlin/ExrFloatWriterTest.kt'),'-Werror','-include-runtime','-d',str(jar)],env=env,check=True)
+    subprocess.run([str(java_home/'bin/java'),'-cp',str(jar),'ExrFloatWriterTestKt',str(Path(directory)/'out.exr')],env=env,check=True)
+
 # Optional actual production ColorEngine bridge, not generated Android stubs.
 if len(sys.argv) == 4:
     import shutil

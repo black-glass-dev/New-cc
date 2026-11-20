@@ -1352,3 +1352,19 @@ NOT run here: any Vulkan device execution (no driver in the sandbox; apt and Mes
 result comes only from CI lavapipe on the next run. Not wired into the Android preview or export path yet. The GPU
 output on phones is unverified. Phone testing is user-owned (ADR 0014).
 Known limits: one buffer and image allocation per `render()` call (correctness reference, not a performance path).
+
+## Bit-depth export step 1 — 32-bit float EXR writer (host verified)
+
+User decision (this session): preview stays on the Media3 GL path; Vulkan is used for export only; export uses an FP32
+frame loop for every bit depth; 32-bit output is a float EXR image sequence, and 16-bit is a lossless FFV1 MKV video.
+
+Done in this step: `app/src/main/java/com/owncut/app/ExrFloatWriter.kt`, an uncompressed OpenEXR scanline writer
+(float32 RGBA, channels A,B,G,R, INCREASING_Y, no clamping). Test: `tests/kotlin/ExrFloatWriterTest.kt`, run by
+`tests/run_host_kotlin.py`.
+
+Verified locally: the file was read by an independent reader (OpenEXR 3.x Python wheel). Channels A,B,G,R, compression
+NO_COMPRESSION, data window (0,0)-(4,2). A 5x3 image with values from -1.0 to 2.0 matched exactly (max error 0.0).
+
+NOT done yet: FFV1 16-bit encoder (the app FFmpeg build has no ffv1 encoder; needs a config change and a JNI encode
+path), the Vulkan call inside the export loop, the source frame decode loop for export, and the bit-depth selector UI.
+Export is unchanged in this step, so no user-facing behaviour changed.
