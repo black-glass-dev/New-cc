@@ -21,6 +21,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parents[2]
 WIDTH, HEIGHT, FRAMES = 64, 48, 3
+AUDIO_PACKETS = 5
 
 
 def expected_frames():
@@ -51,11 +52,13 @@ def main() -> int:
         cmd += [str(ROOT / 'tests/native/ffv1_writer_host_test.cpp'), '-o', str(exe),
                 str(prefix / 'lib/libavformat.a'), str(prefix / 'lib/libavcodec.a'), str(prefix / 'lib/libavutil.a'),
                 '-lm', '-lpthread']
-        # Only the static engine source is needed for to_rgba16 (no JNI).
+        # Static engine sources for to_rgba16 and the FP32 grade (no JNI).
         cmd.insert(cmd.index(str(ROOT / 'tests/native/ffv1_writer_host_test.cpp')) + 1,
                    str(ROOT / 'engine/color/src/color_output.cpp'))
         cmd.insert(cmd.index(str(ROOT / 'tests/native/ffv1_writer_host_test.cpp')) + 1,
                    str(ROOT / 'engine/color/src/color_fp32.cpp'))
+        cmd.insert(cmd.index(str(ROOT / 'tests/native/ffv1_writer_host_test.cpp')) + 1,
+                   str(ROOT / 'engine/color/src/color.cpp'))
         subprocess.run(cmd, check=True)
 
         mkv = work / 'out.mkv'
@@ -76,6 +79,26 @@ def main() -> int:
             return 1
         print('PASS: %d frames, %dx%d, %d RGBA64 samples identical to the independent 16-bit reference'
               % (FRAMES, WIDTH, HEIGHT, expected.size))
+
+        # Audio: AAC packets are stream-copied into the MKV; the copied bytes must equal the input packets in order.
+        mkv_a = work / 'out_audio.mkv'
+        subprocess.run([str(exe), str(mkv_a), str(WIDTH), str(HEIGHT), str(FRAMES), str(AUDIO_PACKETS)], check=True)
+        audio_raw = work / 'audio.bin'
+        subprocess.run([args.ffmpeg, '-hide_banner', '-loglevel', 'error', '-y', '-i', str(mkv_a),
+                        '-map', '0:a', '-c', 'copy', '-f', 'data', str(audio_raw)], check=True)
+        got = audio_raw.read_bytes()
+        want = b''.join(bytes((i * 7 + k) & 255 for k in range(40 + i)) for i in range(AUDIO_PACKETS))
+        if got != want:
+            print('FAIL: audio bytes differ (%d got, %d expected)' % (len(got), len(want)))
+            return 1
+        video_a = work / 'video_audio.raw'
+        subprocess.run([args.ffmpeg, '-hide_banner', '-loglevel', 'error', '-y', '-i', str(mkv_a),
+                        '-map', '0:v', '-f', 'rawvideo', '-pix_fmt', 'rgba64le', str(video_a)], check=True)
+        if np.fromfile(video_a, dtype='<u2').size != expected.size:
+            print('FAIL: video frame count changed when audio is present')
+            return 1
+        print('PASS: %d AAC packets (%d bytes) stream-copied into MKV byte-identical; video unchanged'
+              % (AUDIO_PACKETS, len(want)))
     return 0
 
 

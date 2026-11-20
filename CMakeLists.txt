@@ -48,6 +48,7 @@ if(ANDROID)
         platform/android/jni/color_jni.cpp
         platform/android/jni/color_module_jni.cpp
         platform/android/jni/fp32_render_jni.cpp
+        platform/android/jni/grade_fp32_jni.cpp
         engine/color/src/color_vulkan.cpp)
     if(OWNCUT_ENABLE_TIMELINE_ENGINE)
         list(APPEND OWNCUT_ANDROID_SOURCES

@@ -8,7 +8,7 @@ test:
 	/tmp/owncut_color_gpu_tests
 	$(CXX) $(CXXFLAGS) -pthread $(INCLUDES) $(SOURCES) tests/unit/grade_project_tests.cpp -o /tmp/owncut_grade_project_tests
 	/tmp/owncut_grade_project_tests
-	$(CXX) $(CXXFLAGS) -Iengine/color/include engine/color/src/color_fp32.cpp engine/color/src/color_output.cpp tests/unit/color_fp32_tests.cpp -o /tmp/owncut_color_fp32_tests
+	$(CXX) $(CXXFLAGS) -Iengine/color/include engine/color/src/color.cpp engine/color/src/color_fp32.cpp engine/color/src/color_output.cpp tests/unit/color_fp32_tests.cpp -o /tmp/owncut_color_fp32_tests
 	/tmp/owncut_color_fp32_tests
 	$(CXX) $(CXXFLAGS) -Iengine/color/include engine/color/src/yuv_convert.cpp tests/unit/yuv_convert_tests.cpp -o /tmp/owncut_yuv_convert_tests
 	/tmp/owncut_yuv_convert_tests

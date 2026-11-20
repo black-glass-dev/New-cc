@@ -34,7 +34,7 @@ with tempfile.TemporaryDirectory(prefix='owncut-controls-') as directory:
     jar = Path(directory)/'controls.jar'
     subprocess.run(['bash',str(kotlin_home/'bin/kotlinc'),
         *[str(root/'app/src/main/java/com/owncut/app'/name) for name in
-          ('ColorSliderScale.kt','ColorPreviewFailure.kt','ExportFailureReport.kt','ExportRoutePolicy.kt','Fp32FrameLoop.kt','ExrFloatWriter.kt','WheelDragSession.kt','WheelPalette.kt')],
+          ('ColorSliderScale.kt','ColorPreviewFailure.kt','ExportFailureReport.kt','ExportRoutePolicy.kt','Fp32FrameLoop.kt','ExrFloatWriter.kt','AdtsHeader.kt','WheelDragSession.kt','WheelPalette.kt')],
         str(root/'tests/kotlin/ColorControlsTest.kt'),'-Werror','-include-runtime','-d',str(jar)],env=env,check=True)
     subprocess.run([str(java_home/'bin/java'),'-jar',str(jar)],env=env,check=True)
 
@@ -100,6 +100,6 @@ with tempfile.TemporaryDirectory(prefix='owncut-fp32-loop-') as directory:
     jar = Path(directory)/'fp32-loop.jar'
     subprocess.run(['bash',str(kotlin_home/'bin/kotlinc'),
         *[str(root/'app/src/main/java/com/owncut/app'/name) for name in
-          ('Fp32FrameLoop.kt','ExrFloatWriter.kt','ExportRoutePolicy.kt')],
+          ('Fp32FrameLoop.kt','ExrFloatWriter.kt','AdtsHeader.kt','ExportRoutePolicy.kt')],
         str(root/'tests/kotlin/Fp32FrameLoopTest.kt'),'-Werror','-include-runtime','-d',str(jar)],env=env,check=True)
     subprocess.run([str(java_home/'bin/java'),'-jar',str(jar),str(Path(directory)/'exr-seq')],env=env,check=True)

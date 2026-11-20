@@ -10,7 +10,10 @@
 //  * This is the CPU reference and the oracle for the GPU path. It is NOT a GPU, Vulkan or device
 //    result, and it does not replace the Media3 path that the app uses today.
 
+#include "editor/color.hpp"
+
 #include <cstddef>
+#include <cstdint>
 #include <span>
 #include <stdexcept>
 #include <vector>
@@ -35,6 +38,22 @@ float exposure_scale(float stops);
 // One FP32 exposure stage over an RGBA32F buffer. Input must be finite; alpha is passed through.
 // Decode -> linear exposure -> encode happens in one pass, so the intermediate stays FP32.
 void rec709_exposure(std::span<const RgbaF32> source, std::span<RgbaF32> destination, float exposure_stops);
+
+// FP32 grade between Rec.709 transfers. Decode Rec.709 -> scene-linear float, apply the grade arithmetic of
+// editor::color::Pipeline::linear (evaluated in double, stored as FP32), encode back to Rec.709. Alpha passes
+// through. An identity grade copies values exactly. No clamp anywhere. Instances are immutable and thread-safe
+// for disjoint destination spans.
+class Rec709Grader final {
+public:
+    explicit Rec709Grader(const color::Grade& grade);
+    [[nodiscard]] bool identity() const noexcept { return pipeline_.identity(); }
+    // source and destination are RGBA32F with the same pixel count.
+    void apply(std::span<const RgbaF32> source, std::span<RgbaF32> destination) const;
+    // source: packed RGBA8 bytes (4 per pixel, value/255). destination: one RgbaF32 per pixel.
+    void apply_rgba8(std::span<const std::uint8_t> source, std::span<RgbaF32> destination) const;
+private:
+    color::Pipeline pipeline_;
+};
 
 // No-op stage: copies FP32 values unchanged (used to test FP32 survival between stages).
 void copy_stage(std::span<const RgbaF32> source, std::span<RgbaF32> destination);

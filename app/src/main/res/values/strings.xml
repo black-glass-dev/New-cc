@@ -285,9 +285,10 @@
     <string name="export_fp32_rich_unsupported">16-bit and 32-bit export does not yet support overlays, subtitles, transforms, speed changes, extra tracks or custom resolution. Use 8-bit or 10-bit.</string>
     <string name="export_fp32_gallery_unsupported">16-bit and 32-bit export must be saved to a file, not the gallery.</string>
     <string name="export_fp32_no_clips">There are no clips to export.</string>
-    <string name="export_fp32_graded_unsupported">16-bit and 32-bit export does not include colour grades yet. Remove the grade or use 8-bit or 10-bit.</string>
-    <string name="export_fp32_audio_unsupported">16-bit and 32-bit export does not include audio yet. Use 8-bit or 10-bit for clips with sound.</string>
     <string name="export_fp32_frame_rate_missing">The source does not report a frame rate, so 16-bit or 32-bit export cannot time its frames.</string>
+    <string name="export_fp32_audio_codec">16-bit and 32-bit export copies AAC audio only. This source\'s audio codec is %1$s. Use 8-bit or 10-bit.</string>
+    <string name="export_fp32_audio_mixed">For 16-bit or 32-bit export, every clip must have the same AAC audio, or no clip may have audio.</string>
+    <string name="export_fp32_audio_profile">32-bit export stores AAC audio as ADTS, which cannot carry this AAC profile or sample rate. Use 16-bit, or 8-bit or 10-bit.</string>
     <string name="export_fp32_mixed_clips">All clips must have the same size (after rotation) and frame rate for 16-bit or 32-bit export.</string>
     <string name="export_fp32_odd_size">16-bit and 32-bit export needs an even frame width and height.</string>
     <string name="export_fp32_progress">Rendering clip %1$d of %2$d at full precision</string>

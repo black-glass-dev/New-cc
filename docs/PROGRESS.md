@@ -1459,9 +1459,66 @@ NOT verified here (the Android SDK is not in the sandbox):
 - Any real decode, Vulkan device result, or phone run. The 16/32-bit output has never been produced on a device.
 
 Known limits (fail closed, not silent):
-- Output is not graded: no grade stage is in this path yet. Graded clips are refused.
-- No audio: clips with sound are refused. The FFV1 MKV and zip outputs carry video only.
+- (Superseded by step 4 below: grades and audio are now handled. The text above describes step 3 only.)
 - Frame rate is an integer from the source (`KEY_FRAME_RATE`). For 29.97 sources the timebase is approximate.
 - Speed: CPU decode and conversion, then a per-frame copy into the renderer. Long clips are slow; phones with
   faster decoders finish sooner.
 - 16-bit output clamps values above display white. 32-bit keeps them.
+
+## Bit-depth export step 4 — audio, grade in the FP32 loop, fewer copies (host verified; Android build and device not run)
+
+Scope of this step, in the order requested: (1) audio in the 16/32-bit export, (2) the colour grade inside the FP32 loop,
+(3) fewer per-frame copies. 8-bit and 10-bit paths are unchanged.
+
+What changed:
+- Audio (1): AAC access units are copied from the source (`AacTrackSource.kt`, MediaExtractor, no decode, no re-encode),
+  stamped on the output timeline (clip offset = frames already written × 1e6 / fps, plus the time inside the clip).
+  - 16-bit MKV: `platform/android/jni/ffv1_writer_jni.cpp` adds an AAC stream (extradata = AudioSpecificConfig) and
+    `write_audio` (microsecond pts, rescaled to the stream time base). Audio for a clip is written before its frames.
+  - 32-bit zip: packets go to an ADTS spool (`AdtsHeader.kt`, pure Kotlin) and are added last as `audio.aac`.
+    The zip entry count is checked: frames, plus one when audio packets were written.
+  - Refused before any output: non-AAC audio; clips whose audio config differs or where only some clips have audio;
+    for 32-bit, an AAC profile or sample rate that ADTS cannot carry (for example HE-AAC).
+- Grade (2): `Rec709Grader` (`engine/color/src/color_fp32.cpp`) applies the same grade arithmetic as `Pipeline::linear`
+  between Rec.709 transfer functions, in FP32 storage, with no clamp. `GradeEngine.kt` / `grade_fp32_jni.cpp` pass the 17
+  grade parameters per clip. Identity grades copy the encoded values exactly. Graded clips are no longer refused.
+  The export now runs the CPU grade, not the Vulkan compute path; the Vulkan grade shader has not been extended yet.
+- Copies (3): the decoder hands its direct RGBA8 buffer to the loop (no per-frame ByteArray); the grade writes into a
+  direct FloatBuffer; the FFV1 writer quantises straight from that buffer (`to_rgba16_interleaved`, no vector per frame);
+  the EXR sink reuses one float array. Still one copy from the YUV converter to RGBA8 and one quantise in the writer.
+- Lint: `TimelineFp32Exporter.kt` now opts in to Media3 `UnstableApi` at file level (`androidx.annotation.OptIn`) and
+  drops the class-level annotation. Lint on `b4d4341` reported four Media3 opt-in usages with no file paths. This is the
+  likely cause, not confirmed: the Android lint job has not been re-run.
+
+Verified locally (host only):
+- `tests/native/run_ffv1_host_check.py` (host FFmpeg n8.1.3, rebuilt with matroska/data/rawvideo, ffv1/rawvideo encoders):
+  PASS, 36,864 RGBA64 samples identical; PASS, 5 AAC packets (210 bytes) stream-copied into the MKV byte-identical, and
+  video unchanged with audio present. The AAC packets are synthetic bytes, so ffmpeg prints decoder warnings; the check
+  is about copy, not decode.
+- `make test`: PASS (includes `owncut_color_fp32_tests` with grade-in-loop cases: identity bit-exact, alpha passed,
+  match to the double-precision `Pipeline` oracle within 2e-5 relative, highlights above 1.0 kept, RGBA8 entry point,
+  non-finite and size refusals, interleaved 16-bit equal to the span version, NaN refused).
+- CMake host build (Ninja, Debug, `OWNCUT_BUILD_TESTS=ON`) and `ctest`: 14/14 PASS.
+- `tests/run_host_kotlin.py` (Kotlin 2.3.21, JDK 25 from jdk4py): rc=0. `Fp32FrameLoopTest` covers the loop with direct
+  buffers, render inputs, sink order, the ADTS header layout for AAC LC 48 kHz stereo, ADTS support and refusal cases,
+  and the zip with `audio.aac` (ADTS frame of 27 bytes read back).
+- `grade_fp32_jni.cpp` and `ffv1_writer_jni.cpp` syntax-checked with `-Wall -Wextra -Wpedantic -Werror` against the real JDK
+  `jni.h`: PASS.
+- `check_ui_resources.py`: PASS (new strings `export_fp32_audio_codec`, `export_fp32_audio_mixed`,
+  `export_fp32_audio_profile` in both languages; two obsolete refusals removed).
+- `scripts/build_color_shaders.py --check`: PASS. `scripts/progress.py`: ran. `tests/test_*.py`: PASS.
+
+NOT verified here:
+- The Android build of the new Kotlin (`TimelineFp32Exporter.kt`, `AacTrackSource.kt`, `GradeEngine.kt`, `Ffv1Writer.kt`,
+  `Ffv1FrameSink.kt`, `SourceFrameDecoder.kt`) and the NDK build of the JNI files. CI is the only compile check for these.
+- Android lint (the Android SDK is not in the sandbox).
+- Any real decode, AAC copy from a phone file, Vulkan device result, or phone run.
+
+Known limits (fail closed, not silent):
+- Audio timing follows the video frame count per clip. The audio of a clip is cut to its source range; AAC frame
+  granularity (about 21 ms) can shift a boundary by part of a frame. Speed-changed clips, volume envelopes and ducking are
+  not applied on this route. Those features are refused by the rich-feature check in the caller.
+- The 16-bit output clamps values above display white. The 32-bit output keeps them.
+- Grades on this route run on the CPU FP32 reference, one clip at a time. Long clips are still slow: CPU decode and
+  conversion, then a native grade per frame.
+- Frame rate is still an integer from `KEY_FRAME_RATE`.

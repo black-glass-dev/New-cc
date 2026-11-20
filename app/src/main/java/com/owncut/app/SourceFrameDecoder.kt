@@ -64,7 +64,8 @@ internal object SourceFrameDecoder {
     }
 
     /** Decodes frames with presentation time in [startMs, endMs) and passes each one to [onFrame] as RGBA8
-     * (outputWidth*outputHeight*4 bytes, rotated). Returns the number of frames delivered. */
+     * (outputWidth*outputHeight*4 bytes, rotated, direct buffer at position 0). The buffer is reused, so [onFrame]
+     * must finish with it before returning. Returns the number of frames delivered. */
     fun decodeRange(
         context: Context,
         uri: Uri,
@@ -72,7 +73,7 @@ internal object SourceFrameDecoder {
         endMs: Long,
         fullRange: Boolean,
         cancelled: () -> Boolean,
-        onFrame: (ByteArray) -> Unit,
+        onFrame: (ByteBuffer) -> Unit,
     ): Int {
         require(startMs >= 0 && endMs > startMs) { "clip range must be non-empty" }
         val startUs = startMs * 1000L
@@ -153,10 +154,9 @@ internal object SourceFrameDecoder {
                         } finally {
                             image.close()
                         }
+                        // The buffer is reused for the next frame: the callback must consume it before returning.
                         rgba.clear()
-                        val bytes = ByteArray(outWidth * outHeight * 4)
-                        rgba.get(bytes)
-                        onFrame(bytes)
+                        onFrame(rgba)
                         written++
                     }
                     if (endOfStream || pts >= endUs) outputDone = true

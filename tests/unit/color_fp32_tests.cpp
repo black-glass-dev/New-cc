@@ -1,5 +1,6 @@
 // FP32 reference colour path: precision of intermediates, Rec.709 transfer, exposure, display conversion.
 // Host CPU only. Not a GPU, Vulkan, device or codec result.
+#include "editor/color.hpp"
 #include "editor/color_fp32.hpp"
 #include "editor/color_output.hpp"
 
@@ -170,6 +171,66 @@ void output_16bit_clamps_rounds_and_rejects_bad_input() {
     fails([&] { to_rgba16(p, short_dst); });
 }
 
+
+// Grade in the FP32 loop: identity is bit-exact, alpha passes, graded values match the double-precision
+// Pipeline oracle within FP32 tolerance, highlights above 1.0 survive, and bad input is rejected.
+void grade_in_fp32_loop() {
+    using editor::color::Grade;
+    const Rec709Grader identity{Grade{}};
+    check(identity.identity());
+    const std::vector<RgbaF32> src{{0.1f, 0.5f, 0.9f, 0.25f}, {1.5f, 0.0f, 2.0f, 1.0f}};
+    std::vector<RgbaF32> dst(2);
+    identity.apply(src, dst);
+    check(dst == src);
+
+    Grade g;
+    g.exposure_stops = 1.0;
+    g.saturation = 1.4;
+    g.contrast = 1.2;
+    g.lift = {0.02, 0.0, -0.01};
+    g.gain = {1.1, 1.0, 0.9};
+    const Rec709Grader graded{g};
+    check(!graded.identity());
+    const editor::color::Pipeline oracle{g};
+    std::vector<RgbaF32> out(2);
+    graded.apply(src, out);
+    for (std::size_t i = 0; i < src.size(); ++i) {
+        check(out[i].a == src[i].a);
+        const auto expected = oracle.linear({
+            static_cast<double>(rec709_to_linear(src[i].r)),
+            static_cast<double>(rec709_to_linear(src[i].g)),
+            static_cast<double>(rec709_to_linear(src[i].b))});
+        const double got[3] = {rec709_to_linear(out[i].r), rec709_to_linear(out[i].g), rec709_to_linear(out[i].b)};
+        const double want[3] = {expected.r, expected.g, expected.b};
+        for (int c = 0; c < 3; ++c) check(std::abs(got[c] - want[c]) < 2e-5 * std::max(1.0, std::abs(want[c])));
+    }
+    check(out[1].r > 1.0f || out[1].b > 1.0f); // highlights are not clamped inside the pipeline
+
+    std::vector<RgbaF32> small(1);
+    const std::vector<RgbaF32> two{src[0], src[1]};
+    fails([&] { graded.apply(two, small); });
+    const std::vector<RgbaF32> nonfinite{{std::numeric_limits<float>::infinity(), 0, 0, 1}};
+    fails([&] { graded.apply(nonfinite, small); });
+
+    // RGBA8 entry point: 255/0 bytes map to the same FP32 values as the float path.
+    const std::uint8_t bytes[4] = {255, 0, 128, 255};
+    std::vector<RgbaF32> from_bytes(1);
+    identity.apply_rgba8(bytes, from_bytes);
+    check(std::abs(from_bytes[0].r - 1.0f) < 1e-7f && from_bytes[0].g == 0.0f && from_bytes[0].a == 1.0f);
+    fails([&] { identity.apply_rgba8(std::span<const std::uint8_t>(bytes, 3), from_bytes); });
+}
+
+void interleaved_16bit_matches_span_version() {
+    const std::vector<RgbaF32> p{{0.0f, 0.25f, 1.0f, 0.5f}, {1.7f, -0.2f, 0.333f, 1.0f}};
+    const auto reference = editor::color::output::to_rgba16(p);
+    std::vector<std::uint16_t> out(reference.size());
+    const float flat[8] = {0.0f, 0.25f, 1.0f, 0.5f, 1.7f, -0.2f, 0.333f, 1.0f};
+    editor::color::output::to_rgba16_interleaved(flat, 2, out.data());
+    check(out == reference);
+    const float bad[4] = {0.0f, std::numeric_limits<float>::quiet_NaN(), 0.0f, 0.0f};
+    fails([&] { editor::color::output::to_rgba16_interleaved(bad, 1, out.data()); });
+}
+
 } // namespace
 
 int main() {
@@ -181,7 +242,9 @@ int main() {
         exposure_matches_double_reference_and_keeps_highlights();
         display_conversion_is_the_only_clamp();
         output_16bit_clamps_rounds_and_rejects_bad_input();
-        std::cout << "FP32 colour reference: format, intermediate patch, FP16 control, Rec.709 transfer, exposure and display conversion tests passed\n";
+        grade_in_fp32_loop();
+        interleaved_16bit_matches_span_version();
+        std::cout << "FP32 colour reference: format, intermediate patch, FP16 control, Rec.709 transfer, exposure and display conversion, grade-in-loop and interleaved 16-bit tests passed\n";
     } catch (const std::exception& error) {
         std::cerr << error.what() << '\n';
         return 1;

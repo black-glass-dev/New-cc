@@ -67,6 +67,41 @@ void rec709_exposure(std::span<const RgbaF32> source, std::span<RgbaF32> destina
     }
 }
 
+Rec709Grader::Rec709Grader(const color::Grade& grade) : pipeline_(grade) {}
+
+namespace {
+RgbaF32 grade_pixel(const color::Pipeline& pipeline, float r, float g, float b, float a) {
+    if (pipeline.identity()) return RgbaF32{r, g, b, a};
+    require_finite(r, "Rec709Grader: non-finite red");
+    require_finite(g, "Rec709Grader: non-finite green");
+    require_finite(b, "Rec709Grader: non-finite blue");
+    require_finite(a, "Rec709Grader: non-finite alpha");
+    const color::Rgb linear = pipeline.linear({static_cast<double>(rec709_to_linear(r)),
+                                              static_cast<double>(rec709_to_linear(g)),
+                                              static_cast<double>(rec709_to_linear(b))});
+    return RgbaF32{rec709_from_linear(static_cast<float>(linear.r)),
+                   rec709_from_linear(static_cast<float>(linear.g)),
+                   rec709_from_linear(static_cast<float>(linear.b)), a};
+}
+} // namespace
+
+void Rec709Grader::apply(std::span<const RgbaF32> source, std::span<RgbaF32> destination) const {
+    if (source.size() != destination.size()) throw std::invalid_argument("Rec709Grader: size mismatch");
+    for (std::size_t i = 0; i < source.size(); ++i) {
+        const RgbaF32& in = source[i];
+        destination[i] = grade_pixel(pipeline_, in.r, in.g, in.b, in.a);
+    }
+}
+
+void Rec709Grader::apply_rgba8(std::span<const std::uint8_t> source, std::span<RgbaF32> destination) const {
+    if (source.size() != destination.size() * 4) throw std::invalid_argument("Rec709Grader: RGBA8 size mismatch");
+    constexpr float kScale = 1.0f / 255.0f;
+    for (std::size_t i = 0; i < destination.size(); ++i) {
+        destination[i] = grade_pixel(pipeline_, source[i * 4] * kScale, source[i * 4 + 1] * kScale,
+                                     source[i * 4 + 2] * kScale, source[i * 4 + 3] * kScale);
+    }
+}
+
 void copy_stage(std::span<const RgbaF32> source, std::span<RgbaF32> destination) {
     if (source.size() != destination.size()) throw std::invalid_argument("copy_stage: size mismatch");
     std::copy(source.begin(), source.end(), destination.begin());

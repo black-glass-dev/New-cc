@@ -1,6 +1,11 @@
 package com.owncut.app
 
+import java.io.File
+import java.io.FileOutputStream
 import java.io.OutputStream
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.nio.FloatBuffer
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -35,50 +40,112 @@ internal object OutputBitDepthPolicy {
     }
 }
 
-/** Receives one FP32 RGBA frame (width*height*4 floats). Frames arrive in order. */
+/** Receives FP32 output. Frames and audio arrive in timeline order.
+ * [writeFrame]: one RGBA frame, width*height*4 floats, read from position 0 to the limit (a direct buffer owned by the loop).
+ * [writeAudio]: one compressed AAC access unit (first [size] bytes from position 0) at [ptsUs] on the output timeline.
+ */
 internal interface Fp32FrameSink : AutoCloseable {
-    fun writeFrame(index: Int, rgba: FloatArray)
+    fun writeFrame(index: Int, rgba: FloatBuffer)
+    fun writeAudio(packet: ByteBuffer, size: Int, ptsUs: Long)
 }
 
-/** 32-bit: one uncompressed float EXR per frame, stored in a zip (frame_000000.exr, ...). */
-internal class ExrZipSink(out: OutputStream, private val width: Int, private val height: Int) : Fp32FrameSink {
-    private val zip = ZipOutputStream(out)
-    override fun writeFrame(index: Int, rgba: FloatArray) {
-        zip.putNextEntry(ZipEntry("frame_%06d.exr".format(index)))
-        ExrFloatWriter.write(zip, width, height, rgba)
-        zip.closeEntry()
+/** Keeps AAC access units as an ADTS stream on disk (one file, appended in order). Pure Kotlin, host-tested. */
+internal class AdtsAudioSpool(private val asc: ByteArray, val file: File) : AutoCloseable {
+    private val out = FileOutputStream(file)
+    var packets = 0
+        private set
+
+    fun write(packet: ByteBuffer, size: Int) {
+        require(size > 0) { "empty AAC packet" }
+        val payload = ByteArray(size)
+        packet.duplicate().clear().get(payload)
+        out.write(AdtsHeader.build(asc, size))
+        out.write(payload)
+        packets++
     }
-    override fun close() = zip.close()
+
+    override fun close() = out.close()
 }
 
-/** One FP32 frame loop for every bit depth: RGBA8 frame → FP32 exposure → sink. Push model: the decoder calls [submit].
- * [render] fills the FP32 buffer (Vulkan or CPU reference). Frames are never clamped before the sink.
+/** 32-bit: one uncompressed float EXR per frame in a zip (frame_000000.exr, ...). Audio, when present, is added last as audio.aac (ADTS). */
+internal class ExrZipSink(
+    out: OutputStream,
+    private val width: Int,
+    private val height: Int,
+    private val audio: AdtsAudioSpool?,
+) : Fp32FrameSink {
+    private val zip = ZipOutputStream(out)
+    private val values = FloatArray(width * height * 4)
+    private var frames = 0
+    private var closed = false
+
+    override fun writeFrame(index: Int, rgba: FloatBuffer) {
+        rgba.duplicate().clear().get(values)
+        zip.putNextEntry(ZipEntry("frame_%06d.exr".format(index)))
+        ExrFloatWriter.write(zip, width, height, values)
+        zip.closeEntry()
+        frames++
+    }
+
+    override fun writeAudio(packet: ByteBuffer, size: Int, ptsUs: Long) {
+        checkNotNull(audio) { "no audio spool for this export" }
+        audio.write(packet, size)
+    }
+
+    /** Number of frame entries written so far. */
+    val frameEntries: Int get() = frames
+
+    override fun close() {
+        if (closed) return
+        closed = true
+        try {
+            audio?.let { spool ->
+                spool.close()
+                if (spool.packets > 0) {
+                    zip.putNextEntry(ZipEntry("audio.aac"))
+                    spool.file.inputStream().use { it.copyTo(zip) }
+                    zip.closeEntry()
+                }
+            }
+        } finally {
+            zip.close()
+        }
+    }
+}
+
+/** One FP32 frame loop for every bit depth: RGBA8 frame → FP32 grade → sink. Push model: the decoder calls [submit].
+ * [render] fills the FP32 buffer from the RGBA8 frame (native grade, CPU reference). Frames are never clamped before the sink.
  */
 internal class Fp32FrameLoop(
     private val width: Int,
     private val height: Int,
-    private val stops: Float,
-    private val render: (rgba8: ByteArray, stops: Float, out: FloatArray) -> Unit,
+    private val render: (rgba8: ByteBuffer, out: FloatBuffer) -> Unit,
     private val sink: Fp32FrameSink,
 ) {
-    private val out: FloatArray
+    private val frameBytes: Int = Math.multiplyExact(Math.multiplyExact(width, height), 4)
+    private val out: FloatBuffer
 
     var framesWritten = 0
         private set
 
     init {
         require(width > 0 && height > 0 && width % 2 == 0 && height % 2 == 0) { "frame size must be positive and even" }
-        require(stops.isFinite() && stops >= -8f && stops <= 8f) { "exposure must be finite within [-8, 8]" }
-        out = FloatArray(Math.multiplyExact(Math.multiplyExact(width, height), 4))
+        out = ByteBuffer.allocateDirect(Math.multiplyExact(frameBytes, 4)).order(ByteOrder.nativeOrder()).asFloatBuffer()
     }
 
-    fun submit(rgba8: ByteArray) {
-        require(rgba8.size == Math.multiplyExact(Math.multiplyExact(width, height), 4)) {
-            "frame has ${rgba8.size} bytes, expected ${width * height * 4}"
-        }
-        render(rgba8, stops, out)
+    /** [rgba8] holds width*height*4 bytes from its position to its limit. */
+    fun submit(rgba8: ByteBuffer) {
+        require(rgba8.remaining() == frameBytes) { "frame has ${rgba8.remaining()} bytes, expected $frameBytes" }
+        out.clear()
+        render(rgba8, out)
+        out.clear()
         sink.writeFrame(framesWritten, out)
         framesWritten++
+    }
+
+    fun writeAudio(packet: ByteBuffer, size: Int, ptsUs: Long) {
+        require(ptsUs >= 0L) { "audio timestamp must not be negative" }
+        sink.writeAudio(packet, size, ptsUs)
     }
 
     /** Returns the number of frames written. An export with no frames is an error, not an empty file. */

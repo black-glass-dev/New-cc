@@ -285,9 +285,10 @@
     <string name="export_fp32_rich_unsupported">16-bit ও 32-bit export এখনও overlay, subtitle, transform, speed পরিবর্তন, অতিরিক্ত track বা কাস্টম resolution সমর্থন করে না। 8-bit বা 10-bit ব্যবহার করুন।</string>
     <string name="export_fp32_gallery_unsupported">16-bit ও 32-bit export ফাইলে সংরক্ষণ করতে হবে, gallery-তে নয়।</string>
     <string name="export_fp32_no_clips">export করার জন্য কোনো clip নেই।</string>
-    <string name="export_fp32_graded_unsupported">16-bit ও 32-bit export এখনও colour grade অন্তর্ভুক্ত করে না। grade সরান বা 8-bit বা 10-bit ব্যবহার করুন।</string>
-    <string name="export_fp32_audio_unsupported">16-bit ও 32-bit export এখনও audio অন্তর্ভুক্ত করে না। শব্দযুক্ত clip-এর জন্য 8-bit বা 10-bit ব্যবহার করুন।</string>
     <string name="export_fp32_frame_rate_missing">উৎস frame rate জানায়নি, তাই 16-bit বা 32-bit export ফ্রেমের সময় ঠিক করতে পারবে না।</string>
+    <string name="export_fp32_audio_codec">16-bit ও 32-bit export শুধু AAC audio কপি করে। এই উৎসের audio codec %1$s। 8-bit বা 10-bit ব্যবহার করুন।</string>
+    <string name="export_fp32_audio_mixed">16-bit বা 32-bit export-এর জন্য হয় সব clip-এ একই AAC audio থাকতে হবে, নয়তো কোনো clip-এ audio থাকবে না।</string>
+    <string name="export_fp32_audio_profile">32-bit export AAC audio-কে ADTS হিসেবে রাখে, এই AAC profile বা sample rate সমর্থিত নয়। 16-bit ব্যবহার করুন, অথবা 8-bit বা 10-bit।</string>
     <string name="export_fp32_mixed_clips">16-bit বা 32-bit export-এর জন্য সব clip-এর আকার (rotation-এর পরে) ও frame rate এক হতে হবে।</string>
     <string name="export_fp32_odd_size">16-bit ও 32-bit export-এর জন্য frame-এর width ও height জোড় সংখ্যা হতে হবে।</string>
     <string name="export_fp32_progress">পূর্ণ precision-এ clip %1$d/%2$d রেন্ডার হচ্ছে</string>
