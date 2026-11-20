@@ -144,12 +144,15 @@ int run() {
         std::printf("grade worst channel error vs CPU reference: %.3g\n", worst);
         check(worst <= kTolerance);
     }
-    // Neutral grade is a byte-for-byte copy of the decoded RGBA8 values (identity flag), not a transfer round trip.
+    // Neutral grade is the decoded RGBA8 value (byte * 1/255 in binary32, the same product the shader and the CPU
+    // reference use), not a transfer round trip. Division by 255 is NOT the same float for many bytes.
     {
         const auto neutral = compute->grade(bytes, width, height, Grade{});
+        const float scale = 1.0f / 255.0f;
         for (std::size_t i = 0; i < neutral.size(); ++i) {
-            check(neutral[i].r == bytes[i * 4] / 255.0f);
-            check(neutral[i].b == bytes[i * 4 + 2] / 255.0f);
+            check(neutral[i].r == static_cast<float>(bytes[i * 4]) * scale);
+            check(neutral[i].g == static_cast<float>(bytes[i * 4 + 1]) * scale);
+            check(neutral[i].b == static_cast<float>(bytes[i * 4 + 2]) * scale);
         }
     }
     // Grade keeps values above display white and below zero on the device (no clamp on the GPU).
