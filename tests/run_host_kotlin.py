@@ -38,6 +38,15 @@ with tempfile.TemporaryDirectory(prefix='owncut-controls-') as directory:
         str(root/'tests/kotlin/ColorControlsTest.kt'),'-Werror','-include-runtime','-d',str(jar)],env=env,check=True)
     subprocess.run([str(java_home/'bin/java'),'-jar',str(jar)],env=env,check=True)
 
+# Rec.709 exposure oracle used by the parity test (pure Kotlin, no JNI).
+with tempfile.TemporaryDirectory(prefix='owncut-rec709-oracle-') as directory:
+    jar = Path(directory)/'rec709-oracle.jar'
+    subprocess.run(['bash',str(kotlin_home/'bin/kotlinc'),
+        str(root/'app/src/main/java/com/owncut/app/ColorEngine.kt'),
+        str(root/'app/src/main/java/com/owncut/app/ColorFrameBuffers.kt'),
+        str(root/'tests/kotlin/Rec709OracleTest.kt'),'-Werror','-include-runtime','-d',str(jar)],env=env,check=True)
+    subprocess.run([str(java_home/'bin/java'),'-jar',str(jar)],env=env,check=True)
+
 # Optional actual production ColorEngine bridge, not generated Android stubs.
 if len(sys.argv) == 4:
     import shutil

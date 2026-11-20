@@ -1306,3 +1306,23 @@ Run locally on the merged tree: `make test` PASS; `tests/check_ui_resources.py` 
 Kotlin host tests (`tests/run_host_kotlin.py`) PASS.
 NOT run locally: Android Gradle assemble/lint/compile (no Android SDK here); see the CI run for the merged commit.
 Phone/emulator behaviour of the new 97dcdd15 features and the merged export flow is unverified.
+
+## Colour pipeline step 2 — FP32 reference and Rec.709 parity oracle (CPU host only)
+
+Scope: `engine/color/src/color_fp32.cpp` and `include/editor/color_fp32.hpp` (RgbaF32 stages, Rec.709 transfer,
+exposure, display-only clamp, binary16 negative control); `tests/unit/color_fp32_tests.cpp`; CMake and Makefile wiring;
+`ColorFrameBuffers.renderRec709Exposure` (Kotlin oracle, fails closed on non-exposure grade fields);
+`GradedExportParityTest.kt` now compares against that Rec.709 oracle instead of the sRGB native render.
+
+Found while testing: the BT.709 OETF has a gap. The power branch maps L=0.018 to encoded 0.0812479, above the
+linear-segment end 0.081, so the round trip is exact only on the linear side (L -> encoded -> L).
+
+Run locally on this commit:
+- g++ 12.2, `-std=c++20 -Wall -Wextra -Wpedantic -Werror`: `color_fp32_tests` PASS.
+- CMake 4.4.5 (PyPI) configure and build of `owncut_color_fp32_tests`, `owncut_color_tests`, `owncut_color_gpu_tests`: PASS; full `ctest` 13/13 PASS.
+- `make test` PASS; `tests/check_ui_resources.py` PASS (510 strings); `python3 -m unittest discover -s tests` PASS.
+- `tests/run_host_kotlin.py` (Kotlin 2.3.21 from npm, JDK from PyPI) PASS, including new `tests/kotlin/Rec709OracleTest.kt`.
+
+NOT run here: Vulkan GPU path (no Vulkan runtime, no glslc/glslangValidator, no Android SDK/NDK); the GPU still writes
+8-bit output; Android Gradle compile/lint and androidTest `GradedExportParityTest` (needs a device or emulator);
+JNI host tests. Device and GPU results are unverified and user-owned (ADR 0014).

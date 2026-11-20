@@ -53,7 +53,7 @@ class GradedExportParityTest {
                 for(timeUs in listOf(250_000L,750_000L,950_000L,1_050_000L,1_250_000L,1_750_000L)) {
                     val arrays=readers.map { sample(it,timeUs) }
                     val grade=settings[if(timeUs<1_000_000L) 0 else 1]
-                    val oracle=ColorFrameBuffers.render(arrays[0],32,32,grade)
+                    val oracle=ColorFrameBuffers.renderRec709Exposure(arrays[0],32,32,grade)
                     val stats=ColorFrameBuffers.compare(oracle,arrays[1],32,32)
                     val change=ColorFrameBuffers.compare(arrays[0],arrays[1],32,32)
                     val bypass=ColorFrameBuffers.compare(arrays[0],arrays[2],32,32)

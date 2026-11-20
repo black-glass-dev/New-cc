@@ -7,6 +7,7 @@ option(OWNCUT_ENABLE_TIMELINE_ENGINE "Build modular C++20 timeline_engine" ON)
 add_library(owncut_engine
     engine/color/src/color_gpu.cpp
     engine/color/src/color.cpp
+    engine/color/src/color_fp32.cpp
     engine/session/src/session_registry.cpp
     engine/session/src/session_coordinator.cpp
     engine/graph/src/graph.cpp
@@ -88,6 +89,9 @@ if(OWNCUT_BUILD_TESTS)
     add_executable(owncut_grade_project_tests tests/unit/grade_project_tests.cpp)
     target_link_libraries(owncut_grade_project_tests PRIVATE owncut_engine)
     add_test(NAME owncut_grade_project_tests COMMAND owncut_grade_project_tests)
+    add_executable(owncut_color_fp32_tests tests/unit/color_fp32_tests.cpp)
+    target_link_libraries(owncut_color_fp32_tests PRIVATE owncut_engine)
+    add_test(NAME owncut_color_fp32_tests COMMAND owncut_color_fp32_tests)
     add_executable(owncut_color_tests tests/unit/color_tests.cpp)
     target_link_libraries(owncut_color_tests PRIVATE owncut_engine)
     add_test(NAME owncut_color_tests COMMAND owncut_color_tests)
