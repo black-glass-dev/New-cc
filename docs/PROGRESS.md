@@ -1446,7 +1446,7 @@ Verified locally:
 - `make test`: PASS, includes `yuv_convert_tests` (BT.709 limited/full, red reference, padded and interleaved planes,
   all four rotations against an independent inverse mapping, and refusals).
 - CMake host build (Ninja, Debug, `OWNCUT_BUILD_TESTS=ON`) and `ctest`: 14/14 PASS.
-- `tests/run_host_kotlin.py` with Kotlin 2.3.21 and JDK 21 (jdk4py): rc=0. `Fp32FrameLoopTest` covers bit-depth and
+- `tests/run_host_kotlin.py` with Kotlin 2.3.21 and JDK 25 (jdk4py): rc=0. `Fp32FrameLoopTest` covers bit-depth and
   container rules, the new format ids, route decisions, in-order frames, FP32 exposure (no clamp), cancel, bad input,
   and the EXR zip (entry names and EXR magic read back with `ZipInputStream`).
 - `fp32_render_jni.cpp` syntax-checked with `-Wall -Wextra -Wpedantic`: PASS.
