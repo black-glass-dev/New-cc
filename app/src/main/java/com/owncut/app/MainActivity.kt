@@ -2422,7 +2422,8 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             askExportFormat { format ->
                 // MXF is not published to the gallery in this build; it is saved through the file picker.
-                if (ExportVideoFormat.container(format) == "mxf") launchExportDocumentPicker(format)
+                // MXF and the 16/32-bit sinks (MKV, zip) are saved through the file picker, not the gallery.
+                if (ExportVideoFormat.container(format) == "mxf" || ExportVideoFormat.isFp32(format)) launchExportDocumentPicker(format)
                 else startTimelineExport(null, ExportRoute.SHIPPING, format)
             }
         } else {
@@ -2458,10 +2459,13 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
             .ifEmpty { exportClips.filter { !it.trackId.startsWith("a", ignoreCase = true) } }
             .ifEmpty { exportClips }
         // Normal export of a graded timeline uses the SDR MP4 graded route instead of a blocked shipping route.
-        val route = if(requestedRoute==ExportRoute.SHIPPING && exportClips.any { it.gradeActive }) ExportRoute.GRADED_SDR_MP4 else requestedRoute
+        val hasGrades = exportClips.any { it.gradeActive }
+        val route = ExportRoutePolicy.resolve(requestedRoute, hasGrades, chosenFormat)
+        // FP32 formats grade inside their own loop, so the plan may carry active grades on the shipping route.
+        val fp32Chosen = chosenFormat != null && ExportVideoFormat.isFp32(chosenFormat)
         val plan = try {
-            ExportRoutePolicy.requireAllowed(route,exportClips.any { it.gradeActive },Build.VERSION.SDK_INT)
-            if(route!=ExportRoute.SHIPPING) TimelineRemuxExporter.candidateGradedTimingPlan(primaryClips)
+            ExportRoutePolicy.requireAllowed(route,hasGrades,Build.VERSION.SDK_INT)
+            if(route!=ExportRoute.SHIPPING || fp32Chosen) TimelineRemuxExporter.candidateGradedTimingPlan(primaryClips)
             else TimelineRemuxExporter.makePlan(primaryClips)
         } catch (error: Exception) {
             showError(error)
@@ -2515,7 +2519,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
             var failureOutputHeight = engine?.richState()?.outputHeight ?: TimelineRenderExporter.OUTPUT_HEIGHT
             try {
                 ExportRoutePolicy.requireAllowed(route,plan.clips.any { it.gradeActive },Build.VERSION.SDK_INT)
-                if(route==ExportRoute.SHIPPING) TimelineRenderExporter.requireShippingExportSupported(plan)
+                if(route==ExportRoute.SHIPPING && !fp32Format) TimelineRenderExporter.requireShippingExportSupported(plan)
                 failureStage=ExportFailureReport.Stage.RENDERING
                 val onProgress: (String) -> Unit = { message ->
                     mainHandler.post { if (!isDestroyed) statusText.text = message }

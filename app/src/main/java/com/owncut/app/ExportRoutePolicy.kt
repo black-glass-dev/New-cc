@@ -66,6 +66,14 @@ internal object Hevc10Codec {
 
 internal enum class ExportRoute { SHIPPING, GRADED_SDR_MP4, EXPERIMENTAL_GRADED }
 internal object ExportRoutePolicy {
+    /** Route for a requested export. A plain request on a graded timeline uses the SDR MP4 graded route,
+     * except 16/32-bit formats: the FP32 loop grades each clip itself, so those stay on the shipping entry point.
+     * Pure function (no Android types) so host tests can cover it. */
+    fun resolve(requested: ExportRoute, hasActiveGrades: Boolean, format: String?): ExportRoute {
+        val fp32 = format != null && ExportVideoFormat.isFp32(format)
+        return if (requested == ExportRoute.SHIPPING && hasActiveGrades && !fp32) ExportRoute.GRADED_SDR_MP4
+        else requested
+    }
     fun requireAllowed(route: ExportRoute, hasActiveGrades: Boolean, sdk: Int) {
         require(sdk>=26)
         if(route==ExportRoute.EXPERIMENTAL_GRADED || route==ExportRoute.GRADED_SDR_MP4) {

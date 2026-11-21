@@ -1589,3 +1589,23 @@ NOT verified here:
 Follow-up on the icon commit (`cf64f7d`): `make test` rc=0 on the same tree (includes the Vulkan grade mirror test;
 the device Vulkan test SKIPs without a device). Android app and JNI and Portable C++ core CI both passed on `cf64f7d`
 (runs 44872960933, 44872960898).
+
+## Export failure on the phone: graded export routes (fix for report 855962e)
+
+Device report (Deliver screen, build 1194, revision 855962e):
+- Graded clip, MP4 export: `GRADED_SDR_MP4`, `RENDERING`, `No decoder for admitted candidate video`.
+  `SurfaceVideoDecoder.create` (the candidate decoder with raw-output evidence) returned null from
+  `MediaCodecList.findDecoderForFormat`. It now falls back to `MediaCodec.createDecoderByType(mime)`. Failure
+  still stops with a MIME-named message. GuardedCodec still checks colour and size on every rendered frame.
+- Graded clip, 16-bit or 32-bit: the route was forced to `GRADED_SDR_MP4`, but 16/32-bit is only allowed on
+  `SHIPPING`, so every 16/32-bit export on a graded timeline was refused. `ExportRoutePolicy.resolve` now keeps
+  `SHIPPING` for FP32 formats; `TimelineFp32Exporter` grades each clip itself in FP32. The shipping
+  "grade pending" guard is skipped only for FP32 formats.
+- Android 10+: FP32 formats (MKV and zip) are now saved through the file picker, like MXF. Before this they were
+  sent to the gallery path, which refuses FP32 output.
+
+Host checks run here: `tests/check_ui_resources.py` PASS (523 strings).
+Not run here: Kotlin host tests (`tests/run_host_kotlin.py` needs a JDK and Kotlin compiler, not in the sandbox).
+The new `ExportRoutePolicy.resolve` checks are in `tests/kotlin/ColorControlsTest.kt`; they run only when that script is
+run with a compiler. Android Gradle build and lint: CI. Phone export: NOT run here.
+Ungraded export on the phone was not reproduced in this sandbox; the report says all formats fail, so this is open.

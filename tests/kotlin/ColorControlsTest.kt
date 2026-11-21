@@ -66,6 +66,16 @@ fun main() {
         rejected { ExportRoutePolicy.requireAllowed(ExportRoute.EXPERIMENTAL_GRADED,false,sdk) }
     }
     rejected { ExportRoutePolicy.requireAllowed(ExportRoute.SHIPPING,false,25) }
+    // Route resolution: graded plain exports use the SDR MP4 graded route, except 16/32-bit formats
+    // which grade in the FP32 loop and must keep the shipping entry point (no "normal export only" refusal).
+    check(ExportRoutePolicy.resolve(ExportRoute.SHIPPING,true,ExportVideoFormat.MP4_H264)==ExportRoute.GRADED_SDR_MP4)
+    check(ExportRoutePolicy.resolve(ExportRoute.SHIPPING,true,null)==ExportRoute.GRADED_SDR_MP4)
+    check(ExportRoutePolicy.resolve(ExportRoute.SHIPPING,true,ExportVideoFormat.FFV1_16_MKV)==ExportRoute.SHIPPING)
+    check(ExportRoutePolicy.resolve(ExportRoute.SHIPPING,true,ExportVideoFormat.EXR_32_ZIP)==ExportRoute.SHIPPING)
+    check(ExportRoutePolicy.resolve(ExportRoute.SHIPPING,false,ExportVideoFormat.EXR_32_ZIP)==ExportRoute.SHIPPING)
+    check(ExportRoutePolicy.resolve(ExportRoute.EXPERIMENTAL_GRADED,true,ExportVideoFormat.FFV1_16_MKV)==ExportRoute.EXPERIMENTAL_GRADED)
+    check(ExportVideoFormat.isFp32(ExportVideoFormat.FFV1_16_MKV) && ExportVideoFormat.isFp32(ExportVideoFormat.EXR_32_ZIP))
+    check(!ExportVideoFormat.isFp32(ExportVideoFormat.MP4_H264))
     println("Production export reports: four phases, immutable context, nested/long/cyclic causes and invalid-context refusal passed")
     println("Production color controls: relative no-jump wheel transport, 34017 numeric range steps, saved-range preservation, bounded nested/cyclic diagnostics passed")
 }

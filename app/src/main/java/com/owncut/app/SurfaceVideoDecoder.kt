@@ -148,10 +148,15 @@ internal class SurfaceVideoDecoder private constructor(
             ColorEngine.validateVideoSource(VideoSourceProbe.color(format.colorInfo))
             val media=MediaFormatUtil.createMediaFormatFromFormat(format)
             media.setInteger(MediaFormat.KEY_ALLOW_FRAME_DROP,0)
-            val name=requireNotNull(MediaCodecList(MediaCodecList.REGULAR_CODECS).findDecoderForFormat(media)) {
-                "No decoder for admitted candidate video"
-            }
-            val codec=MediaCodec.createByCodecName(name)
+            // findDecoderForFormat can return null even when the platform decoder for the MIME exists
+            // (for example a profile/level it does not list). Fall back to the MIME decoder; configure()
+            // still rejects a truly unsupported stream, and GuardedCodec still verifies colour and size.
+            val name=MediaCodecList(MediaCodecList.REGULAR_CODECS).findDecoderForFormat(media)
+            val mime=requireNotNull(format.sampleMimeType)
+            val codec=if(name!=null) MediaCodec.createByCodecName(name)
+                else try { MediaCodec.createDecoderByType(mime) } catch(error: Exception) {
+                    throw IllegalStateException("No decoder for admitted candidate video mime=$mime", error)
+                }
             try {
                 codec.configure(media,surface,null,0)
                 codec.start()
