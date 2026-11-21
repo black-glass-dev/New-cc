@@ -2628,7 +2628,9 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                 if (destination != null) deleteFailedExportDocument(destination)
                 needsInterpretation = true
                 resultMessage = AppLanguage.text(R.string.color_export_interpret_needed)
-            } catch (error: Exception) {
+            } catch (error: Throwable) {
+                // Errors (for example UnsatisfiedLinkError from the native encoder) must also end as a report,
+                // not kill the process: an uncaught Error on this worker thread closes the app.
                 val cleaned = destination == null || deleteFailedExportDocument(destination)
                 failureReport="Owncut ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) revision=${BuildConfig.PREVIEW_REVISION} route=${route.name}\n" +
                     ExportFailureReport.details(error,failureStage,plan.clips.size,

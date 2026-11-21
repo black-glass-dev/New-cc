@@ -1609,3 +1609,20 @@ Not run here: Kotlin host tests (`tests/run_host_kotlin.py` needs a JDK and Kotl
 The new `ExportRoutePolicy.resolve` checks are in `tests/kotlin/ColorControlsTest.kt`; they run only when that script is
 run with a compiler. Android Gradle build and lint: CI. Phone export: NOT run here.
 Ungraded export on the phone was not reproduced in this sandbox; the report says all formats fail, so this is open.
+
+## Device report on build 1196 (revision 24aad9f): software HEVC, MKV playback, render crash
+
+- Ungraded H.264 export to a software HEVC format: `Transcode failed: libkvazaar open failed: Function not implemented`.
+  FFmpeg n8.1.3 `libavcodec/libkvazaar.c` returns `AVERROR(ENOSYS)` when width or height is not a multiple of 8
+  (its message: "Video dimensions are not a multiple of 8"). The software encoder size is now rounded up to a
+  multiple of 8; the existing scaler maps the decoded frame onto it (at most 7 extra pixels per side).
+  Non-HEVC encoders keep the even-size rule.
+- Render pressed and the app returned to the home screen: the export worker caught only `Exception`. An `Error`
+  (for example `UnsatisfiedLinkError` from the native library or `OutOfMemoryError`) escaped the worker thread and
+  closed the process. The export now catches `Throwable` and shows the normal failure report.
+- MKV that does not play: NOT reproduced here. The remux writes the trailer and closes the output before the
+  file is published (`OutputDeleter` closes `pb`). The gallery publish uses `video/x-matroska` in MediaStore. The
+  cause is not established; the device file, its size and the player used are needed.
+
+Host checks: none new run in this sandbox for the JNI/C++ change (Android-only compile). Android CI is the check.
+Phone export and playback: NOT run here.

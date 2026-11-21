@@ -373,8 +373,12 @@ std::string open_video_encode(AVFormatContext* input, AVFormatContext* output, i
     video.encoder = avcodec_alloc_context3(encoder_codec);
     if (video.encoder == nullptr) return "video encoder allocation failed";
     AVCodecContext* enc = video.encoder;
-    enc->width = video.decoder->width;
-    enc->height = video.decoder->height;
+    // kvazaar (FFmpeg libkvazaar.c) refuses any width or height that is not a multiple of 8, with
+    // AVERROR(ENOSYS) "Function not implemented". The scaler below maps the decoded frame onto the
+    // rounded-up size (at most 7 extra pixels per side), so software HEVC never sees odd dimensions.
+    const int size_align = software_hevc ? 8 : 2;
+    enc->width = (video.decoder->width + size_align - 1) / size_align * size_align;
+    enc->height = (video.decoder->height + size_align - 1) / size_align * size_align;
     if (codec == "hevc10") {
         enc->pix_fmt = AV_PIX_FMT_YUV420P10LE;
     } else if (software_hevc) {
