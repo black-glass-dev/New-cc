@@ -1562,3 +1562,26 @@ NOT run here (so not claimed):
 - The NDK build of the JNI files and the Kotlin compile of `GradeEngine.kt` and `TimelineFp32Exporter.kt`. No Android
   SDK, NDK or `jni.h` in the sandbox. Android CI is the check.
 - Any phone or emulator run, GPU timing, or device output comparison. The export has not been run on a phone.
+
+## Cinema Cut icon pack (Cinema-Cut.zip from `main`)
+
+What changed:
+- Launcher: `app/src/main/res/mipmap-*` (5 densities, adaptive XML, legacy and round) copied from the pack's `android/res`.
+  The manifest now sets `android:icon` and `android:roundIcon`. The app had no launcher icon before.
+- `app/src/main/res/drawable/ic_reel_mark.xml`: the pack's `app/micro-24.svg` (reel glyph, `currentColor`) converted to a
+  VectorDrawable with a tintable fill (`evenOdd`, viewport 512).
+- `StudioIcon.MEDIA` (film clips) draws the reel mark. Its tint follows the same enabled/selected/normal colours as the
+  other glyphs. `StudioIcon.OPEN` keeps the folder glyph.
+
+Not done, and why:
+- The pack has no SVG for the other ~60 editor glyphs (play, trim, split, undo, export, and so on). Those stay on the
+  hand-drawn `StudioIcon` paths. The pack contains app, reel and tile marks only.
+- The pack's iOS, web and store assets are not used by this Android app. They are not added to the repo.
+
+Verified here (host only):
+- `tests/check_ui_resources.py`: PASS (523 strings, resource parity, theme contrasts). `scripts/progress.py`: ran.
+- `tests/test_*.py`: PASS. XML well-formedness of the new drawable, manifest and adaptive icon: PASS.
+
+NOT verified here:
+- Android compile, lint, NDK build and APK assembly. No Android SDK in the sandbox. Android CI is the check.
+- How the launcher and the reel mark look on a phone. Not run on a device or emulator.

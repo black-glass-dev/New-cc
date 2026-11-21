@@ -93,6 +93,13 @@ internal class StudioButton @JvmOverloads constructor(context: Context, attrs: A
         val size = StudioUi.dp(context, 52)
         setMeasuredDimension(resolveSize(size, widthMeasureSpec), resolveSize(size, heightMeasureSpec))
     }
+    private val reelMark by lazy { context.getDrawable(R.drawable.ic_reel_mark)?.mutate() }
+    private fun drawReelMark(canvas: Canvas) {
+        val mark = reelMark ?: return
+        mark.setBounds(0, 0, 24, 24)  // canvas is already in the 24-unit icon space
+        mark.setTint(if (!isEnabled) StudioUi.muted else if (isSelected) StudioUi.accent else StudioUi.text)
+        mark.draw(canvas)
+    }
     override fun onDraw(canvas: Canvas) {
         // View.draw already rendered the RippleDrawable; do not draw the text label.
         val save = canvas.save()
@@ -125,7 +132,9 @@ internal class StudioButton @JvmOverloads constructor(context: Context, attrs: A
             }
             StudioIcon.SAVE, StudioIcon.SAVE_AS -> { path(4f,3f,17f,3f,21f,7f,21f,21f,3f,21f,3f,3f,4f,3f); box(7f,3f,15f,9f); box(7f,14f,17f,21f)
                 if(icon == StudioIcon.SAVE_AS) { line(17f,11f,23f,11f); line(20f,8f,20f,14f) } }
-            StudioIcon.OPEN, StudioIcon.MEDIA -> { path(3f,8f,3f,4f,9f,4f,12f,7f,21f,7f,21f,19f,3f,19f,3f,8f); line(3f,10f,21f,10f) }
+            // Media = film clips: the icon pack's reel mark (res/drawable/ic_reel_mark.xml), tinted like the other glyphs.
+            StudioIcon.MEDIA -> drawReelMark(canvas)
+            StudioIcon.OPEN -> { path(3f,8f,3f,4f,9f,4f,12f,7f,21f,7f,21f,19f,3f,19f,3f,8f); line(3f,10f,21f,10f) }
             StudioIcon.IMPORT -> { path(3f,15f,3f,21f,21f,21f,21f,15f); line(12f,3f,12f,16f); path(7f,11f,12f,16f,17f,11f) }
             StudioIcon.EXPORT -> { path(3f,15f,3f,21f,21f,21f,21f,15f); arrow(true) }
             StudioIcon.HOME -> { path(9f,5f,3f,12f,9f,19f); line(3f,12f,21f,12f) }
