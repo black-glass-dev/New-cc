@@ -1,0 +1,25 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#define float2 vec2
+#define float3 vec3
+#define float4 vec4
+#include "../common/math.inc"
+layout(local_size_x=64) in;
+layout(std430,binding=0) readonly buffer Source { vec4 source[]; };
+layout(std430,binding=1) buffer Counters { uint counters[]; };
+layout(std430,binding=2) readonly buffer Matrix { float xyz_matrix[]; };
+layout(push_constant) uniform Meta { uint count,width,bins,columns;float low,high;uint transfer,reserved; } m;
+uint bin_of(float x) { float span=m.high-m.low;float t=isinf(span)?(x*.5f-m.low*.5f)/(m.high*.5f-m.low*.5f):(x-m.low)/span;return min(uint(clamp(t,0.0f,1.0f)*float(m.bins)),m.bins-1u); }
+void main() {
+ uint i=gl_GlobalInvocationID.x;if(i>=m.count) return;vec3 v=source[i].rgb;float l=y709(v);uint x=i%m.width,col=min(x*m.columns/m.width,m.columns-1u),wave=m.bins*m.columns,grid=m.bins*m.bins;
+ for(uint c=0u;c<4u;++c) atomicAdd(counters[c*m.bins+bin_of(c==3u?l:v[c])],1u);
+ uint start=4u*m.bins;
+ for(uint c=0u;c<3u;++c) atomicAdd(counters[start+c*wave+col*m.bins+bin_of(v[c])],1u);
+ atomicAdd(counters[start+3u*wave+col*m.bins+bin_of(l)],1u);
+ atomicAdd(counters[start+4u*wave+bin_of((v.r/1.5748-l/1.5748)+.5)*m.bins+bin_of((v.b/1.8556-l/1.8556)+.5)],1u);
+ v=vec3(transfer_decode(v.r,m.transfer),transfer_decode(v.g,m.transfer),transfer_decode(v.b,m.transfer));
+ v/=max(max(abs(v.r),max(abs(v.g),abs(v.b))),1e-30);
+ vec3 xyz=vec3(dot(v,vec3(xyz_matrix[0],xyz_matrix[1],xyz_matrix[2])),dot(v,vec3(xyz_matrix[3],xyz_matrix[4],xyz_matrix[5])),dot(v,vec3(xyz_matrix[6],xyz_matrix[7],xyz_matrix[8])));float total=xyz.x+xyz.y+xyz.z;
+ if(total>0.0&&min(xyz.x,min(xyz.y,xyz.z))>=0.0) atomicAdd(counters[start+4u*wave+grid+bin_of(xyz.y/total)*m.bins+bin_of(xyz.x/total)],1u);
+ else atomicAdd(counters[start+4u*wave+2u*grid],1u);
+}

@@ -1,0 +1,19 @@
+#version 450
+#extension GL_GOOGLE_include_directive : require
+#define float2 vec2
+#define float3 vec3
+#define float4 vec4
+#define SPATIAL_ARG
+#define SPATIAL_PASS
+#define SP(i) parameters[i]
+layout(local_size_x=64) in;
+layout(std430,binding=0) readonly buffer Source { vec4 source[]; };
+layout(std430,binding=1) readonly buffer History { vec4 history[]; };
+layout(std430,binding=2) writeonly buffer Result { vec4 output_pixels[]; };
+layout(std430,binding=3) readonly buffer Params { float parameters[]; };
+layout(push_constant) uniform Meta { uint width,height,kind,radius; } m;
+vec4 source_pixel(uint x,uint y) { return source[y*m.width+x]; }
+vec4 history_pixel(uint x,uint y) { return history[y*m.width+x]; }
+#include "../common/math.inc"
+#include "../common/spatial.inc"
+void main() { uint i=gl_GlobalInvocationID.x;if(i>=m.width*m.height) return;output_pixels[i]=spatial_grade(i%m.width,i/m.width,m.width,m.height,m.kind,m.radius); }
