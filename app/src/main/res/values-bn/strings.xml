@@ -541,4 +541,26 @@
     <string name="hevc10_no_encoder">এই ডিভাইসে 10-bit HEVC (Main 10) encoder নেই; কোনো export তৈরি হয়নি।</string>
     <string name="hevc10_refused_output">10-bit HEVC export বাতিল: ফাইলে profile %s ঘোষণা আছে, Main 10 নয়।</string>
     <string name="hevc_software_note">এই ডিভাইসে HEVC software encoder দিয়ে তৈরি হয়েছে (ধীর হতে পারে, ফাইল ফরম্যাট একই)।</string>
+    <string name="export_settings_title" formatted="false">এক্সপোর্ট সেটিংস</string>
+    <string name="export_settings_resolution" formatted="false">রেজোলিউশন</string>
+    <string name="export_res_original" formatted="false">মূল (সোর্সের আকার)</string>
+    <string name="export_res_720" formatted="false">720p</string>
+    <string name="export_res_1080" formatted="false">1080p</string>
+    <string name="export_res_2k" formatted="false">2K (1440p)</string>
+    <string name="export_res_4k" formatted="false">4K (2160p)</string>
+    <string name="export_settings_quality" formatted="false">কোয়ালিটি</string>
+    <string name="export_quality_low" formatted="false">কম</string>
+    <string name="export_quality_medium" formatted="false">মাঝারি</string>
+    <string name="export_quality_high" formatted="false">বেশি</string>
+    <string name="export_quality_ultra" formatted="false">সর্বোচ্চ (সোর্স কোয়ালিটি)</string>
+    <string name="export_settings_profile" formatted="false">কোডেক প্রোফাইল</string>
+    <string name="export_profile_auto" formatted="false">অটো (কম/মাঝারি/বেশি/সর্বোচ্চ)</string>
+    <string name="export_profile_main" formatted="false">Main (HEVC-এ Main 10, H.264-এ Main)</string>
+    <string name="export_settings_bitrate" formatted="false">কাস্টম বিটরেট (Mbps, 1–100, খালি = কোয়ালিটি ব্যবহার)</string>
+    <string name="export_settings_bitrate_hint" formatted="false">খালি = কোয়ালিটি প্রিসেট</string>
+    <string name="export_settings_bitrate_invalid" formatted="false">১ থেকে ১০০ এর মধ্যে পূর্ণসংখ্যা লিখুন, বা খালি রাখুন</string>
+    <string name="export_settings_note" formatted="false">ডিফল্ট হলো মূল আকার ও সর্বোচ্চ কোয়ালিটি। বেশি বিটরেটে ফাইল বড় হয় এবং ধীর ফোনে সময় বেশি লাগে।</string>
+    <string name="export_settings_start" formatted="false">এক্সপোর্ট শুরু</string>
+    <string name="export_unfinished_title" formatted="false">আগের এক্সপোর্ট শেষ হয়নি</string>
+    <string name="export_unfinished_message" formatted="false">আগের এক্সপোর্ট শেষ হওয়ার আগেই থেমে গেছে। শেষ যে ধাপ নথিভুক্ত হয়েছিল তা নিচে আছে। এই রিপোর্ট কপি করে ডেভেলপারকে পাঠান।</string>
 </resources>

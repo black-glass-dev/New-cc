@@ -345,7 +345,7 @@ struct VideoEncode {
 };
 
 std::string open_video_encode(AVFormatContext* input, AVFormatContext* output, int input_index,
-                              const std::string& codec, VideoEncode& video) {
+                              const std::string& codec, int64_t requested_bit_rate, VideoEncode& video) {
     AVStream* in_stream = input->streams[input_index];
     if (in_stream->codecpar->codec_id != AV_CODEC_ID_H264) {
         return std::string("ProRes, DNxHR and software HEVC export needs an H.264 source, found: ") +
@@ -397,7 +397,8 @@ std::string open_video_encode(AVFormatContext* input, AVFormatContext* output, i
     if (software_hevc) {
         // Software HEVC on any phone: about 0.12 bit per pixel per frame, one keyframe per second.
         const double frame_rate = av_q2d(fps);
-        enc->bit_rate = std::max<int64_t>(2000000, static_cast<int64_t>(
+        // requested_bit_rate > 0 comes from the user's export settings (preset or custom Mbps).
+        enc->bit_rate = requested_bit_rate > 0 ? requested_bit_rate : std::max<int64_t>(2000000, static_cast<int64_t>(
             static_cast<double>(enc->width) * enc->height * frame_rate * 0.12));
         enc->gop_size = std::max(1, static_cast<int>(std::lround(frame_rate)));
         code = av_opt_set(enc->priv_data, "kvazaar-params", "preset=veryfast", 0);
@@ -486,7 +487,7 @@ std::string drain_video(AVFormatContext* output, VideoEncode& video) {
 }
 
 std::string transcode(const std::string& input_path, const std::string& output_path,
-                      const std::string& container, const std::string& codec) {
+                      const std::string& container, const std::string& codec, int64_t requested_bit_rate) {
     const bool is_mxf = container == "mxf";
     const bool is_mov = container == "mov";
     const bool is_mp4 = container == "mp4";
@@ -515,7 +516,7 @@ std::string transcode(const std::string& input_path, const std::string& output_p
     std::unique_ptr<AVFormatContext, OutputDeleter> output(raw_output);
 
     VideoEncode video;
-    std::string error = open_video_encode(input.get(), output.get(), video_index, codec, video);
+    std::string error = open_video_encode(input.get(), output.get(), video_index, codec, requested_bit_rate, video);
     if (!error.empty()) return error;
 
     std::map<int, std::unique_ptr<PcmTranscode>> pcm_by_input;
@@ -630,6 +631,27 @@ Java_com_owncut_app_FfmpegRemux_nativeRemux(JNIEnv* env, jobject, jstring input,
 }
 
 extern "C" JNIEXPORT jstring JNICALL
+Java_com_owncut_app_FfmpegRemux_nativeTranscodeWithBitrate(JNIEnv* env, jobject, jstring input, jstring output,
+                                                           jstring container, jstring codec, jlong bit_rate) {
+    const char* input_chars = env->GetStringUTFChars(input, nullptr);
+    const char* output_chars = env->GetStringUTFChars(output, nullptr);
+    const char* container_chars = env->GetStringUTFChars(container, nullptr);
+    const char* codec_chars = env->GetStringUTFChars(codec, nullptr);
+    std::string error;
+    try {
+        error = transcode(input_chars, output_chars, container_chars, codec_chars, static_cast<int64_t>(bit_rate));
+    } catch (const std::exception& exception) {
+        error = std::string("transcode exception: ") + exception.what();
+    }
+    env->ReleaseStringUTFChars(input, input_chars);
+    env->ReleaseStringUTFChars(output, output_chars);
+    env->ReleaseStringUTFChars(container, container_chars);
+    env->ReleaseStringUTFChars(codec, codec_chars);
+    if (error.empty()) return nullptr;
+    return env->NewStringUTF(error.c_str());
+}
+
+extern "C" JNIEXPORT jstring JNICALL
 Java_com_owncut_app_FfmpegRemux_nativeTranscode(JNIEnv* env, jobject, jstring input, jstring output,
                                                 jstring container, jstring codec) {
     const char* input_chars = env->GetStringUTFChars(input, nullptr);
@@ -638,7 +660,7 @@ Java_com_owncut_app_FfmpegRemux_nativeTranscode(JNIEnv* env, jobject, jstring in
     const char* codec_chars = env->GetStringUTFChars(codec, nullptr);
     std::string error;
     try {
-        error = transcode(input_chars, output_chars, container_chars, codec_chars);
+        error = transcode(input_chars, output_chars, container_chars, codec_chars, 0);
     } catch (const std::exception& exception) {
         error = std::string("transcode exception: ") + exception.what();
     }

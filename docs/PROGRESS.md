@@ -1626,3 +1626,19 @@ Ungraded export on the phone was not reproduced in this sandbox; the report says
 
 Host checks: none new run in this sandbox for the JNI/C++ change (Android-only compile). Android CI is the check.
 Phone export and playback: NOT run here.
+
+## Export settings: resolution, bitrate, profile (local, pending CI)
+
+- Export asks for resolution (original, 720p, 1080p, 2K, 4K), quality preset (low, medium, high, ultra) and codec
+  profile (auto, main), plus an optional custom bitrate of 1 to 100 Mbps. Defaults are original size and ultra
+  quality, so the default output keeps the source size and the highest automatic bitrate (0.25 bit per pixel per
+  frame, capped at 80 Mbps). 16/32-bit formats keep their own sink and ignore these settings.
+- Software HEVC uses the same bitrate request (`FfmpegRemux.transcode(..., bitrate)` and `nativeTranscodeWithBitrate`).
+  The old JNI entry `nativeTranscode` stays, with bitrate 0 (automatic).
+- Export breadcrumb (`ExportBreadcrumb.kt`): the export writes its settings and stage to app storage. If the process
+  dies (for example a native crash, which no Java catch sees), the next start shows the last recorded stage.
+- Strings added in English and Bengali; `tests/check_ui_resources.py` PASS (545 strings).
+- Host test `tests/kotlin/ExportSettingsTest.kt` is wired into `tests/run_host_kotlin.py`. NOT run here: no JDK or Kotlin
+  compiler in this sandbox. Native build and Android compile: CI only. Phone export at each setting: NOT run.
+- Open: the UI dialog's layout and bitrate field are not device-tested. Software HEVC pads odd sizes to a multiple of 8
+  (at most 7 extra pixels per side); the output has those pixels, not cropped.

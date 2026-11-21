@@ -541,4 +541,26 @@
     <string name="hevc10_no_encoder">10-bit HEVC (Main 10) encoder is not available on this device; nothing was exported.</string>
     <string name="hevc10_refused_output">10-bit HEVC export refused: the file declares profile %s, not Main 10.</string>
     <string name="hevc_software_note">HEVC was encoded by the software encoder on this device (slower, same file format).</string>
+    <string name="export_settings_title" formatted="false">Export settings</string>
+    <string name="export_settings_resolution" formatted="false">Resolution</string>
+    <string name="export_res_original" formatted="false">Original (source size)</string>
+    <string name="export_res_720" formatted="false">720p</string>
+    <string name="export_res_1080" formatted="false">1080p</string>
+    <string name="export_res_2k" formatted="false">2K (1440p)</string>
+    <string name="export_res_4k" formatted="false">4K (2160p)</string>
+    <string name="export_settings_quality" formatted="false">Quality</string>
+    <string name="export_quality_low" formatted="false">Low</string>
+    <string name="export_quality_medium" formatted="false">Medium</string>
+    <string name="export_quality_high" formatted="false">High</string>
+    <string name="export_quality_ultra" formatted="false">Ultra (source quality)</string>
+    <string name="export_settings_profile" formatted="false">Codec profile</string>
+    <string name="export_profile_auto" formatted="false">Auto (Low/Medium/High/Ultra)</string>
+    <string name="export_profile_main" formatted="false">Main (Main 10 for HEVC, Main for H.264)</string>
+    <string name="export_settings_bitrate" formatted="false">Custom bitrate (Mbps, 1–100, empty = use quality)</string>
+    <string name="export_settings_bitrate_hint" formatted="false">Empty = use quality preset</string>
+    <string name="export_settings_bitrate_invalid" formatted="false">Enter a whole number from 1 to 100, or leave empty</string>
+    <string name="export_settings_note" formatted="false">Original size and Ultra quality are the defaults. Higher bitrate gives larger files and takes longer on slower phones.</string>
+    <string name="export_settings_start" formatted="false">Start export</string>
+    <string name="export_unfinished_title" formatted="false">Last export did not finish</string>
+    <string name="export_unfinished_message" formatted="false">The previous export stopped before it finished. The last recorded step is below. Copy this report and send it to the developer.</string>
 </resources>

@@ -1,6 +1,7 @@
 package com.owncut.app
 
 import android.content.Context
+import android.net.Uri
 import android.os.Handler
 import android.os.HandlerThread
 import androidx.media3.common.Effect
@@ -43,9 +44,9 @@ internal object TimelineRenderExporter {
     internal fun requireShippingExportSupported(plan: TimelineRemuxExporter.Plan) {
         require(plan.clips.none { it.gradeActive }) { AppLanguage.text(R.string.color_grade_export_pending) }
     }
-    internal fun composition(plan: TimelineRemuxExporter.Plan): Composition {
+    internal fun composition(plan: TimelineRemuxExporter.Plan, settings: ExportSettings = ExportSettings.DEFAULT): Composition {
         requireShippingExportSupported(plan)
-        return buildComposition(plan,null)
+        return buildComposition(plan,null,settings=settings)
     }
 
     /** Explicit opt-in experimental route only. Shipping composition remains guarded.
@@ -60,25 +61,55 @@ internal object TimelineRenderExporter {
                 GuardedDecoderFactory(DefaultDecoderFactory.Builder(context.applicationContext).build(),colors,preserveRawOutput=true),
                 Clock.DEFAULT,null))
     }
+    /** Target bitrate for the plan's first clip at the chosen output size (also used by the software HEVC route). */
+    internal fun targetBitrate(context: Context, plan: TimelineRemuxExporter.Plan, settings: ExportSettings): Int {
+        val info = SourceFrameDecoder.probe(context, Uri.parse(plan.clips.first().mediaId))
+        val (width, height) = settings.outputSize(info.outputWidth, info.outputHeight)
+        require(info.frameRate > 0) { AppLanguage.text(R.string.export_fp32_frame_rate_missing) }
+        return settings.bitrateFor(width, height, info.frameRate.toDouble())
+    }
+
+    /** Encoder request: bitrate from the settings, plus the profile. HEVC 10-bit keeps its Main 10 request. */
+    internal fun requestedVideoSettings(context: Context, plan: TimelineRemuxExporter.Plan, videoMime: String,
+        hevc10: Boolean, settings: ExportSettings): VideoEncoderSettings {
+        val builder = VideoEncoderSettings.Builder().setBitrate(targetBitrate(context, plan, settings))
+        if (hevc10) {
+            val (profile, level) = Hevc10Export.requireEncoderLevel()
+            builder.setEncodingProfileLevel(profile, level)
+        } else if (settings.profile == ExportCodecProfile.MAIN && videoMime == MimeTypes.VIDEO_H264) {
+            // H.264 Main needs an explicit level; 4.1 covers up to 1080p, 5.1 covers 2K and 4K.
+            val level = if (settings.resolution == ExportResolution.QHD_2K || settings.resolution == ExportResolution.UHD_4K)
+                AVC_LEVEL_5_1 else AVC_LEVEL_4_1
+            builder.setEncodingProfileLevel(AVC_PROFILE_MAIN, level)
+        }
+        return builder.build()
+    }
+
+    private const val AVC_PROFILE_MAIN = 2 // MediaCodecInfo.CodecProfileLevel.AVCProfileMain
+    private const val AVC_LEVEL_4_1 = 4096 // MediaCodecInfo.CodecProfileLevel.AVCLevel41
+    private const val AVC_LEVEL_5_1 = 32768 // MediaCodecInfo.CodecProfileLevel.AVCLevel51
+
     internal fun probeCandidate(context: Context, plan: TimelineRemuxExporter.Plan,
-        revision: String, cancelled: AtomicBoolean, interpretMissing: Boolean=false): Candidate {
+        revision: String, cancelled: AtomicBoolean, interpretMissing: Boolean=false,
+        settings: ExportSettings = ExportSettings.DEFAULT): Candidate {
         check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper())
         val checkCancelled={ if (cancelled.get()) throw CancellationException("Color preparation cancelled") }
-        return candidateComposition(plan,revision,checkCancelled,sourceReader(context,checkCancelled,interpretMissing))
+        return candidateComposition(plan,revision,checkCancelled,sourceReader(context,checkCancelled,interpretMissing),settings)
     }
     internal fun candidateComposition(plan: TimelineRemuxExporter.Plan, revision: String,
-        checkCancelled: () -> Unit, readSource: (String) -> VideoSourceMetadata): Candidate {
+        checkCancelled: () -> Unit, readSource: (String) -> VideoSourceMetadata,
+        settings: ExportSettings = ExportSettings.DEFAULT): Candidate {
         val captured=plan.copy(clips=plan.clips.toList())
         val colors=ColorRenderPlan.prepare(revision,captured.clips,checkCancelled,readSource)
         val prepared=GradedFramePipeline.prepare(colors,checkCancelled)
         checkCancelled()
-        val composition=buildComposition(captured,prepared.effects,checkCancelled)
+        val composition=buildComposition(captured,prepared.effects,checkCancelled,settings)
         checkCancelled()
         return Candidate(colors,composition,prepared.factory)
     }
 
     private fun buildComposition(plan: TimelineRemuxExporter.Plan, grades: List<GlEffect>?,
-        checkCancelled: () -> Unit = {}): Composition {
+        checkCancelled: () -> Unit = {}, settings: ExportSettings = ExportSettings.DEFAULT): Composition {
         val items = plan.clips.mapIndexed { index,clip ->
             checkCancelled()
             val media = MediaItem.Builder()
@@ -100,7 +131,7 @@ internal object TimelineRenderExporter {
             .setTransmuxVideo(false)
             .setHdrMode(if (grades == null) Composition.HDR_MODE_TONE_MAP_HDR_TO_SDR_USING_OPEN_GL
                 else Composition.HDR_MODE_KEEP_HDR)
-            .setEffects(Effects(emptyList(), listOf(Presentation.createForHeight(OUTPUT_HEIGHT))))
+            .setEffects(Effects(emptyList(), listOfNotNull(settings.resolution.targetHeight?.let { Presentation.createForHeight(it) })))
             .build()
     }
 
@@ -131,6 +162,7 @@ internal object TimelineRenderExporter {
         allClips: List<ClipSnapshot>,
         tracks: List<TimelineTrackInfo>,
         grades: List<GlEffect>? = null,
+        settings: ExportSettings = ExportSettings.DEFAULT,
         checkCancelled: () -> Unit = {},
     ): Composition {
         val trackStates = tracks.associateBy { it.id }
@@ -237,7 +269,7 @@ internal object TimelineRenderExporter {
                     aspect, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP,
                 )
             }
-            globalVideoEffects += Presentation.createForHeight(OUTPUT_HEIGHT)
+            settings.resolution.targetHeight?.let { globalVideoEffects += Presentation.createForHeight(it) }
         }
 
         return Composition.Builder(sequences)
@@ -258,10 +290,11 @@ internal object TimelineRenderExporter {
         output: File,
         cancelled: AtomicBoolean,
         videoMime: String = MimeTypes.VIDEO_H264,
+        settings: ExportSettings = ExportSettings.DEFAULT,
         progress: (String) -> Unit,
     ) {
         check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper())
-        exportComposition(context,plan,output,cancelled,progress,composition(plan),null,videoMime)
+        exportComposition(context,plan,output,cancelled,progress,composition(plan,settings),null,videoMime,settings)
     }
 
     fun exportRich(
@@ -273,14 +306,15 @@ internal object TimelineRenderExporter {
         output: File,
         cancelled: AtomicBoolean,
         videoMime: String = MimeTypes.VIDEO_H264,
+        settings: ExportSettings = ExportSettings.DEFAULT,
         progress: (String) -> Unit,
     ) {
         check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper())
         requireShippingExportSupported(plan)
-        val comp = richComposition(plan, richDoc, allClips, tracks, null) {
+        val comp = richComposition(plan, richDoc, allClips, tracks, null, settings) {
             if (cancelled.get()) throw CancellationException("Export cancelled")
         }
-        exportComposition(context, plan, output, cancelled, progress, comp, null, videoMime)
+        exportComposition(context, plan, output, cancelled, progress, comp, null, videoMime, settings)
     }
 
     /** Missing tags are interpreted only with explicit consent; otherwise the export stops before encoding. */
@@ -315,6 +349,7 @@ internal object TimelineRenderExporter {
         cancelled: AtomicBoolean,
         interpretMissing: Boolean = false,
         videoMime: String = MimeTypes.VIDEO_H264,
+        settings: ExportSettings = ExportSettings.DEFAULT,
         progress: (String) -> Unit,
     ) {
         check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper())
@@ -324,9 +359,9 @@ internal object TimelineRenderExporter {
             sourceReader(context, checkCancelled, interpretMissing))
         requireSdrRec709Sources(colors)
         val prepared = GradedFramePipeline.prepare(colors, checkCancelled)
-        val comp = richComposition(captured, richDoc, allClips, tracks, prepared.effects, checkCancelled)
+        val comp = richComposition(captured, richDoc, allClips, tracks, prepared.effects, settings, checkCancelled)
         val candidate = Candidate(colors, comp, prepared.factory)
-        exportComposition(context, captured, output, cancelled, progress, comp, candidate, videoMime)
+        exportComposition(context, captured, output, cancelled, progress, comp, candidate, videoMime, settings)
     }
 
     /** Explicit test/consented experimental entry: REAL encoder path, not parity proof.
@@ -334,17 +369,17 @@ internal object TimelineRenderExporter {
      */
     internal fun exportGradedCandidate(context: Context, plan: TimelineRemuxExporter.Plan, revision: String,
         output: File, cancelled: AtomicBoolean, interpretMissing: Boolean=false, videoMime: String=MimeTypes.VIDEO_H264,
-        progress: (String) -> Unit) {
+        settings: ExportSettings = ExportSettings.DEFAULT, progress: (String) -> Unit) {
         check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper())
         val captured=plan.copy(clips=plan.clips.toList())
-        val candidate=probeCandidate(context,captured,revision,cancelled,interpretMissing)
+        val candidate=probeCandidate(context,captured,revision,cancelled,interpretMissing,settings)
         requireSdrRec709Sources(candidate.colors)
-        exportComposition(context,captured,output,cancelled,progress,candidate.composition,candidate,videoMime)
+        exportComposition(context,captured,output,cancelled,progress,candidate.composition,candidate,videoMime,settings)
     }
 
     private fun exportComposition(context: Context, plan: TimelineRemuxExporter.Plan, output: File,
         cancelled: AtomicBoolean, progress: (String) -> Unit, composition: Composition, candidate: Candidate?,
-        videoMime: String) {
+        videoMime: String, settings: ExportSettings = ExportSettings.DEFAULT) {
         val thread = HandlerThread("OwncutRender").apply { start() }
         val handler = Handler(thread.looper)
         val finished = CountDownLatch(1)
@@ -378,14 +413,8 @@ internal object TimelineRenderExporter {
                 val hevc10 = Hevc10Export.isHevc10(videoMime)
                 val platform = DefaultEncoderFactory.Builder(context.applicationContext)
                     .setEnableFallback(candidate==null && !hevc10)
-                    .apply {
-                        if (hevc10) {
-                            val (profile, level) = Hevc10Export.requireEncoderLevel()
-                            setRequestedVideoEncoderSettings(
-                                VideoEncoderSettings.Builder().setEncodingProfileLevel(profile, level).build()
-                            )
-                        }
-                    }.build()
+                    .setRequestedVideoEncoderSettings(requestedVideoSettings(context, plan, videoMime, hevc10, settings))
+                    .build()
                 val alwaysEncode = object : Codec.EncoderFactory by platform {
                     override fun videoNeedsEncoding() = true
                     override fun audioNeedsEncoding() = true

@@ -21,6 +21,9 @@ import android.view.View
 import android.view.WindowInsets
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.EditText
+import android.widget.RadioButton
+import android.widget.RadioGroup
 import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
@@ -179,6 +182,9 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
     @Suppress("DEPRECATION")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Read the marker now: a previous export that was killed (native crash) left it behind.
+        val unfinished = runCatching { ExportBreadcrumb.takeUnfinished(this) }.getOrNull()
+        if (unfinished != null) window.decorView.post { showUnfinishedExport(unfinished) }
         try {
             initializeEditor(savedInstanceState)
         } catch (error: Exception) {
@@ -2421,18 +2427,25 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         // explicit experimental route. A duplicate guard here made that dialog unreachable.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             askExportFormat { format ->
-                // MXF is not published to the gallery in this build; it is saved through the file picker.
-                // MXF and the 16/32-bit sinks (MKV, zip) are saved through the file picker, not the gallery.
-                if (ExportVideoFormat.container(format) == "mxf" || ExportVideoFormat.isFp32(format)) launchExportDocumentPicker(format)
-                else startTimelineExport(null, ExportRoute.SHIPPING, format)
+                askExportSettings(format) { settings ->
+                    // MXF and the 16/32-bit sinks (MKV, zip) are saved through the file picker, not the gallery.
+                    if (ExportVideoFormat.container(format) == "mxf" || ExportVideoFormat.isFp32(format)) {
+                        pendingExportSettings = settings
+                        launchExportDocumentPicker(format)
+                    } else startTimelineExport(null, ExportRoute.SHIPPING, format, settings)
+                }
             }
         } else {
             // Choose the container first so the save dialog offers the matching MIME type and extension.
-            askExportFormat { format -> launchExportDocumentPicker(format) }
+            askExportFormat { format -> askExportSettings(format) { settings ->
+                pendingExportSettings = settings
+                launchExportDocumentPicker(format)
+            } }
         }
     }
 
     private var pendingExportFormat: String? = null
+    private var pendingExportSettings: ExportSettings? = null
 
     private fun launchExportDocumentPicker(format: String) {
         pendingExportFormat = format
@@ -2444,7 +2457,8 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         startActivityForResult(intent, REQUEST_EXPORT_VIDEO)
     }
 
-    private fun startTimelineExport(destination: Uri?, requestedRoute: ExportRoute=ExportRoute.SHIPPING, chosenFormat: String?=null) {
+    private fun startTimelineExport(destination: Uri?, requestedRoute: ExportRoute=ExportRoute.SHIPPING, chosenFormat: String?=null,
+        settings: ExportSettings = ExportSettings.DEFAULT) {
         if (projectIoBusy) return
         if (chosenFormat == null) {
             askExportFormat { format -> startTimelineExport(destination, requestedRoute, format) }
@@ -2483,15 +2497,16 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                 .setMessage(AppLanguage.text(R.string.message_73a9853a46, plan.omittedGapFrames, omittedGapMs))
                 .setNegativeButton(AppLanguage.text(R.string.message_ca21daf138)) { _, _ -> destination?.let { deleteFailedExportDocument(it) } }
                 .setOnCancelListener { destination?.let { deleteFailedExportDocument(it) } }
-                .setPositiveButton(AppLanguage.text(R.string.message_8cee3592bb)) { _, _ -> beginTimelineExport(destination, plan, route, videoFormat = chosenFormat) }
+                .setPositiveButton(AppLanguage.text(R.string.message_8cee3592bb)) { _, _ -> beginTimelineExport(destination, plan, route, videoFormat = chosenFormat, settings = settings) }
                 .show()
         } else {
-            beginTimelineExport(destination, plan, route, videoFormat = chosenFormat)
+            beginTimelineExport(destination, plan, route, videoFormat = chosenFormat, settings = settings)
         }
     }
 
     private fun beginTimelineExport(destination: Uri?, plan: TimelineRemuxExporter.Plan,
-        route: ExportRoute=ExportRoute.SHIPPING, interpretMissing: Boolean=false, videoFormat: String=ExportVideoFormat.MP4_H264) {
+        route: ExportRoute=ExportRoute.SHIPPING, interpretMissing: Boolean=false, videoFormat: String=ExportVideoFormat.MP4_H264,
+        settings: ExportSettings = ExportSettings.DEFAULT) {
         if (projectIoBusy) return
         val cancellation = AtomicBoolean(false)
         exportCancellation = cancellation
@@ -2503,6 +2518,10 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
         statusText.text = AppLanguage.text(R.string.message_d7e376c6eb)
         val codecMime = ExportVideoFormat.encoderMime(videoFormat)
         exportExecutor.execute {
+            ExportBreadcrumb.begin(this@MainActivity, "Owncut ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) " +
+                "revision=${BuildConfig.PREVIEW_REVISION} route=${route.name} format=$videoFormat " +
+                "resolution=${settings.resolution.name} quality=${settings.quality.name} " +
+                "customMbps=${settings.customMbps ?: "auto"} profile=${settings.profile.name} clips=${plan.clips.size}")
             // FP32 formats write their own container (MKV or zip); everything else starts as MP4.
             val fp32Format = ExportVideoFormat.isFp32(videoFormat)
             var temporary = File(cacheDir, "owncut-export-${System.nanoTime()}." +
@@ -2521,6 +2540,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                 ExportRoutePolicy.requireAllowed(route,plan.clips.any { it.gradeActive },Build.VERSION.SDK_INT)
                 if(route==ExportRoute.SHIPPING && !fp32Format) TimelineRenderExporter.requireShippingExportSupported(plan)
                 failureStage=ExportFailureReport.Stage.RENDERING
+                ExportBreadcrumb.stage(this@MainActivity, "RENDERING")
                 val onProgress: (String) -> Unit = { message ->
                     mainHandler.post { if (!isDestroyed) statusText.text = message }
                 }
@@ -2549,20 +2569,20 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                         if (useRichPipeline) {
                             TimelineRenderExporter.exportRichGraded(
                                 this@MainActivity, plan, "explicit-candidate-${System.nanoTime()}",
-                                richDoc, allClipsSnapshot, trackInfos, temporary, cancellation, interpretMissing, mime, onProgress
+                                richDoc, allClipsSnapshot, trackInfos, temporary, cancellation, interpretMissing, mime, settings, onProgress
                             )
                         } else {
                             TimelineRenderExporter.exportGradedCandidate(this@MainActivity,plan,
-                                "explicit-candidate-${System.nanoTime()}",temporary,cancellation,interpretMissing,mime,onProgress)
+                                "explicit-candidate-${System.nanoTime()}",temporary,cancellation,interpretMissing,mime,settings,onProgress)
                         }
                     } else {
                         if (useRichPipeline) {
                             TimelineRenderExporter.exportRich(
                                 this@MainActivity, plan, richDoc, allClipsSnapshot, trackInfos,
-                                temporary, cancellation, mime, onProgress
+                                temporary, cancellation, mime, settings, onProgress
                             )
                         } else {
-                            TimelineRenderExporter.export(this@MainActivity,plan,temporary,cancellation,mime,onProgress)
+                            TimelineRenderExporter.export(this@MainActivity,plan,temporary,cancellation,mime,settings,onProgress)
                         }
                     }
                 }
@@ -2588,8 +2608,10 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                 }
                 if (softwareHevc) {
                     // Software kvazaar encode of the H.264 export into an MP4, then the container remux.
+                    ExportBreadcrumb.stage(this@MainActivity, "SOFTWARE_HEVC ${ExportVideoFormat.softwareHevcCodec(videoFormat)}")
                     val encoded = File(cacheDir, "owncut-hevc-${System.nanoTime()}.mp4")
-                    FfmpegRemux.transcode(temporary, encoded, "mp4", ExportVideoFormat.softwareHevcCodec(videoFormat))
+                    FfmpegRemux.transcode(temporary, encoded, "mp4", ExportVideoFormat.softwareHevcCodec(videoFormat),
+                        TimelineRenderExporter.targetBitrate(this@MainActivity, plan, settings))
                     temporary.delete()
                     if (hevc10) Hevc10Export.requireMain10Output(encoded)
                     temporary = encoded
@@ -2597,6 +2619,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                 }
                 if (container != "mp4" && !fp32Format) {
                     // Stream copy of the finished MP4 into MOV or Matroska; no re-encode.
+                    ExportBreadcrumb.stage(this@MainActivity, "REMUX $container")
                     val remuxed = File(cacheDir, "owncut-remux-${System.nanoTime()}.$container")
                     if (ExportVideoFormat.isTranscoded(videoFormat)) {
                         FfmpegRemux.transcode(temporary, remuxed, container, ExportVideoFormat.codecMime(videoFormat))
@@ -2607,6 +2630,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                     temporary = remuxed
                 }
 
+                ExportBreadcrumb.stage(this@MainActivity, "PUBLISH ${if (destination == null) "gallery" else "document"}")
                 if (destination == null) {
                     failureStage=ExportFailureReport.Stage.PUBLISHING_GALLERY
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -2639,6 +2663,7 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                     if (cleaned) "" else AppLanguage.text(R.string.message_360e86bda3)
             } finally {
                 temporary.delete()
+                ExportBreadcrumb.finish(this@MainActivity)
                 exportCancellation = null
                 mainHandler.post {
                     if (!isDestroyed) {
@@ -2649,11 +2674,110 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
                         cancelExportButton.text = AppLanguage.text(R.string.message_90f2b63925)
                         statusText.text = resultMessage
                         failureReport?.let { showExportFailureDetails(it) }
-                        if (needsInterpretation) confirmInterpretMissingExport(destination, plan, route, videoFormat)
+                        if (needsInterpretation) confirmInterpretMissingExport(destination, plan, route, videoFormat, settings)
                     }
                 }
             }
         }
+    }
+
+    /** Resolution, quality preset, codec profile and optional custom bitrate. Default: original size, Ultra. */
+    private fun askExportSettings(format: String, onChosen: (ExportSettings) -> Unit) {
+        if (isFinishing || isDestroyed) return
+        // 16/32-bit formats have their own sink and ignore these settings.
+        if (ExportVideoFormat.isFp32(format)) { onChosen(ExportSettings.DEFAULT); return }
+        val density = resources.displayMetrics.density
+        fun dp(value: Int) = (value * density).toInt()
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(8), dp(16), dp(8))
+            setBackgroundColor(StudioUi.background)
+        }
+        fun heading(res: Int) = TextView(this).apply {
+            text = AppLanguage.text(res); textSize = 14f; setTextColor(StudioUi.accent)
+            setTypeface(null, android.graphics.Typeface.BOLD); setPadding(0, dp(12), 0, dp(4))
+        }
+        fun <T> group(options: List<Pair<T, Int>>, selected: T, onSelect: (T) -> Unit): RadioGroup {
+            val ids = HashMap<Int, T>()
+            val radio = RadioGroup(this).apply { orientation = RadioGroup.VERTICAL }
+            options.forEach { (value, label) ->
+                val button = RadioButton(this).apply {
+                    id = View.generateViewId(); text = AppLanguage.text(label); textSize = 14f
+                    setTextColor(StudioUi.text); minHeight = dp(48); minimumHeight = dp(48)
+                    isChecked = value == selected
+                }
+                ids[button.id] = value
+                radio.addView(button)
+            }
+            radio.setOnCheckedChangeListener { _, id -> ids[id]?.let(onSelect) }
+            return radio
+        }
+        var resolution = ExportResolution.ORIGINAL
+        var quality = ExportQuality.ULTRA
+        var profile = ExportCodecProfile.AUTO
+        root.addView(heading(R.string.export_settings_resolution))
+        root.addView(group(listOf(
+            ExportResolution.ORIGINAL to R.string.export_res_original,
+            ExportResolution.P720 to R.string.export_res_720,
+            ExportResolution.P1080 to R.string.export_res_1080,
+            ExportResolution.QHD_2K to R.string.export_res_2k,
+            ExportResolution.UHD_4K to R.string.export_res_4k,
+        ), resolution) { resolution = it })
+        root.addView(heading(R.string.export_settings_quality))
+        root.addView(group(listOf(
+            ExportQuality.LOW to R.string.export_quality_low,
+            ExportQuality.MEDIUM to R.string.export_quality_medium,
+            ExportQuality.HIGH to R.string.export_quality_high,
+            ExportQuality.ULTRA to R.string.export_quality_ultra,
+        ), quality) { quality = it })
+        root.addView(heading(R.string.export_settings_profile))
+        root.addView(group(listOf(
+            ExportCodecProfile.AUTO to R.string.export_profile_auto,
+            ExportCodecProfile.MAIN to R.string.export_profile_main,
+        ), profile) { profile = it })
+        root.addView(heading(R.string.export_settings_bitrate))
+        val bitrate = EditText(this).apply {
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            hint = AppLanguage.text(R.string.export_settings_bitrate_hint)
+            setHintTextColor(StudioUi.muted); setTextColor(StudioUi.text)
+            minHeight = dp(48); minimumHeight = dp(48)
+        }
+        root.addView(bitrate)
+        root.addView(TextView(this).apply {
+            text = AppLanguage.text(R.string.export_settings_note); textSize = 12f; setTextColor(StudioUi.muted)
+            setPadding(0, dp(8), 0, 0)
+        })
+        val scroll = ScrollView(this).apply { addView(root) }
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(AppLanguage.text(R.string.export_settings_title))
+            .setView(scroll)
+            .setPositiveButton(AppLanguage.text(R.string.export_settings_start), null)
+            .setNegativeButton(AppLanguage.text(R.string.message_ca21daf138), null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val custom = try {
+                    ExportSettings.parseCustomMbps(bitrate.text.toString())
+                } catch (error: IllegalArgumentException) {
+                    bitrate.error = AppLanguage.text(R.string.export_settings_bitrate_invalid)
+                    return@setOnClickListener
+                }
+                dialog.dismiss()
+                onChosen(ExportSettings(resolution = resolution, quality = quality, customMbps = custom, profile = profile))
+            }
+        }
+        dialog.show()
+    }
+
+    /** Shown once at the next start when the previous export never reached its end (see ExportBreadcrumb). */
+    private fun showUnfinishedExport(text: String) {
+        if (isFinishing || isDestroyed) return
+        AlertDialog.Builder(this)
+            .setTitle(AppLanguage.text(R.string.export_unfinished_title))
+            .setMessage(AppLanguage.text(R.string.export_unfinished_message) + "\n\n" + text)
+            .setNeutralButton(AppLanguage.text(R.string.color_copy_report)) { _, _ -> PreviewDiagnostics.copy(this, text) }
+            .setPositiveButton(AppLanguage.text(R.string.color_details_close), null)
+            .show()
     }
 
     /** MP4, MOV and MKV with H.264 or HEVC. Gallery publishing still needs Android 10+ (unchanged). */
@@ -2687,14 +2811,15 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
     }
 
     /** Explicit per-export consent for interpreting missing color tags; cancel keeps the export blocked. */
-    private fun confirmInterpretMissingExport(destination: Uri?, plan: TimelineRemuxExporter.Plan, route: ExportRoute, videoFormat: String) {
+    private fun confirmInterpretMissingExport(destination: Uri?, plan: TimelineRemuxExporter.Plan, route: ExportRoute, videoFormat: String,
+        settings: ExportSettings) {
         if (projectIoBusy || isFinishing || isDestroyed) return
         AlertDialog.Builder(this)
             .setTitle(AppLanguage.text(R.string.color_input_title))
             .setMessage(AppLanguage.text(R.string.color_input_warning))
             .setNegativeButton(AppLanguage.text(R.string.message_ca21daf138), null)
             .setPositiveButton(AppLanguage.text(R.string.color_input_assume)) { _, _ ->
-                beginTimelineExport(destination, plan, route, interpretMissing = true, videoFormat = videoFormat)
+                beginTimelineExport(destination, plan, route, interpretMissing = true, videoFormat = videoFormat, settings = settings)
             }.show()
     }
 
@@ -2919,8 +3044,10 @@ class MainActivity : LocalizedActivity(), TextureView.SurfaceTextureListener {
             REQUEST_PROJECT_OPEN -> confirmOpenProjectDocument(uri)
             REQUEST_EXPORT_VIDEO -> {
                 val format = pendingExportFormat
+                val settings = pendingExportSettings ?: ExportSettings.DEFAULT
                 pendingExportFormat = null
-                startTimelineExport(uri, ExportRoute.SHIPPING, format)
+                pendingExportSettings = null
+                startTimelineExport(uri, ExportRoute.SHIPPING, format, settings)
             }
         }
     }
