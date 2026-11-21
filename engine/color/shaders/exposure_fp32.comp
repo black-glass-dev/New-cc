@@ -1,0 +1,54 @@
+#version 450
+// Rec.709 exposure stage, FP32 storage image output (step 2, Vulkan compute).
+// Mirrors engine/color/src/color_fp32.cpp: decode Rec.709 -> linear, multiply by 2^stops, encode Rec.709.
+// Input : packed RGBA8 bytes in memory order (byte0=R, byte1=G, byte2=B, byte3=A), one uint per pixel.
+// Output: RGBA32F storage image holding encoded Rec.709 values. NO clamp here: values above 1.0 survive
+//         until the explicit display conversion. Alpha is passed through (byte / 255).
+// Compile to SPIR-V with scripts/build_color_shaders.py (Vulkan 1.0 target env).
+
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+layout(std430, set = 0, binding = 0) readonly buffer SourceRgba8 {
+    uint pixels[];
+} src;
+
+layout(set = 0, binding = 1, rgba32f) writeonly uniform image2D dst;
+
+layout(push_constant) uniform Params {
+    uint width;
+    uint height;
+    float exposure_scale; // 2^stops, computed on the host in double and stored as float
+    float reserved;
+} params;
+
+// Same constants as color_fp32.cpp. Linear segment: 4.5*L below 0.081 encoded.
+float rec709_to_linear(float e) {
+    float a = abs(e);
+    float l = (a < 0.081) ? (a / 4.5) : pow((a + 0.099) / 1.099, 1.0 / 0.45);
+    return (e < 0.0) ? -l : l;
+}
+
+float rec709_from_linear(float l) {
+    float a = abs(l);
+    float e = (a < 0.018) ? (a * 4.5) : (1.099 * pow(a, 0.45) - 0.099);
+    return (l < 0.0) ? -e : e;
+}
+
+void main() {
+    uvec2 p = gl_GlobalInvocationID.xy;
+    if (p.x >= params.width || p.y >= params.height) {
+        return;
+    }
+    uint packed = src.pixels[p.y * params.width + p.x];
+    float r = float(packed & 0xFFu) / 255.0;
+    float g = float((packed >> 8) & 0xFFu) / 255.0;
+    float b = float((packed >> 16) & 0xFFu) / 255.0;
+    float a = float((packed >> 24) & 0xFFu) / 255.0;
+
+    vec4 graded = vec4(
+        rec709_from_linear(rec709_to_linear(r) * params.exposure_scale),
+        rec709_from_linear(rec709_to_linear(g) * params.exposure_scale),
+        rec709_from_linear(rec709_to_linear(b) * params.exposure_scale),
+        a);
+    imageStore(dst, ivec2(p), graded);
+}

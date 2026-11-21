@@ -1,0 +1,139 @@
+cmake_minimum_required(VERSION 3.20)
+project(owncut_engine VERSION 0.1.0 LANGUAGES CXX)
+
+option(OWNCUT_BUILD_TESTS "Build portable engine unit tests" ON)
+option(OWNCUT_ENABLE_TIMELINE_ENGINE "Build modular C++20 timeline_engine" ON)
+
+add_library(owncut_engine
+    engine/color/src/color_gpu.cpp
+    engine/color/src/color.cpp
+    engine/color/src/color_fp32.cpp
+    engine/color/src/color_output.cpp
+    engine/color/src/yuv_convert.cpp
+    engine/session/src/session_registry.cpp
+    engine/session/src/session_coordinator.cpp
+    engine/graph/src/graph.cpp
+    engine/core/src/time.cpp
+    engine/timeline/src/timeline.cpp
+    engine/commands/src/command_history.cpp
+    engine/project/src/project.cpp)
+target_include_directories(owncut_engine PUBLIC
+    engine/color/include
+    engine/session/include
+    engine/graph/include
+    engine/core/include
+    engine/timeline/include
+    engine/commands/include
+    engine/project/include)
+target_compile_features(owncut_engine PUBLIC cxx_std_20)
+find_package(Threads REQUIRED)
+target_link_libraries(owncut_engine PUBLIC Threads::Threads)
+set_target_properties(owncut_engine PROPERTIES POSITION_INDEPENDENT_CODE ON)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(owncut_engine PRIVATE -Wall -Wextra -Wpedantic -Wconversion -Wsign-conversion)
+endif()
+
+if(OWNCUT_ENABLE_TIMELINE_ENGINE)
+    set(OWNCUT_TIMELINE_BUILD_TESTS ${OWNCUT_BUILD_TESTS})
+    set(OWNCUT_TIMELINE_BUNDLE_JNI OFF)
+    if(ANDROID)
+        set(OWNCUT_TIMELINE_WARNINGS_AS_ERRORS OFF)
+    endif()
+    add_subdirectory(modules/timeline_engine)
+endif()
+
+if(ANDROID)
+    set(OWNCUT_ANDROID_SOURCES
+        platform/android/jni/editor_jni.cpp
+        platform/android/jni/color_jni.cpp
+        platform/android/jni/color_module_jni.cpp
+        platform/android/jni/fp32_render_jni.cpp
+        platform/android/jni/grade_fp32_jni.cpp
+        engine/color/src/color_vulkan.cpp)
+    if(OWNCUT_ENABLE_TIMELINE_ENGINE)
+        list(APPEND OWNCUT_ANDROID_SOURCES
+            modules/timeline_engine/bridge/android_jni.cpp
+            platform/android/jni/audio_fx_jni.cpp
+            platform/android/jni/reframe_jni.cpp)
+    endif()
+    add_library(owncut_android SHARED ${OWNCUT_ANDROID_SOURCES})
+    target_link_libraries(owncut_android PRIVATE owncut_engine)
+    if(OWNCUT_ENABLE_TIMELINE_ENGINE)
+        target_link_libraries(owncut_android PRIVATE timeline_engine::timeline_engine)
+    endif()
+    # Standalone color reference module, Android APK only (CPU path). Host CI does not build it.
+    set(COLOR_BUILD_TESTS OFF)
+    set(COLOR_BUILD_VULKAN OFF)
+    set(COLOR_WARNINGS_AS_ERRORS OFF)
+    add_subdirectory(modules/color_engine)
+    target_link_libraries(owncut_android PRIVATE color::engine)
+    # NDK Vulkan loader (API 24+). Exposure compute falls back to the CPU reference when no device exists.
+    target_link_libraries(owncut_android PRIVATE vulkan)
+    target_compile_features(owncut_android PRIVATE cxx_std_20)
+    # LGPL FFmpeg (scripts/build_ffmpeg_android.sh) for stream-copy MOV/MKV remux. Required for the APK.
+    if(NOT DEFINED OWNCUT_FFMPEG_ROOT)
+        set(OWNCUT_FFMPEG_ROOT "$ENV{OWNCUT_FFMPEG_ROOT}")
+    endif()
+    if(NOT OWNCUT_FFMPEG_ROOT OR NOT IS_DIRECTORY "${OWNCUT_FFMPEG_ROOT}/${ANDROID_ABI}/lib")
+        message(FATAL_ERROR "OWNCUT_FFMPEG_ROOT must contain <root>/${ANDROID_ABI}/lib (run scripts/build_ffmpeg_android.sh)")
+    endif()
+    set(OWNCUT_FFMPEG_ABI_DIR "${OWNCUT_FFMPEG_ROOT}/${ANDROID_ABI}")
+    foreach(ffmpeg_lib IN ITEMS avformat avcodec avutil swresample swscale kvazaar)
+        add_library(ffmpeg_${ffmpeg_lib} STATIC IMPORTED)
+        set_target_properties(ffmpeg_${ffmpeg_lib} PROPERTIES
+            IMPORTED_LOCATION "${OWNCUT_FFMPEG_ABI_DIR}/lib/lib${ffmpeg_lib}.a")
+    endforeach()
+    target_sources(owncut_android PRIVATE platform/android/jni/ffmpeg_remux_jni.cpp platform/android/jni/ffv1_writer_jni.cpp)
+    target_include_directories(owncut_android PRIVATE "${OWNCUT_FFMPEG_ABI_DIR}/include")
+    target_link_libraries(owncut_android PRIVATE ffmpeg_avformat ffmpeg_avcodec ffmpeg_kvazaar ffmpeg_swresample ffmpeg_swscale ffmpeg_avutil)
+endif()
+
+if(OWNCUT_BUILD_TESTS)
+    enable_testing()
+    add_executable(owncut_color_gpu_tests tests/unit/color_gpu_tests.cpp)
+    target_link_libraries(owncut_color_gpu_tests PRIVATE owncut_engine)
+    add_test(NAME owncut_color_gpu_tests COMMAND owncut_color_gpu_tests)
+    add_executable(owncut_grade_project_tests tests/unit/grade_project_tests.cpp)
+    target_link_libraries(owncut_grade_project_tests PRIVATE owncut_engine)
+    add_test(NAME owncut_grade_project_tests COMMAND owncut_grade_project_tests)
+    add_executable(owncut_color_fp32_tests tests/unit/color_fp32_tests.cpp)
+    target_link_libraries(owncut_color_fp32_tests PRIVATE owncut_engine)
+    add_test(NAME owncut_color_fp32_tests COMMAND owncut_color_fp32_tests)
+    add_executable(owncut_grade_shader_mirror_tests tests/unit/color_grade_shader_mirror_tests.cpp)
+    target_link_libraries(owncut_grade_shader_mirror_tests PRIVATE owncut_engine)
+    add_test(NAME owncut_grade_shader_mirror_tests COMMAND owncut_grade_shader_mirror_tests)
+    add_executable(owncut_yuv_convert_tests tests/unit/yuv_convert_tests.cpp)
+    target_link_libraries(owncut_yuv_convert_tests PRIVATE owncut_engine)
+    add_test(NAME owncut_yuv_convert_tests COMMAND owncut_yuv_convert_tests)
+    # Vulkan compute exposure (step 2). Host-only, built when a Vulkan loader and headers exist (CI installs them).
+    # The test exits 77 (skipped) when no Vulkan device is present; that is not a GPU result.
+    find_package(Vulkan QUIET)
+    if(Vulkan_FOUND)
+        add_library(owncut_color_vulkan STATIC engine/color/src/color_vulkan.cpp)
+        target_include_directories(owncut_color_vulkan PUBLIC engine/color/include)
+        target_link_libraries(owncut_color_vulkan PUBLIC owncut_engine Vulkan::Vulkan)
+        add_executable(owncut_color_vulkan_tests tests/unit/color_vulkan_tests.cpp)
+        target_link_libraries(owncut_color_vulkan_tests PRIVATE owncut_color_vulkan)
+        add_test(NAME owncut_color_vulkan_tests COMMAND owncut_color_vulkan_tests)
+        set_tests_properties(owncut_color_vulkan_tests PROPERTIES SKIP_RETURN_CODE 77)
+    else()
+        message(STATUS "Vulkan not found: owncut_color_vulkan_tests not built")
+    endif()
+    add_executable(owncut_color_tests tests/unit/color_tests.cpp)
+    target_link_libraries(owncut_color_tests PRIVATE owncut_engine)
+    add_test(NAME owncut_color_tests COMMAND owncut_color_tests)
+    add_executable(owncut_core_tests tests/unit/core_tests.cpp)
+    target_link_libraries(owncut_core_tests PRIVATE owncut_engine)
+    add_test(NAME owncut_core_tests COMMAND owncut_core_tests)
+    add_executable(owncut_session_tests tests/unit/session_tests.cpp)
+    target_link_libraries(owncut_session_tests PRIVATE owncut_engine Threads::Threads)
+    add_test(NAME owncut_session_tests COMMAND owncut_session_tests)
+    add_executable(owncut_checkpoint_tests tests/unit/checkpoint_tests.cpp)
+    target_link_libraries(owncut_checkpoint_tests PRIVATE owncut_engine Threads::Threads)
+    add_test(NAME owncut_checkpoint_tests COMMAND owncut_checkpoint_tests)
+    if(OWNCUT_ENABLE_TIMELINE_ENGINE)
+        add_executable(owncut_timeline_integration_tests tests/unit/timeline_integration_tests.cpp)
+        target_link_libraries(owncut_timeline_integration_tests PRIVATE owncut_engine timeline_engine::timeline_engine)
+        add_test(NAME owncut_timeline_integration_tests COMMAND owncut_timeline_integration_tests)
+    endif()
+endif()

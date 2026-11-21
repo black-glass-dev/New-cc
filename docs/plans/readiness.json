@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "metric": "weighted feature-readiness estimate, not engineering hours or measured completion of all professional editing features",
+  "scope": "ADVANCED_ARCHITECTURE v1, revise weights explicitly if scope changes",
+  "items": [
+    {
+      "id": "domain_foundation",
+      "weight": 5,
+      "status": "verified",
+      "evidence": "Rational time, native timeline and bounded project codec; existing CI/device milestones"
+    },
+    {
+      "id": "basic_edits",
+      "weight": 5,
+      "status": "verified",
+      "evidence": "Import, split/trim/move/delete/history tested and user accepted"
+    },
+    {
+      "id": "preview_playhead",
+      "weight": 3,
+      "status": "verified",
+      "evidence": "Actual MediaPlayer seek/playhead tests and phone feedback"
+    },
+    {
+      "id": "baseline_render",
+      "weight": 4,
+      "status": "verified",
+      "evidence": "Sequential SDR H264/AAC render, Gallery and consent; CI plus phone feedback"
+    },
+    {
+      "id": "project_library_ui",
+      "weight": 4,
+      "status": "verified",
+      "evidence": "Project library, bilingual UI, themes; cb5bfa7 and user acceptance"
+    },
+    {
+      "id": "existing_reliability",
+      "weight": 2,
+      "status": "verified",
+      "evidence": "Relink, history retention and publication failure tests"
+    },
+    {
+      "id": "graph_contract",
+      "weight": 2,
+      "status": "verified",
+      "evidence": "Structural typed DAG only, not evaluation"
+    },
+    {
+      "id": "managed_storage",
+      "weight": 3,
+      "status": "in_progress",
+      "evidence": "Implemented; Android 39796552264 at 8a6aab4 full emulator suite passed, but integrated install-over gate failed. Follow-up diagnostic blocked by billing; no readiness credit yet."
+    },
+    {
+      "id": "session_coordinator",
+      "weight": 4,
+      "status": "in_progress",
+      "evidence": "Native coordinator/checkpoint receipts, pinned opaque JNI handles, exact revision pages, immutable Kotlin cache and viewport projections implemented; Make/CMake, ASan+UBSan, real JVM JNI and production pure Kotlin host tests passed. Full Activity/controller lifecycle, byte-bounded UI consumption and Android acceptance remain pending; ADRs 0013–0015. No new readiness credit."
+    },
+    {
+      "id": "update_delivery",
+      "weight": 5,
+      "status": "blocked",
+      "evidence": "Stable key/certificate configuration required; pipeline and replace-install tests added"
+    },
+    {
+      "id": "persisted_node_evaluator",
+      "weight": 18,
+      "status": "planned",
+      "evidence": "Registry, versioned graph persistence, identity/transform evaluator and preview/export parity"
+    },
+    {
+      "id": "compositor",
+      "weight": 12,
+      "status": "planned",
+      "evidence": "Multitrack merge/masks/gap rendering and shared scheduler"
+    },
+    {
+      "id": "animation",
+      "weight": 8,
+      "status": "planned",
+      "evidence": "Keyframes, curves, motion/title tools"
+    },
+    {
+      "id": "color",
+      "weight": 8,
+      "status": "in_progress",
+      "evidence": "Phase 1A processor and phase 1B per-clip native history/v2 persistence/v0-v1 migration/immutable grade snapshots implemented; five native suites, sanitizer and real JVM/Kotlin host tests pass. Android acceptance, live color-managed preview/export, controls/scopes/curves/LUT remain pending; active-grade export refuses to prevent silent loss. ADRs 0016/0017; no new verified color credit."
+    },
+    {
+      "id": "audio",
+      "weight": 7,
+      "status": "planned",
+      "evidence": "Sample-clock mixer, buses, effects and automation"
+    },
+    {
+      "id": "proxy_performance",
+      "weight": 5,
+      "status": "planned",
+      "evidence": "Proxies, bounded caches, thermal/device performance validation"
+    },
+    {
+      "id": "custom_raw",
+      "weight": 5,
+      "status": "blocked",
+      "evidence": "ccraw format specification and samples not supplied"
+    }
+  ]
+}

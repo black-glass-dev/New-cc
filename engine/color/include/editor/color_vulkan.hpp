@@ -1,0 +1,59 @@
+#pragma once
+
+// Vulkan compute path for the FP32 colour pipeline (step 2). Host-tested only where a Vulkan device exists.
+//
+// Contract:
+//  * Input is packed RGBA8 bytes (R,G,B,A per pixel, row-major, tightly packed).
+//  * The shader writes an RGBA32F storage image (binary32 per channel) with Rec.709 exposure applied.
+//    No clamp happens on the GPU; values above 1.0 survive. Display conversion is the caller's job.
+//  * Matches editor::color::fp32::rec709_exposure up to float rounding of pow() on the device.
+//  * If no Vulkan device with the required features exists, the constructor throws NoVulkanDevice.
+//    Callers must treat that as "GPU path unavailable" and must not silently substitute another path.
+//  * grade(): the same Rec.709 grade as fp32::Rec709Grader (color::Pipeline::linear), evaluated in binary32
+//    on the device. Parameters are computed from the double-precision Grade on the host and stored as float.
+//  * Neither path is wired into the Android export or preview path by this header alone; see the JNI bridge.
+
+#include "editor/color.hpp"
+#include "editor/color_fp32.hpp"
+
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <span>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
+namespace editor::color::vulkan {
+
+class NoVulkanDevice : public std::runtime_error {
+public:
+    using std::runtime_error::runtime_error;
+};
+
+class ExposureCompute final {
+public:
+    // Throws NoVulkanDevice when no compute-capable device with RGBA32F storage images is present.
+    ExposureCompute();
+    ~ExposureCompute();
+    ExposureCompute(const ExposureCompute&) = delete;
+    ExposureCompute& operator=(const ExposureCompute&) = delete;
+
+    // Requires rgba8.size() == width*height*4, width and height > 0, stops finite in [-8, 8].
+    std::vector<fp32::RgbaF32> render(std::span<const std::uint8_t> rgba8, std::uint32_t width,
+                                      std::uint32_t height, float exposure_stops);
+
+    // FP32 Rec.709 grade, same arithmetic as fp32::Rec709Grader. Validates the grade (color::validate) and
+    // dimensions before any device work. Throws std::invalid_argument on bad input and std::runtime_error when
+    // the device produces a non-finite value, so the caller never receives a silently corrupt frame.
+    std::vector<fp32::RgbaF32> grade(std::span<const std::uint8_t> rgba8, std::uint32_t width,
+                                     std::uint32_t height, const color::Grade& grade);
+
+    const std::string& device_name() const noexcept;
+
+private:
+    struct Impl;
+    std::unique_ptr<Impl> impl_;
+};
+
+} // namespace editor::color::vulkan

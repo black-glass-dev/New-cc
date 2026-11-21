@@ -1,0 +1,97 @@
+package com.owncut.app
+
+/** A candidate is reachable only after explicit UI consent, never automatic fallback. */
+/** GRADED_SDR_MP4: normal export of graded clips, SDR Rec.709 sources only (checked in exporter). */
+/** Raised by the export worker when a graded source needs an explicit user choice for missing color tags. */
+internal class ColorTagsInterpretationRequired : IllegalStateException("Missing color tags need explicit interpretation")
+
+/** Format ids are "container:codecMime". MOV and MKV are stream-copy remuxes of the MP4 export, and MXF is a
+ * remux with AAC audio resampled to 48 kHz PCM (LGPL FFmpeg). MXF is H.264 only in this build.
+ * ProRes, DNxHR and 10-bit HEVC (Main 10, see Hevc10Export) are offered; AV1 and WEBM are not offered yet. */
+internal object ExportVideoFormat {
+    const val MP4_H264 = "mp4:video/avc"
+    const val MP4_HEVC = "mp4:video/hevc"
+    const val MOV_H264 = "mov:video/avc"
+    const val MOV_HEVC = "mov:video/hevc"
+    const val MKV_H264 = "mkv:video/avc"
+    const val MKV_HEVC = "mkv:video/hevc"
+    const val MXF_H264 = "mxf:video/avc"
+    const val PRORES_422_MOV = "mov:prores422"
+    const val DNXHR_HQ_MOV = "mov:dnxhr_hq"
+    const val DNXHR_HQ_MXF = "mxf:dnxhr_hq"
+    const val MP4_HEVC10 = "mp4:video/hevc10"
+    const val MOV_HEVC10 = "mov:video/hevc10"
+    const val MKV_HEVC10 = "mkv:video/hevc10"
+    /** 16-bit: FFV1 in MKV, from the FP32 frame loop (codec id "ffv1"). */
+    const val FFV1_16_MKV = "mkv:ffv1"
+    /** 32-bit: zip of uncompressed float EXR frames, from the FP32 frame loop (codec id "exr"). */
+    const val EXR_32_ZIP = "zip:exr"
+    val ALL = listOf(MP4_H264, MP4_HEVC, MOV_H264, MOV_HEVC, MKV_H264, MKV_HEVC, MXF_H264,
+        PRORES_422_MOV, DNXHR_HQ_MOV, DNXHR_HQ_MXF, MP4_HEVC10, MOV_HEVC10, MKV_HEVC10,
+        FFV1_16_MKV, EXR_32_ZIP)
+    /** True for the formats written by the FP32 frame loop instead of the Media3 Transformer. */
+    fun isFp32(format: String) = codecMime(format).let { it == "ffv1" || it == "exr" }
+    /** Output bit depth of a format id. */
+    fun bitDepth(format: String): OutputBitDepth = when (codecMime(format)) {
+        "ffv1" -> OutputBitDepth.SIXTEEN
+        "exr" -> OutputBitDepth.THIRTY_TWO
+        Hevc10Codec.HEVC10_MIME -> OutputBitDepth.TEN
+        else -> OutputBitDepth.EIGHT
+    }
+    fun container(format: String) = format.substringBefore(':')
+    fun codecMime(format: String) = format.substringAfter(':')
+    /** ProRes and DNxHR are encoded by FFmpeg from the platform H.264 export (a second generation). */
+    fun isTranscoded(format: String) = codecMime(format) == "prores422" || codecMime(format) == "dnxhr_hq"
+    /** HEVC 8-bit or 10-bit formats: hardware Transformer first, software kvazaar when the device has no encoder. */
+    fun isHevcFamily(format: String) = codecMime(format).let { it == "video/hevc" || it == Hevc10Codec.HEVC10_MIME }
+    /** The software codec id for the FFmpeg transcode of an H.264 export. */
+    fun softwareHevcCodec(format: String) = if (Hevc10Codec.isHevc10(codecMime(format))) "hevc10" else "hevc8"
+    /** The codec the platform Transformer encodes. Transcoded formats start from H.264. */
+    fun encoderMime(format: String) = if (isTranscoded(format)) "video/avc" else codecMime(format)
+    fun publishMime(format: String) = when (container(format)) {
+        "mov" -> "video/quicktime"
+        "mkv" -> "video/x-matroska"
+        "mxf" -> "application/mxf"
+        "zip" -> "application/zip"
+        else -> "video/mp4"
+    }
+}
+
+/** Pure format-id marker for 10-bit HEVC (no Android dependency, so host tests can use it).
+ * Not a real MIME type; the exporter maps it to video/hevc. */
+internal object Hevc10Codec {
+    const val HEVC10_MIME = "video/hevc10"
+    fun isHevc10(codecMime: String) = codecMime == HEVC10_MIME
+}
+
+internal enum class ExportRoute { SHIPPING, GRADED_SDR_MP4, EXPERIMENTAL_GRADED }
+internal object ExportRoutePolicy {
+    /** Route for a requested export. A plain request on a graded timeline uses the SDR MP4 graded route,
+     * except 16/32-bit formats: the FP32 loop grades each clip itself, so those stay on the shipping entry point.
+     * Pure function (no Android types) so host tests can cover it. */
+    fun resolve(requested: ExportRoute, hasActiveGrades: Boolean, format: String?): ExportRoute {
+        val fp32 = format != null && ExportVideoFormat.isFp32(format)
+        return if (requested == ExportRoute.SHIPPING && hasActiveGrades && !fp32) ExportRoute.GRADED_SDR_MP4
+        else requested
+    }
+    fun requireAllowed(route: ExportRoute, hasActiveGrades: Boolean, sdk: Int) {
+        require(sdk>=26)
+        if(route==ExportRoute.EXPERIMENTAL_GRADED || route==ExportRoute.GRADED_SDR_MP4) {
+            require(sdk>=29) { "Experimental graded export requires Android10+" }
+            require(hasActiveGrades) { "Experimental graded route requires an active grade" }
+        }
+    }
+}
+
+/** Which pipeline a bit-depth choice uses. TRANSFORMER = existing Media3/HEVC path (8 and 10 bit).
+ * FP32_LOOP = the FP32 frame loop with a 16-bit FFV1 MKV or 32-bit EXR sequence sink. */
+internal enum class BitDepthRoute { TRANSFORMER, FP32_LOOP }
+
+internal object ExportBitDepthRoute {
+    /** Refuses incompatible container/depth pairs, then returns the pipeline. Pure: no Android dependency. */
+    fun of(depth: OutputBitDepth, container: String): BitDepthRoute {
+        OutputBitDepthPolicy.requireCompatible(depth, container)
+        return if (OutputBitDepthPolicy.writerFor(depth) == Fp32Writer.NONE) BitDepthRoute.TRANSFORMER
+        else BitDepthRoute.FP32_LOOP
+    }
+}
