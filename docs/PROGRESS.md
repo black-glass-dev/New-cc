@@ -1585,3 +1585,7 @@ Verified here (host only):
 NOT verified here:
 - Android compile, lint, NDK build and APK assembly. No Android SDK in the sandbox. Android CI is the check.
 - How the launcher and the reel mark look on a phone. Not run on a device or emulator.
+
+Follow-up on the icon commit (`cf64f7d`): `make test` rc=0 on the same tree (includes the Vulkan grade mirror test;
+the device Vulkan test SKIPs without a device). Android app and JNI and Portable C++ core CI both passed on `cf64f7d`
+(runs 44872960933, 44872960898).
