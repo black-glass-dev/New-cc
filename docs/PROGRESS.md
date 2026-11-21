@@ -1642,3 +1642,7 @@ Phone export and playback: NOT run here.
   compiler in this sandbox. Native build and Android compile: CI only. Phone export at each setting: NOT run.
 - Open: the UI dialog's layout and bitrate field are not device-tested. Software HEVC pads odd sizes to a multiple of 8
   (at most 7 extra pixels per side); the output has those pixels, not cropped.
+- CI on d9178e2 failed at "Build APK, lint and compile device tests". Cause found by reading the diff: `candidateComposition`
+  took `settings` after its trailing `readSource` lambda, so `ColorSourcePlanTest` (androidTest) no longer compiled.
+  Fixed by moving `settings` before `readSource`. The Gradle log could not be downloaded (EOF), so this is the only
+  error found by reading; Kotlin cannot be compiled in this sandbox.

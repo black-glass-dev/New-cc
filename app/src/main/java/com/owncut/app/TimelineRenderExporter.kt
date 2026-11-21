@@ -94,11 +94,13 @@ internal object TimelineRenderExporter {
         settings: ExportSettings = ExportSettings.DEFAULT): Candidate {
         check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper())
         val checkCancelled={ if (cancelled.get()) throw CancellationException("Color preparation cancelled") }
-        return candidateComposition(plan,revision,checkCancelled,sourceReader(context,checkCancelled,interpretMissing),settings)
+        return candidateComposition(plan,revision,checkCancelled,settings = settings,
+            readSource = sourceReader(context,checkCancelled,interpretMissing))
     }
+    // settings sits before readSource so the trailing-lambda call sites (tests) still bind readSource.
     internal fun candidateComposition(plan: TimelineRemuxExporter.Plan, revision: String,
-        checkCancelled: () -> Unit, readSource: (String) -> VideoSourceMetadata,
-        settings: ExportSettings = ExportSettings.DEFAULT): Candidate {
+        checkCancelled: () -> Unit, settings: ExportSettings = ExportSettings.DEFAULT,
+        readSource: (String) -> VideoSourceMetadata): Candidate {
         val captured=plan.copy(clips=plan.clips.toList())
         val colors=ColorRenderPlan.prepare(revision,captured.clips,checkCancelled,readSource)
         val prepared=GradedFramePipeline.prepare(colors,checkCancelled)
